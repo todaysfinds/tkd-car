@@ -149,17 +149,19 @@
                                                 <span class="text-xs font-medium text-gray-700">
                                                     📍 {{ location }}
                                                 </span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
                                             </div>
-                                            <div class="space-y-1">
+                                            
+                                            <!-- 해당 장소의 학생들 (반응형 배치) -->
+                                            <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
-                                                <div class="flex items-center justify-between text-xs bg-gray-50 p-1 rounded">
-                                                    <span class="text-gray-800">{{ student_data.student.name }}</span>
-                                                    <button onclick="removeStudentFromSchedule({{ student_data.student.id }}, {{ day_num }})" 
-                                                            class="text-red-500 hover:text-red-700 text-xs">✕</button>
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 p-1 rounded border border-pink-200 min-w-[60px] max-w-[120px]">
+                                                    <span class="text-gray-800 truncate">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -167,7 +169,7 @@
                                         {% endfor %}
                                     {% endif %}
                                     
-                                    <button onclick="addNewLocation({{ day_num }}, 2)" 
+                                    <button onclick="addNewLocation({{ day_num }}, 2, 'pickup')" 
                                             class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-2 hover:bg-pink-50">
                                         + 새 장소 추가
                                     </button>
@@ -222,17 +224,19 @@
                                                 <span class="text-xs font-medium text-gray-700">
                                                     📍 {{ location }}
                                                 </span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
                                             </div>
-                                            <div class="space-y-1">
+                                            
+                                            <!-- 해당 장소의 학생들 (반응형 배치) -->
+                                            <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
-                                                <div class="flex items-center justify-between text-xs bg-gray-50 p-1 rounded">
-                                                    <span class="text-gray-800">{{ student_data.student.name }}</span>
-                                                    <button onclick="removeStudentFromSchedule({{ student_data.student.id }}, {{ day_num }})" 
-                                                            class="text-red-500 hover:text-red-700 text-xs">✕</button>
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 p-1 rounded border border-pink-200 min-w-[60px] max-w-[120px]">
+                                                    <span class="text-gray-800 truncate">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -240,7 +244,7 @@
                                         {% endfor %}
                                     {% endif %}
                                     
-                                    <button onclick="addNewLocation({{ day_num }}, 3)" 
+                                    <button onclick="addNewLocation({{ day_num }}, 3, 'pickup')" 
                                             class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-2 hover:bg-pink-50">
                                         + 새 장소 추가
                                     </button>
@@ -295,17 +299,19 @@
                                                 <span class="text-xs font-medium text-gray-700">
                                                     📍 {{ location }}
                                                 </span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 4, '{{ location }}')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 4, '{{ location }}', 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
                                             </div>
-                                            <div class="space-y-1">
+                                            
+                                            <!-- 해당 장소의 학생들 (반응형 배치) -->
+                                            <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
-                                                <div class="flex items-center justify-between text-xs bg-gray-50 p-1 rounded">
-                                                    <span class="text-gray-800">{{ student_data.student.name }}</span>
-                                                    <button onclick="removeStudentFromSchedule({{ student_data.student.id }}, {{ day_num }})" 
-                                                            class="text-red-500 hover:text-red-700 text-xs">✕</button>
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 p-1 rounded border border-pink-200 min-w-[60px] max-w-[120px]">
+                                                    <span class="text-gray-800 truncate">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 4, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -313,7 +319,7 @@
                                         {% endfor %}
                                     {% endif %}
                                     
-                                    <button onclick="addNewLocation({{ day_num }}, 4)" 
+                                    <button onclick="addNewLocation({{ day_num }}, 4, 'pickup')" 
                                             class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-2 hover:bg-pink-50">
                                         + 새 장소 추가
                                     </button>
