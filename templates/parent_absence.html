@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block page_title %}학부모 요청{% endblock %}
+
+{% block content %}
+<div class="px-4 py-4">
+    <div class="card p-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-6">차량 운행 요청</h2>
+        
+        <form method="POST" class="space-y-6">
+            <!-- 자녀 선택 -->
+            <div>
+                <label for="student_id" class="block text-sm font-medium text-gray-700 mb-2">
+                    자녀 선택 <span class="text-red-500">*</span>
+                </label>
+                <select name="student_id" id="student_id" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">자녀를 선택해주세요</option>
+                    {% for student in students %}
+                    <option value="{{ student.id }}">{{ student.name }} ({{ student.grade or '학년 미등록' }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- 요청 유형 -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-3">
+                    요청 유형 <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-3">
+                    <label class="flex items-start space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" name="request_type" value="absence" class="mt-1" required>
+                        <div>
+                            <div class="font-medium text-gray-900">결석</div>
+                            <div class="text-sm text-gray-600">아픔, 여행 등으로 학원에 오지 않음</div>
+                        </div>
+                    </label>
+                    
+                    <label class="flex items-start space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" name="request_type" value="pickup_skip" class="mt-1" required>
+                        <div>
+                            <div class="font-medium text-gray-900">직접 등원</div>
+                            <div class="text-sm text-gray-600">차량 픽업 없이 직접 데려다 주겠음</div>
+                        </div>
+                    </label>
+                    
+                    <label class="flex items-start space-x-3 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                        <input type="radio" name="request_type" value="dropoff_skip" class="mt-1" required>
+                        <div>
+                            <div class="font-medium text-gray-900">도장 픽업</div>
+                            <div class="text-sm text-gray-600">차량 하차 없이 도장에서 직접 데려가겠음</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 사유 선택 (결석시에만 표시) -->
+            <div id="reasonSection" class="hidden">
+                <label for="reason" class="block text-sm font-medium text-gray-700 mb-2">
+                    사유
+                </label>
+                <select name="reason" id="reason"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">사유를 선택해주세요</option>
+                    <option value="아픔">아픔</option>
+                    <option value="여행">여행</option>
+                    <option value="개인사정">개인사정</option>
+                    <option value="기타">기타</option>
+                </select>
+            </div>
+
+            <!-- 날짜 선택 -->
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="start_date" class="block text-sm font-medium text-gray-700 mb-2">
+                        시작일 <span class="text-red-500">*</span>
+                    </label>
+                    <input type="date" name="start_date" id="start_date" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                
+                <div>
+                    <label for="end_date" class="block text-sm font-medium text-gray-700 mb-2">
+                        종료일 <span class="text-xs text-gray-500">(단일일 경우 비워둠)</span>
+                    </label>
+                    <input type="date" name="end_date" id="end_date"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- 메모 -->
+            <div>
+                <label for="memo" class="block text-sm font-medium text-gray-700 mb-2">
+                    추가 메모
+                </label>
+                <textarea name="memo" id="memo" rows="3" placeholder="추가로 전달할 내용이 있으면 작성해주세요"
+                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"></textarea>
+            </div>
+
+            <!-- 출석으로 변경 안내 -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div class="flex items-start space-x-2">
+                    <span class="text-blue-500">💡</span>
+                    <div class="text-sm text-blue-700">
+                        <p class="font-medium mb-1">출석으로 변경하는 경우</p>
+                        <p>결석 신청 후 다시 출석하게 되는 경우, 같은 방법으로 출석 요청을 다시 제출해주세요.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 제출 버튼 -->
+            <div class="flex space-x-3">
+                <button type="button" onclick="history.back()" 
+                        class="flex-1 btn-secondary">
+                    취소
+                </button>
+                <button type="submit" class="flex-1 btn-primary">
+                    요청 제출
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 이용 안내 -->
+    <div class="mt-6 card p-4">
+        <h3 class="font-medium text-gray-900 mb-3">이용 안내</h3>
+        <ul class="text-sm text-gray-600 space-y-2">
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-500 mt-0.5">•</span>
+                <span>요청 제출 후 관리자 승인이 필요합니다.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-500 mt-0.5">•</span>
+                <span>급한 경우 도장으로 직접 연락해주세요.</span>
+            </li>
+            <li class="flex items-start space-x-2">
+                <span class="text-blue-500 mt-0.5">•</span>
+                <span>승인된 요청은 당일 운행 명단에 반영됩니다.</span>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<script>
+// 오늘 날짜를 기본값으로 설정
+document.getElementById('start_date').valueAsDate = new Date();
+
+// 요청 유형에 따른 사유 섹션 표시/숨김
+document.querySelectorAll('input[name="request_type"]').forEach(radio => {
+    radio.addEventListener('change', function() {
+        const reasonSection = document.getElementById('reasonSection');
+        const reasonSelect = document.getElementById('reason');
+        
+        if (this.value === 'absence') {
+            reasonSection.classList.remove('hidden');
+            reasonSelect.required = true;
+        } else {
+            reasonSection.classList.add('hidden');
+            reasonSelect.required = false;
+            reasonSelect.value = '';
+        }
+    });
+});
+
+// 종료일은 시작일 이후로만 선택 가능
+document.getElementById('start_date').addEventListener('change', function() {
+    const endDateInput = document.getElementById('end_date');
+    endDateInput.min = this.value;
+    
+    // 종료일이 시작일보다 이전이면 초기화
+    if (endDateInput.value && endDateInput.value < this.value) {
+        endDateInput.value = '';
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>장소 및 시간 관리</title>
+    <link href="/static/dist/output.css" rel="stylesheet">
+</head>
+<body class="bg-gray-50">
+    <div class="px-4 py-4 pb-20">
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-xl font-bold text-gray-900">장소 및 시간 관리</h1>
+            <button onclick="openLocationModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                + 새 장소 추가
+            </button>
+        </div>
+
+        <!-- 장소별 학생 목록 -->
+        <div class="space-y-4">
+            {% for location, students in location_groups.items() %}
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold text-gray-900">{{ location }}</h2>
+                    <div class="flex space-x-2">
+                        <button onclick="editLocation('{{ location }}')" class="text-blue-600 text-sm px-3 py-1 hover:bg-blue-50 rounded">
+                            수정
+                        </button>
+                        <button onclick="deleteLocation('{{ location }}')" class="text-red-600 text-sm px-3 py-1 hover:bg-red-50 rounded">
+                            삭제
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    {% for student in students %}
+                    <div class="flex items-center justify-between bg-gray-50 rounded p-3">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-sm font-medium">{{ student.name }}</span>
+                            <span class="text-xs text-gray-500">{{ student.estimated_pickup_time }}</span>
+                            <span class="text-xs text-gray-500">{{ student.session_part }}부</span>
+                            {% if student.memo %}
+                            <span class="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">{{ student.memo }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="editStudentLocation({{ student.id }})" class="text-blue-600 text-xs px-2 py-1 hover:bg-blue-50 rounded">
+                                수정
+                            </button>
+                            <button onclick="removeStudentFromLocation({{ student.id }})" class="text-red-600 text-xs px-2 py-1 hover:bg-red-50 rounded">
+                                제거
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 장소 추가/수정 모달 -->
+    <div id="locationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4" id="locationModalTitle">새 장소 추가</h3>
+            
+            <form id="locationForm" class="space-y-4">
+                <input type="hidden" id="originalLocationName" value="">
+                
+                <div>
+                    <label for="locationName" class="block text-sm font-medium text-gray-700 mb-1">장소명</label>
+                    <input type="text" id="locationName" placeholder="예: 현대홈타운" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div>
+                    <label for="locationTime" class="block text-sm font-medium text-gray-700 mb-1">기본 시간</label>
+                    <input type="time" id="locationTime" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeLocationModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">취소</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 학생 정보 수정 모달 -->
+    <div id="studentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-semibold mb-4">학생 정보 수정</h3>
+            
+            <form id="studentForm" class="space-y-4">
+                <input type="hidden" id="studentId" value="">
+                
+                <div>
+                    <label for="studentName" class="block text-sm font-medium text-gray-700 mb-1">학생명</label>
+                    <input type="text" id="studentName" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div>
+                    <label for="studentLocation" class="block text-sm font-medium text-gray-700 mb-1">장소</label>
+                    <select id="studentLocation" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <!-- JavaScript로 동적 로드 -->
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="studentTime" class="block text-sm font-medium text-gray-700 mb-1">픽업 시간</label>
+                    <input type="time" id="studentTime" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div>
+                    <label for="studentSession" class="block text-sm font-medium text-gray-700 mb-1">세션</label>
+                    <select id="studentSession" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="1">1부</option>
+                        <option value="2">2부</option>
+                        <option value="3">3부</option>
+                        <option value="4">4부</option>
+                        <option value="5">5부</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="studentMemo" class="block text-sm font-medium text-gray-700 mb-1">메모</label>
+                    <input type="text" id="studentMemo" placeholder="특이사항" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div class="flex space-x-3 pt-4">
+                    <button type="button" onclick="closeStudentModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">취소</button>
+                    <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">저장</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+    function openLocationModal() {
+        document.getElementById('locationModalTitle').textContent = '새 장소 추가';
+        document.getElementById('originalLocationName').value = '';
+        document.getElementById('locationForm').reset();
+        document.getElementById('locationModal').classList.remove('hidden');
+    }
+
+    function editLocation(locationName) {
+        document.getElementById('locationModalTitle').textContent = '장소 수정';
+        document.getElementById('originalLocationName').value = locationName;
+        document.getElementById('locationName').value = locationName;
+        document.getElementById('locationModal').classList.remove('hidden');
+    }
+
+    function closeLocationModal() {
+        document.getElementById('locationModal').classList.add('hidden');
+    }
+
+    function deleteLocation(locationName) {
+        if (confirm(`"${locationName}" 장소를 삭제하시겠습니까? 이 장소에 속한 모든 학생들의 장소 정보가 초기화됩니다.`)) {
+            fetch('/api/delete_location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    location_name: locationName
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('삭제 중 오류가 발생했습니다.');
+                }
+            });
+        }
+    }
+
+    function editStudentLocation(studentId) {
+        fetch(`/api/get_student/${studentId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('studentId').value = studentId;
+                    document.getElementById('studentName').value = data.student.name;
+                    document.getElementById('studentTime').value = data.student.estimated_pickup_time || '';
+                    document.getElementById('studentSession').value = data.student.session_part || '1';
+                    document.getElementById('studentMemo').value = data.student.memo || '';
+                    
+                    loadLocationOptions();
+                    document.getElementById('studentModal').classList.remove('hidden');
+                }
+            });
+    }
+
+    function closeStudentModal() {
+        document.getElementById('studentModal').classList.add('hidden');
+    }
+
+    function removeStudentFromLocation(studentId) {
+        if (confirm('이 학생을 현재 장소에서 제거하시겠습니까?')) {
+            fetch('/api/update_student_location', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    location: '',
+                    pickup_time: '',
+                    session_part: 1,
+                    memo: ''
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('제거 중 오류가 발생했습니다.');
+                }
+            });
+        }
+    }
+
+    function loadLocationOptions() {
+        fetch('/api/get_locations')
+            .then(response => response.json())
+            .then(data => {
+                const select = document.getElementById('studentLocation');
+                select.innerHTML = '<option value="">장소 선택</option>';
+                data.locations.forEach(location => {
+                    const option = document.createElement('option');
+                    option.value = location;
+                    option.textContent = location;
+                    select.appendChild(option);
+                });
+            });
+    }
+
+    // 폼 제출 이벤트
+    document.getElementById('locationForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const originalName = document.getElementById('originalLocationName').value;
+        const newName = document.getElementById('locationName').value;
+        const time = document.getElementById('locationTime').value;
+        
+        if (!newName.trim()) {
+            alert('장소명을 입력해주세요.');
+            return;
+        }
+        
+        const endpoint = originalName ? '/api/update_location' : '/api/add_location';
+        const data = originalName ? 
+            { original_name: originalName, new_name: newName, default_time: time } :
+            { name: newName, default_time: time };
+        
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || '저장 중 오류가 발생했습니다.');
+            }
+        });
+    });
+
+    document.getElementById('studentForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const studentId = document.getElementById('studentId').value;
+        const name = document.getElementById('studentName').value;
+        const location = document.getElementById('studentLocation').value;
+        const time = document.getElementById('studentTime').value;
+        const session = document.getElementById('studentSession').value;
+        const memo = document.getElementById('studentMemo').value;
+        
+        fetch('/api/update_student_location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                name: name,
+                location: location,
+                pickup_time: time,
+                session_part: session,
+                memo: memo
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('저장 중 오류가 발생했습니다.');
+            }
+        });
+    });
+    </script>
+</body>
+</html> 

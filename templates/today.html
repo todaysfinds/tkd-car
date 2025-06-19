@@ -1,0 +1,622 @@
+{% extends "base.html" %}
+
+{% block page_title %}오늘 운행 현황{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6">
+    <!-- 대기 중인 요청 알림 -->
+    {% set pending_requests = [] %}
+    {% for time_key, locations in time_groups.items() %}
+        {% for location, students in locations.items() %}
+            {% for student_data in students %}
+                {% if student_data.request and student_data.request.status == 'pending' %}
+                    {% set _ = pending_requests.append(student_data.request) %}
+                {% endif %}
+            {% endfor %}
+        {% endfor %}
+    {% endfor %}
+
+    {% if pending_requests %}
+        <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <h3 class="text-sm font-semibold text-orange-800 mb-3">승인 대기 중인 요청 ({{ pending_requests|length }}건)</h3>
+            {% for request in pending_requests %}
+            <div class="bg-orange-100 border border-orange-300 rounded-lg p-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1">
+                        <span class="text-sm font-medium text-orange-800">{{ request.student.name }}</span>
+                        <span class="text-xs text-orange-600 ml-2">
+                            {% if request.request_type == 'absence' %}결석 요청{% endif %}
+                            {% if request.request_type == 'pickup_skip' %}직접등원 요청{% endif %}
+                            {% if request.request_type == 'dropoff_skip' %}도장픽업 요청{% endif %}
+                        </span>
+                    </div>
+                    <button onclick="approveRequest({{ request.id }})"
+                            class="bg-orange-600 hover:bg-orange-700 text-white text-xs px-3 py-1 rounded">
+                        승인
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+            
+            {% if pending_requests|length > 1 %}
+            <button onclick="approveAllRequests()" 
+                    class="w-full bg-orange-600 hover:bg-orange-700 text-white text-sm py-2 rounded-lg">
+                모든 요청 일괄 승인
+            </button>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if time_groups %}
+        <!-- 시간대 네비게이션 (화살표 고정, 시간 버튼 중앙 정렬) -->
+        <div class="relative mb-6">
+            <div class="flex items-center">
+                <!-- 왼쪽 화살표 (고정) -->
+                <button onclick="previousSlide()" 
+                        class="flex-shrink-0 w-10 h-10 bg-white hover:bg-gray-50 flex items-center justify-center text-lg border border-gray-300 rounded-xl shadow-sm z-10 mr-3 transition-colors">
+                    ⬅️
+                </button>
+                
+                <!-- 시간 버튼들 (중앙 정렬, 스크롤 가능) -->
+                <div class="flex-1 overflow-x-auto scrollbar-hide" id="timeNavContainer">
+                    <div class="flex space-x-3 px-2">
+                        {% for time_key in time_groups.keys() %}
+                        <button onclick="scrollToTimeSlot('{{ time_key }}')" id="nav-{{ time_key }}"
+                                class="flex-shrink-0 px-3 py-2 text-xs font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm whitespace-nowrap">
+                            {{ time_key.replace(' PM', '') }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- 오른쪽 화살표 (고정) -->
+                <button onclick="nextSlide()" 
+                        class="flex-shrink-0 w-10 h-10 bg-white hover:bg-gray-50 flex items-center justify-center text-lg border border-gray-300 rounded-xl shadow-sm z-10 ml-3 transition-colors">
+                    ➡️
+                </button>
+            </div>
+        </div>
+
+        <!-- 시간대별 슬라이드 -->
+        <div class="space-y-6" id="timeSlides">
+            {% for time_key, locations in time_groups.items() %}
+            <div class="slide-item" id="slot-{{ time_key }}" style="display: none;">
+                <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-6">
+                    <!-- 시간대 헤더 -->
+                    <div class="mb-6 text-center">
+                        <div class="flex items-center justify-center mb-2">
+                            <h2 class="text-2xl font-bold text-gray-900">{{ time_key }}</h2>
+                            <button onclick="toggleTimeSlotMemo('{{ time_key }}')" 
+                                    class="ml-3 p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                    title="시간대 메모">
+                                📝
+                            </button>
+                        </div>
+                        <div class="w-16 h-1 bg-blue-500 rounded-full mx-auto"></div>
+                        
+                        <!-- 시간대별 메모 -->
+                        <div id="memo-{{ time_key }}" class="mt-4 hidden">
+                            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 max-w-md mx-auto">
+                                <textarea 
+                                    id="memo-input-{{ time_key }}"
+                                    placeholder="임시 학생이나 특이사항을 메모하세요..."
+                                    class="w-full bg-white border border-yellow-300 rounded px-3 py-2 text-sm resize-none focus:ring-yellow-500 focus:border-yellow-500"
+                                    rows="3"
+                                    onchange="saveTimeSlotMemo('{{ time_key }}', this.value)"></textarea>
+                                <div class="flex justify-between items-center mt-2">
+                                    <span class="text-xs text-yellow-600">💡 일회성 메모 (내일 초기화됨)</span>
+                                    <button onclick="clearTimeSlotMemo('{{ time_key }}')" 
+                                            class="text-xs text-red-500 hover:text-red-700">지우기</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 장소별로 그룹화된 학생 목록 -->
+                    {% for location, students in locations.items() %}
+                    <div class="mb-8 last:mb-0">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
+                                {{ location }}
+                                {% if students[0].student.estimated_pickup_time %}
+                                    <span class="ml-2 text-xs text-gray-600">{{ students[0].student.estimated_pickup_time }}</span>
+                                {% endif %}
+                            </span>
+                            <button onclick="completeLocationGroup('{{ time_key }}', '{{ location }}')"
+                                    class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-lg transition-colors">
+                                장소 완료
+                            </button>
+                        </div>
+                        
+                        <!-- 학생들을 좌우로 나열 -->
+                        <div class="flex flex-wrap gap-2 mb-6">
+                            {% for student_data in students %}
+                                {% set student = student_data.student %}
+                                {% set attendance = student_data.attendance %}
+                                {% set request = student_data.request %}
+                                
+                                {% if request and request.status == 'approved' %}
+                                    <!-- 승인된 요청 (비활성화) -->
+                                    <div class="inline-flex items-center bg-gray-100 border-2 border-gray-300 rounded-xl px-3 py-2">
+                                        <button onclick="showRequestInfo('{{ student.name }}', '{{ request.request_type }}', '{{ request.reason or '' }}')"
+                                                class="text-sm font-medium text-gray-600">
+                                            {{ student.name }}
+                                        </button>
+                                        <span class="text-sm ml-2">
+                                            {% if request.request_type == 'absence' %}❌{% endif %}
+                                            {% if request.request_type == 'pickup_skip' %}🏠{% endif %}
+                                            {% if request.request_type == 'dropoff_skip' %}🏫{% endif %}
+                                        </span>
+                                    </div>
+                                {% elif attendance and attendance.pickup_status == 'boarded' %}
+                                    <!-- 이미 탑승한 학생 (클릭하면 취소) -->
+                                    <div class="inline-flex items-center bg-green-100 border-2 border-green-300 rounded-xl px-3 py-2 min-w-0">
+                                        <button onclick="boardStudent({{ student.id }}, '{{ today }}')"
+                                                class="text-sm font-semibold text-green-800 min-w-[50px] text-left"
+                                                data-student-id="{{ student.id }}">
+                                            {{ student.name }}
+                                            {% if student.memo %}
+                                                <span class="text-xs text-green-600 ml-1">({{ student.memo }})</span>
+                                            {% endif %}
+                                        </button>
+                                        <button onclick="markAbsent({{ student.id }}, '{{ today }}')"
+                                                class="text-red-500 hover:text-red-700 text-sm ml-2 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
+                                            ✕
+                                        </button>
+                                    </div>
+                                {% elif attendance and attendance.pickup_status == 'absent' %}
+                                    <!-- 결석 처리된 학생 (X 버튼으로 취소) -->
+                                    <div class="inline-flex items-center bg-red-100 border-2 border-red-300 rounded-xl px-3 py-2 min-w-0">
+                                        <span class="text-sm font-semibold text-red-700 min-w-[50px] text-left">
+                                            {{ student.name }}
+                                            {% if student.memo %}
+                                                <span class="text-xs text-red-600 ml-1">({{ student.memo }})</span>
+                                            {% endif %}
+                                        </span>
+                                        <button onclick="markAbsent({{ student.id }}, '{{ today }}')"
+                                                class="text-red-500 hover:text-red-700 text-sm ml-2 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
+                                            ✕
+                                        </button>
+                                    </div>
+                                {% else %}
+                                    <!-- 대기 중인 학생 -->
+                                    <div class="inline-flex items-center bg-white border-2 border-gray-300 rounded-xl px-3 py-2 hover:border-blue-400 transition-colors min-w-0">
+                                        <button onclick="boardStudent({{ student.id }}, '{{ today }}')"
+                                                class="text-sm font-medium text-gray-900 min-w-[50px] text-left"
+                                                data-student-id="{{ student.id }}">
+                                            {{ student.name }}
+                                            {% if student.memo %}
+                                                <span class="text-xs text-gray-600 ml-1">({{ student.memo }})</span>
+                                            {% endif %}
+                                        </button>
+                                        <button onclick="markAbsent({{ student.id }}, '{{ today }}')"
+                                                class="text-red-400 hover:text-red-600 text-sm ml-2 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
+                                            ✕
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    <!-- 전체 완료 버튼 -->
+                    <div class="flex justify-center pt-6 mt-6 border-t border-gray-200">
+                        <button onclick="completeAllInTimeSlot('{{ time_key }}')"
+                                class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-4 px-12 rounded-2xl shadow-lg transition-all duration-200 transform hover:scale-105">
+                            전체 완료
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- 스케줄이 없는 경우 -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 text-center">
+            <div class="text-gray-400 mb-4 text-3xl">📅</div>
+            <h2 class="text-xl font-semibold text-gray-900 mb-3">오늘은 운행 스케줄이 없습니다</h2>
+            <p class="text-base text-gray-600">휴무일이거나 별도 스케줄이 등록되지 않았습니다.</p>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 요청 정보 모달 -->
+<div id="requestModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm">
+        <h3 class="text-lg font-semibold mb-4">요청 정보</h3>
+        <div id="requestContent" class="text-sm text-gray-600 mb-4"></div>
+        <button onclick="closeRequestModal()" class="w-full btn-primary">
+            확인
+        </button>
+    </div>
+</div>
+
+<script>
+let currentSlideIndex = 0;
+const timeSlots = {{ time_groups.keys() | list | tojson | safe }};
+
+function scrollToTimeSlot(timeKey) {
+    // 모든 슬라이드 숨기기
+    document.querySelectorAll('.slide-item').forEach(slide => {
+        slide.style.display = 'none';
+    });
+    
+    // 선택된 슬라이드만 보이기
+    const targetSlot = document.getElementById('slot-' + timeKey);
+    if (targetSlot) {
+        targetSlot.style.display = 'block';
+        
+        // 네비게이션 버튼 활성화 표시
+        document.querySelectorAll('[id^="nav-"]').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-600');
+            btn.classList.add('bg-white', 'border-gray-300', 'text-gray-900');
+        });
+        const navBtn = document.getElementById('nav-' + timeKey);
+        if (navBtn) {
+            navBtn.classList.remove('bg-white', 'border-gray-300', 'text-gray-900');
+            navBtn.classList.add('bg-blue-600', 'text-white', 'border-blue-600');
+        }
+        
+        currentSlideIndex = timeSlots.indexOf(timeKey);
+        updateArrowStates();
+        
+        // 현재 버튼을 중앙으로 스크롤 (컨테이너 기준)
+        if (navBtn) {
+            const container = document.getElementById('timeNavContainer');
+            const containerRect = container.getBoundingClientRect();
+            const buttonRect = navBtn.getBoundingClientRect();
+            const scrollLeft = navBtn.offsetLeft - (container.offsetWidth / 2) + (navBtn.offsetWidth / 2);
+            container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+        }
+    }
+}
+
+function nextSlide() {
+    if (currentSlideIndex < timeSlots.length - 1) {
+        currentSlideIndex++;
+        scrollToTimeSlot(timeSlots[currentSlideIndex]);
+    }
+}
+
+function previousSlide() {
+    if (currentSlideIndex > 0) {
+        currentSlideIndex--;
+        scrollToTimeSlot(timeSlots[currentSlideIndex]);
+    }
+}
+
+function updateArrowStates() {
+    const prevBtn = document.querySelector('[onclick="previousSlide()"]');
+    const nextBtn = document.querySelector('[onclick="nextSlide()"]');
+    
+    if (prevBtn) {
+        if (currentSlideIndex <= 0) {
+            prevBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            prevBtn.disabled = true;
+        } else {
+            prevBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            prevBtn.disabled = false;
+        }
+    }
+    
+    if (nextBtn) {
+        if (currentSlideIndex >= timeSlots.length - 1) {
+            nextBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            nextBtn.disabled = true;
+        } else {
+            nextBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            nextBtn.disabled = false;
+        }
+    }
+}
+
+function boardStudent(studentId, date) {
+    // 현재 시간대 저장
+    const currentTimeKey = timeSlots[currentSlideIndex];
+    
+    fetch('/api/update_attendance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            date: date,
+            status: 'boarded',
+            type: 'pickup'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 현재 시간대를 유지하면서 새로고침
+            window.location.href = window.location.pathname + '?time=' + encodeURIComponent(currentTimeKey);
+        }
+    });
+}
+
+function markAbsent(studentId, date) {
+    // 현재 시간대 저장
+    const currentTimeKey = timeSlots[currentSlideIndex];
+    
+    fetch('/api/update_attendance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            date: date,
+            status: 'absent',
+            type: 'pickup'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 현재 시간대를 유지하면서 새로고침
+            window.location.href = window.location.pathname + '?time=' + encodeURIComponent(currentTimeKey);
+        }
+    });
+}
+
+function completeAllInTimeSlot(timeKey) {
+    const timeSlot = document.getElementById('slot-' + timeKey);
+    const pendingButtons = timeSlot.querySelectorAll('[data-student-id]');
+    
+    let completedCount = 0;
+    const totalCount = pendingButtons.length;
+    
+    if (totalCount === 0) {
+        // 대기 중인 학생이 없으면 바로 다음 시간으로 이동
+        if (currentSlideIndex < timeSlots.length - 1) {
+            nextSlide();
+        }
+        return;
+    }
+    
+    pendingButtons.forEach(button => {
+        const studentId = button.getAttribute('data-student-id');
+        if (studentId) {
+            fetch('/api/update_attendance', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    student_id: studentId,
+                    date: '{{ today }}',
+                    status: 'boarded',
+                    type: 'pickup'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    completedCount++;
+                    if (completedCount === totalCount) {
+                        // 모든 요청이 완료되면 다음 시간으로 이동
+                        setTimeout(() => {
+                            if (currentSlideIndex < timeSlots.length - 1) {
+                                currentSlideIndex++;
+                                const nextTimeKey = timeSlots[currentSlideIndex];
+                                window.location.href = window.location.pathname + '?time=' + encodeURIComponent(nextTimeKey);
+                            } else {
+                                location.reload();
+                            }
+                        }, 300);
+                    }
+                }
+            });
+        }
+    });
+}
+
+function completeLocationGroup(timeKey, location) {
+    const timeSlot = document.getElementById('slot-' + timeKey);
+    if (!timeSlot) return;
+    
+    // 해당 장소의 모든 학생 버튼 찾기
+    const locationSections = timeSlot.querySelectorAll('.mb-8');
+    let targetButtons = [];
+    
+    locationSections.forEach(section => {
+        const locationHeader = section.querySelector('span');
+        if (locationHeader && locationHeader.textContent.includes(location)) {
+            const buttons = section.querySelectorAll('[data-student-id]');
+            buttons.forEach(button => {
+                const studentId = button.getAttribute('data-student-id');
+                if (studentId) {
+                    targetButtons.push(studentId);
+                }
+            });
+        }
+    });
+    
+    if (targetButtons.length === 0) {
+        alert('완료할 학생이 없습니다.');
+        return;
+    }
+    
+    let completedCount = 0;
+    const totalCount = targetButtons.length;
+    
+    targetButtons.forEach(studentId => {
+        fetch('/api/update_attendance', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                date: '{{ today }}',
+                status: 'boarded',
+                type: 'pickup'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                completedCount++;
+                if (completedCount === totalCount) {
+                    // 현재 시간대를 유지하면서 새로고침
+                    const currentTimeKey = timeSlots[currentSlideIndex];
+                    window.location.href = window.location.pathname + '?time=' + encodeURIComponent(currentTimeKey);
+                }
+            }
+        });
+    });
+}
+
+function approveRequest(requestId) {
+    if (confirm('이 요청을 승인하시겠습니까?')) {
+        fetch(`/api/approve_request/${requestId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('오류가 발생했습니다.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('오류가 발생했습니다.');
+        });
+    }
+}
+
+function approveAllRequests() {
+    if (confirm('모든 대기 중인 요청을 승인하시겠습니까?')) {
+        const approveButtons = document.querySelectorAll('[onclick^="approveRequest"]');
+        approveButtons.forEach(button => {
+            const requestId = button.getAttribute('onclick').match(/\d+/)[0];
+            fetch(`/api/approve_request/${requestId}`, { 
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+        });
+        
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+}
+
+function showRequestInfo(studentName, requestType, reason) {
+    const types = {
+        'absence': '결석',
+        'pickup_skip': '직접 등원',
+        'dropoff_skip': '도장 픽업'
+    };
+    
+    document.getElementById('requestContent').innerHTML = `
+        <p><strong>학생:</strong> ${studentName}</p>
+        <p><strong>유형:</strong> ${types[requestType] || requestType}</p>
+        ${reason ? `<p><strong>사유:</strong> ${reason}</p>` : ''}
+    `;
+    document.getElementById('requestModal').classList.remove('hidden');
+}
+
+function closeRequestModal() {
+    document.getElementById('requestModal').classList.add('hidden');
+}
+
+// 시간대별 메모 기능
+function toggleTimeSlotMemo(timeKey) {
+    const memoDiv = document.getElementById('memo-' + timeKey);
+    const memoInput = document.getElementById('memo-input-' + timeKey);
+    
+    if (memoDiv.classList.contains('hidden')) {
+        memoDiv.classList.remove('hidden');
+        // 저장된 메모 불러오기
+        loadTimeSlotMemo(timeKey);
+        memoInput.focus();
+    } else {
+        memoDiv.classList.add('hidden');
+    }
+}
+
+function saveTimeSlotMemo(timeKey, memoText) {
+    // 로컬 스토리지에 저장 (오늘 날짜와 함께)
+    const today = '{{ today }}';
+    const key = `memo_${today}_${timeKey}`;
+    localStorage.setItem(key, memoText);
+}
+
+function loadTimeSlotMemo(timeKey) {
+    // 로컬 스토리지에서 불러오기
+    const today = '{{ today }}';
+    const key = `memo_${today}_${timeKey}`;
+    const memoText = localStorage.getItem(key) || '';
+    const memoInput = document.getElementById('memo-input-' + timeKey);
+    if (memoInput) {
+        memoInput.value = memoText;
+    }
+}
+
+function clearTimeSlotMemo(timeKey) {
+    if (confirm('이 시간대 메모를 삭제하시겠습니까?')) {
+        const today = '{{ today }}';
+        const key = `memo_${today}_${timeKey}`;
+        localStorage.removeItem(key);
+        const memoInput = document.getElementById('memo-input-' + timeKey);
+        if (memoInput) {
+            memoInput.value = '';
+        }
+    }
+}
+
+// 초기 슬라이드 설정
+document.addEventListener('DOMContentLoaded', function() {
+    if (timeSlots.length > 0) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const timeParam = urlParams.get('time');
+        
+        if (timeParam && timeSlots.includes(timeParam)) {
+            scrollToTimeSlot(timeParam);
+        } else {
+            scrollToTimeSlot(timeSlots[0]);
+        }
+        updateArrowStates();
+    }
+    
+    // 저장된 메모가 있으면 표시
+    timeSlots.forEach(timeKey => {
+        const today = '{{ today }}';
+        const key = `memo_${today}_${timeKey}`;
+        const savedMemo = localStorage.getItem(key);
+        if (savedMemo && savedMemo.trim()) {
+            // 메모가 있으면 📝 아이콘을 노란색으로 표시
+            const button = document.querySelector(`button[onclick="toggleTimeSlotMemo('${timeKey}')"]`);
+            if (button) {
+                button.classList.add('text-yellow-600');
+                button.classList.remove('text-gray-500');
+            }
+        }
+    });
+    
+    // 이전 날짜의 메모들은 자동 정리 (일주일 이전)
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('memo_')) {
+            const dateStr = key.split('_')[1];
+            if (dateStr && new Date(dateStr) < oneWeekAgo) {
+                localStorage.removeItem(key);
+            }
+        }
+    });
+});
+</script>
+
+{% endblock %} 
