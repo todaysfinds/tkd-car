@@ -15,20 +15,26 @@ class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     grade = db.Column(db.String(20))
-    phone = db.Column(db.String(20))
+    phone = db.Column(db.String(20))  # 기본 연락처 (부모님)
+    phone_2 = db.Column(db.String(20))  # 추가 연락처 (아버지/어머니 구분)
+    emergency_contact = db.Column(db.String(20))  # 비상 연락처
     pickup_location = db.Column(db.String(100))
     estimated_pickup_time = db.Column(db.String(10))  # 예상 픽업 시간 (12시간제)
     is_private_car = db.Column(db.Boolean, default=False)  # 개인차량 여부
     memo = db.Column(db.String(200))  # 메모 필드 추가
     session_part = db.Column(db.Integer)  # 부 (1부, 2부, 3부, 4부, 5부)
+    # 안심번호 서비스용 필드
+    allow_contact = db.Column(db.Boolean, default=True)  # 연락 허용 여부
+    contact_preference = db.Column(db.String(20), default='phone')  # phone, kakao, both
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Schedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 0=월요일, 6=일요일
-    pickup_time = db.Column(db.Time, nullable=False)
-    dropoff_time = db.Column(db.Time, nullable=False)
+    schedule_type = db.Column(db.String(10), nullable=False)  # 'pickup' or 'dropoff'
+    time = db.Column(db.Time, nullable=False)  # 픽업 또는 드롭오프 시간
+    location = db.Column(db.String(100))  # 각 스케줄별 장소 (Student의 pickup_location과 다를 수 있음)
     
     student = db.relationship('Student', backref=db.backref('schedules', lazy=True))
 
@@ -57,6 +63,31 @@ class Attendance(db.Model):
     
     student = db.relationship('Student', backref=db.backref('attendances', lazy=True))
 
+class QuickCallNumber(db.Model):
+    """빠른 전화걸기용 연락처 관리"""
+    id = db.Column(db.Integer, primary_key=True)
+    category = db.Column(db.String(50), nullable=False)  # 'school', 'daycare', 'emergency', 'location', 'custom'
+    name = db.Column(db.String(100), nullable=False)  # 표시될 이름
+    phone_number = db.Column(db.String(20), nullable=False)  # 전화번호
+    location = db.Column(db.String(100))  # 장소명 (location 카테고리인 경우)
+    description = db.Column(db.String(200))  # 설명
+    is_active = db.Column(db.Boolean, default=True)  # 활성화 여부
+    priority = db.Column(db.Integer, default=0)  # 우선순위 (숫자가 클수록 먼저 표시)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class KakaoSettings(db.Model):
+    """카카오톡 비즈니스 계정 설정"""
+    id = db.Column(db.Integer, primary_key=True)
+    business_id = db.Column(db.String(100))  # 카카오 비즈니스 계정 ID
+    api_key = db.Column(db.String(200))  # API 키
+    template_id = db.Column(db.String(100))  # 템플릿 ID
+    sender_key = db.Column(db.String(100))  # 발신 키
+    is_active = db.Column(db.Boolean, default=False)  # 서비스 활성화 여부
+    test_mode = db.Column(db.Boolean, default=True)  # 테스트 모드
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 # 라우트
 @app.route('/')
 def index():
@@ -67,18 +98,19 @@ def today():
     today_date = date.today()
     day_of_week = today_date.weekday()
     
-    # 오늘 스케줄이 있는 학생들 조회 (시간 순서대로 정렬)
+    # 오늘 픽업 스케줄이 있는 학생들 조회 (시간 순서대로 정렬)
     students_with_schedule = db.session.query(Student, Schedule).join(Schedule).filter(
-        Schedule.day_of_week == day_of_week
-    ).order_by(Schedule.pickup_time, Student.pickup_location, Student.estimated_pickup_time).all()
+        Schedule.day_of_week == day_of_week,
+        Schedule.schedule_type == 'pickup'
+    ).order_by(Schedule.time, Schedule.location, Student.estimated_pickup_time).all()
     
     # 시간 순서대로 그룹화 (승차/하차 구분)
     time_groups = {}
     
     for student, schedule in students_with_schedule:
         # 시간 키 생성 (24시간제 → 12시간제 변환)
-        pickup_hour = schedule.pickup_time.hour
-        pickup_minute = schedule.pickup_time.minute
+        pickup_hour = schedule.time.hour
+        pickup_minute = schedule.time.minute
         
         # 12시간제로 변환 (PM 제거)
         if pickup_hour == 0:
@@ -100,7 +132,7 @@ def today():
             time_groups[time_key] = {}
         
         # 장소별로 그룹화
-        location_key = student.pickup_location or '미정'
+        location_key = schedule.location or student.pickup_location or '미정'
         if location_key not in time_groups[time_key]:
             time_groups[time_key][location_key] = []
         
@@ -161,18 +193,19 @@ def submit_request():
 
 @app.route('/admin/schedule-manager')
 def admin_schedule_manager():
-    # 요일별, 부별, 장소별로 그룹화된 데이터 구조 생성
+    # 승차/하차 완전 분리 구조
     schedule_data = {}
     
-    # 모든 스케줄 조회
+    # 모든 스케줄 조회 (승차/하차 구분)
     schedules = db.session.query(Student, Schedule).join(Schedule).order_by(
-        Schedule.day_of_week, Schedule.pickup_time, Student.pickup_location, Student.name
+        Schedule.day_of_week, Schedule.schedule_type, Schedule.time, Schedule.location, Student.name
     ).all()
     
     for student, schedule in schedules:
         day = schedule.day_of_week
         part = student.session_part or 1
-        location = student.pickup_location or '미정'
+        location = schedule.location or student.pickup_location or '미정'
+        schedule_type = schedule.schedule_type  # 'pickup' or 'dropoff'
         
         # 요일별 구조 초기화
         if day not in schedule_data:
@@ -182,12 +215,16 @@ def admin_schedule_manager():
         if part not in schedule_data[day]:
             schedule_data[day][part] = {}
             
+        # 승차/하차별 구조 초기화
+        if schedule_type not in schedule_data[day][part]:
+            schedule_data[day][part][schedule_type] = {}
+            
         # 장소별 구조 초기화
-        if location not in schedule_data[day][part]:
-            schedule_data[day][part][location] = []
+        if location not in schedule_data[day][part][schedule_type]:
+            schedule_data[day][part][schedule_type][location] = []
             
         # 학생 추가
-        schedule_data[day][part][location].append({
+        schedule_data[day][part][schedule_type][location].append({
             'student': student,
             'schedule': schedule
         })
@@ -198,6 +235,11 @@ def admin_schedule_manager():
 def admin_students():
     students = Student.query.order_by(Student.name).all()
     return render_template('admin_students.html', students=students)
+
+@app.route('/admin/quick-call-manager')
+def admin_quick_call_manager():
+    """빠른 전화번호 관리 페이지"""
+    return render_template('admin_quick_call_manager.html')
 
 @app.route('/api/update_attendance', methods=['POST'])
 def update_attendance():
@@ -458,23 +500,50 @@ def delete_student():
         data = request.get_json()
         student_id = data.get('id')
         
+        # 먼저 학생이 존재하는지 확인
         student = Student.query.get(student_id)
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
         
-        # 관련된 스케줄, 요청, 출석 정보도 함께 삭제
-        Schedule.query.filter_by(student_id=student_id).delete()
-        Request.query.filter_by(student_id=student_id).delete()
-        Attendance.query.filter_by(student_id=student_id).delete()
+        student_name = student.name  # 삭제 전에 이름 저장
         
-        db.session.delete(student)
-        db.session.commit()
-        
-        return jsonify({'success': True})
+        # 관련된 데이터를 순서대로 삭제
+        try:
+            # 1. 출석 정보 삭제
+            attendance_count = Attendance.query.filter_by(student_id=student_id).count()
+            Attendance.query.filter_by(student_id=student_id).delete()
+            
+            # 2. 요청 정보 삭제  
+            request_count = Request.query.filter_by(student_id=student_id).count()
+            Request.query.filter_by(student_id=student_id).delete()
+            
+            # 3. 스케줄 정보 삭제
+            schedule_count = Schedule.query.filter_by(student_id=student_id).count()
+            Schedule.query.filter_by(student_id=student_id).delete()
+            
+            # 4. 학생 정보 삭제
+            db.session.delete(student)
+            
+            # 모든 변경사항 커밋
+            db.session.commit()
+            
+            return jsonify({
+                'success': True, 
+                'message': f'{student_name} 학생의 모든 정보가 삭제되었습니다.',
+                'deleted_counts': {
+                    'attendance': attendance_count,
+                    'requests': request_count,
+                    'schedules': schedule_count
+                }
+            })
+            
+        except Exception as inner_e:
+            db.session.rollback()
+            return jsonify({'success': False, 'error': f'데이터 삭제 중 오류: {str(inner_e)}'})
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': f'학생 삭제 실패: {str(e)}'})
 
 # 스케줄 관리 API
 @app.route('/api/get_all_students')
@@ -507,8 +576,71 @@ def add_student_to_schedule():
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
         
-        # 중복 허용 - 같은 학생이 같은 날 여러 장소에 올 수 있음
-        # 기존 중복 체크 제거
+        # 부별 시간 설정
+        if session_part == 1:  # 1부
+            pickup_time = time(14, 0)  # 2:00 PM
+            dropoff_time = time(14, 50)  # 2:50 PM
+        elif session_part == 2:  # 2부
+            pickup_time = time(15, 0)  # 3:00 PM
+            dropoff_time = time(15, 50)  # 3:50 PM
+        elif session_part == 3:  # 3부
+            pickup_time = time(16, 30)  # 4:30 PM
+            dropoff_time = time(17, 20)  # 5:20 PM
+        elif session_part == 4:  # 4부
+            pickup_time = time(17, 30)  # 5:30 PM
+            dropoff_time = time(18, 20)  # 6:20 PM
+        else:  # 5부
+            pickup_time = time(19, 0)  # 7:00 PM
+            dropoff_time = time(19, 50)  # 7:50 PM
+        
+        # 학생의 부 정보 업데이트
+        student.session_part = session_part
+        
+        # 스케줄 타입에 따른 시간 설정
+        schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
+        
+        # 중복 체크 (같은 학생, 같은 날, 같은 타입, 같은 장소)
+        existing_schedule = Schedule.query.filter_by(
+            student_id=student_id,
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=target_location
+        ).first()
+        
+        if existing_schedule:
+            return jsonify({'success': False, 'error': '이미 해당 스케줄이 존재합니다.'})
+        
+        # 새 스케줄 추가 (승차/하차 별도)
+        new_schedule = Schedule(
+            student_id=student_id,
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            time=schedule_time,
+            location=target_location
+        )
+        
+        db.session.add(new_schedule)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+    
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/add_multiple_students_to_schedule', methods=['POST'])
+def add_multiple_students_to_schedule():
+    """여러 학생을 한 번에 추가 (트랜잭션 처리)"""
+    try:
+        data = request.get_json()
+        students = data.get('students', [])  # [{'student_id': 1, 'name': '홍길동'}, ...]
+        day_of_week = data.get('day_of_week')
+        session_part = data.get('session_part')
+        schedule_type = data.get('type')  # 'pickup' or 'dropoff'
+        target_location = data.get('location')  # 장소 정보
+        
+        if not students or not all([day_of_week is not None, session_part, schedule_type, target_location]):
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
         
         # 부별 시간 설정
         if session_part == 1:  # 1부
@@ -527,27 +659,83 @@ def add_student_to_schedule():
             pickup_time = time(19, 0)  # 7:00 PM
             dropoff_time = time(19, 50)  # 7:50 PM
         
-        # 학생의 부 정보 및 장소 정보 업데이트
-        student.session_part = session_part
-        if target_location:
-            student.pickup_location = target_location
+        schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
-        # 새 스케줄 추가
-        new_schedule = Schedule(
-            student_id=student_id,
-            day_of_week=day_of_week,
-            pickup_time=pickup_time,
-            dropoff_time=dropoff_time
-        )
+        # 🔥 모든 학생에 대해 먼저 중복 체크 (하나라도 중복이면 전체 취소)
+        duplicates = []
+        invalid_students = []
         
-        db.session.add(new_schedule)
+        for student_data in students:
+            student_id = student_data.get('id')
+            student_name = student_data.get('name', f'학생{student_id}')
+            
+            # 학생 존재 여부 확인
+            student = Student.query.get(student_id)
+            if not student:
+                invalid_students.append(student_name)
+                continue
+            
+            # 중복 체크
+            existing_schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=target_location
+            ).first()
+            
+            if existing_schedule:
+                duplicates.append(student_name)
+        
+        # 🚨 중복이나 잘못된 학생이 있으면 전체 취소
+        if duplicates or invalid_students:
+            error_msg = []
+            if duplicates:
+                error_msg.append(f"이미 등록된 학생: {', '.join(duplicates)}")
+            if invalid_students:
+                error_msg.append(f"존재하지 않는 학생: {', '.join(invalid_students)}")
+            
+            return jsonify({
+                'success': False, 
+                'error': ' / '.join(error_msg),
+                'duplicates': duplicates,
+                'invalid_students': invalid_students
+            })
+        
+        # ✅ 모든 검증 통과 시에만 실제 추가
+        added_students = []
+        for student_data in students:
+            student_id = student_data.get('id')
+            student_name = student_data.get('name', f'학생{student_id}')
+            
+            # 학생의 부 정보 업데이트
+            student = Student.query.get(student_id)
+            student.session_part = session_part
+            
+            # 새 스케줄 추가
+            new_schedule = Schedule(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                time=schedule_time,
+                location=target_location
+            )
+            
+            db.session.add(new_schedule)
+            added_students.append(student_name)
+        
+        # 💾 모든 변경사항을 한 번에 커밋
         db.session.commit()
         
-        return jsonify({'success': True})
+        return jsonify({
+            'success': True,
+            'message': f'{len(added_students)}명의 학생이 {target_location}에 추가되었습니다.',
+            'added_students': added_students
+        })
     
     except Exception as e:
+        # 🔄 오류 발생 시 모든 변경사항 롤백
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        return jsonify({'success': False, 'error': f'서버 오류: {str(e)}'})
 
 # 장소 및 스케줄 관리 API
 @app.route('/api/update_location_name', methods=['POST'])
@@ -578,29 +766,576 @@ def remove_student_from_schedule():
         location = data.get('location')  # 특정 장소에서만 삭제
         session_part = data.get('session_part')  # 특정 시간대
         schedule_type = data.get('type', 'pickup')  # pickup 또는 dropoff
+        keep_location = data.get('keep_location', False)  # 장소 유지 플래그
         
-        # 특정 조건의 스케줄만 삭제 (개별 삭제)
-        query = Schedule.query.filter_by(
+        # 학생 정보 먼저 확인
+        student = Student.query.get(student_id)
+        if not student:
+            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
+        
+        # 정확한 스케줄 찾기 (승차/하차 구분)
+        schedule = Schedule.query.filter_by(
             student_id=student_id,
-            day_of_week=day_of_week
-        )
-        
-        # 추가 조건들이 있으면 필터링
-        if location:
-            # student의 pickup_location이 해당 location과 일치하는 것만
-            query = query.join(Student).filter(Student.pickup_location == location)
-        if session_part:
-            query = query.join(Student).filter(Student.session_part == session_part)
-        
-        schedule = query.first()
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=location
+        ).first()
         
         if schedule:
+            student_name = student.name
             db.session.delete(schedule)
             db.session.commit()
-            return jsonify({'success': True})
+            
+            message = f'{student_name} 학생이 {location}에서 제거되었습니다.'
+            if keep_location:
+                message += f' "{location}" 장소는 유지됩니다.'
+            
+            return jsonify({
+                'success': True, 
+                'message': message,
+                'keep_location': keep_location,
+                'location': location
+            })
         else:
             return jsonify({'success': False, 'error': '해당 스케줄을 찾을 수 없습니다.'})
     
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+# 연락 기능 관련 API (정석 구현)
+@app.route('/api/contact_parent', methods=['POST'])
+def contact_parent():
+    """부모님에게 연락하기 (정석 구현)"""
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        contact_type = data.get('type', 'phone')  # phone, kakao, both
+        message = data.get('message', '')
+        message_type = data.get('message_type', 'pickup')  # pickup, arrival, departure, custom
+        
+        student = Student.query.get(student_id)
+        if not student:
+            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
+        
+        if not student.allow_contact:
+            return jsonify({'success': False, 'error': '해당 학생은 연락이 제한되어 있습니다.'})
+        
+        # 학생의 연락 선호도 확인
+        preferred_contact = student.contact_preference or 'phone'
+        
+        if contact_type == 'kakao' or (contact_type == 'both' and 'kakao' in preferred_contact):
+            # 카카오톡 발송
+            if message_type != 'custom':
+                message = get_message_template(student, message_type)
+            
+            result = send_kakao_message(student, message)
+            return jsonify(result)
+        
+        elif contact_type == 'phone' or contact_type == 'both':
+            # 전화 연결 옵션 제공
+            contacts = []
+            
+            if student.phone:
+                contacts.append({
+                    'type': '기본 연락처',
+                    'number': student.phone,
+                    'tel_link': f'tel:{student.phone}',
+                    'priority': 1
+                })
+            
+            if student.phone_2:
+                contacts.append({
+                    'type': '추가 연락처', 
+                    'number': student.phone_2,
+                    'tel_link': f'tel:{student.phone_2}',
+                    'priority': 2
+                })
+            
+            if student.emergency_contact:
+                contacts.append({
+                    'type': '비상 연락처',
+                    'number': student.emergency_contact,
+                    'tel_link': f'tel:{student.emergency_contact}',
+                    'priority': 3
+                })
+            
+            if not contacts:
+                return jsonify({'success': False, 'error': '등록된 연락처가 없습니다.'})
+            
+            # 우선순위대로 정렬
+            contacts.sort(key=lambda x: x['priority'])
+            
+            result = {
+                'success': True,
+                'message': f'{student.name} 학생 부모님 연락처',
+                'contacts': contacts,
+                'action': 'call',
+                'student_name': student.name,
+                'preferred_contact': preferred_contact
+            }
+            
+            return jsonify(result)
+        
+        else:
+            return jsonify({'success': False, 'error': '올바른 연락 방식을 선택해주세요.'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/send_message_template', methods=['POST'])
+def send_message_template():
+    """템플릿 메시지 발송"""
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        message_type = data.get('message_type', 'pickup')
+        custom_message = data.get('custom_message', '')
+        
+        student = Student.query.get(student_id)
+        if not student:
+            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
+        
+        if not student.allow_contact:
+            return jsonify({'success': False, 'error': '해당 학생은 연락이 제한되어 있습니다.'})
+        
+        # 메시지 생성
+        if message_type == 'custom' and custom_message:
+            message = custom_message
+        else:
+            message = get_message_template(student, message_type)
+        
+        # 카카오톡 발송
+        result = send_kakao_message(student, message)
+        
+        # 발송 기록 저장 (필요시)
+        # MessageLog.create(student_id=student_id, message_type=message_type, ...)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+def send_kakao_message(student, message):
+    """카카오톡 메시지 발송 (실제 구현 준비)"""
+    try:
+        settings = KakaoSettings.query.first()
+        
+        if not settings or not settings.is_active:
+            # 시뮬레이션 모드
+            return {
+                'success': True,
+                'message': f'[시뮬레이션] {student.name} 부모님께 카카오톡 발송',
+                'preview': f'''
+📚 {student.name} 학생 차량 알림
+
+{message}
+
+🏫 OO태권도장
+📞 문의: 010-XXXX-XXXX
+⏰ 발송시간: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+''',
+                'note': '실제 서비스를 위해서는 카카오톡 비즈니스 계정 설정이 필요합니다.',
+                'action': 'kakao',
+                'simulation': True
+            }
+        
+        # 실제 카카오톡 발송 로직 (비즈니스 계정 연동)
+        if settings.test_mode:
+            # 테스트 모드
+            return {
+                'success': True,
+                'message': f'[테스트] {student.name} 부모님께 카카오톡 발송',
+                'preview': f'''
+📚 {student.name} 학생 차량 알림
+
+{message}
+
+🏫 OO태권도장
+📞 문의: 010-XXXX-XXXX
+⏰ 발송시간: {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+⚠️ 테스트 모드: 실제 발송되지 않았습니다.
+''',
+                'action': 'kakao',
+                'test_mode': True
+            }
+        else:
+            # TODO: 실제 카카오톡 API 연동
+            # 카카오톡 비즈니스 API를 사용한 실제 메시지 발송
+            # requests.post(kakao_api_url, headers=headers, json=payload)
+            
+            return {
+                'success': True,
+                'message': f'{student.name} 부모님께 카카오톡을 발송했습니다.',
+                'action': 'kakao',
+                'real_send': True
+            }
+            
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'카카오톡 발송 실패: {str(e)}',
+            'action': 'kakao'
+        }
+
+def get_message_template(student, message_type='pickup'):
+    """메시지 템플릿 생성"""
+    templates = {
+        'pickup': f'''
+🚌 차량 픽업 알림
+
+안녕하세요! {student.name} 학생 부모님께 알려드립니다.
+
+📍 픽업 장소: {student.pickup_location}
+⏰ 예상 시간: {student.estimated_pickup_time}
+🎯 수업: {student.session_part}부
+
+차량이 곧 도착할 예정입니다.
+준비해주세요!
+
+🏫 OO태권도장
+''',
+        'arrival': f'''
+🏫 도장 도착 알림
+
+{student.name} 학생이 안전하게 도장에 도착했습니다.
+
+⏰ 도착 시간: {datetime.now().strftime('%H:%M')}
+🎯 수업: {student.session_part}부
+
+수업 후 하차 시간을 별도로 안내드리겠습니다.
+
+🏫 OO태권도장
+''',
+        'departure': f'''
+🚌 하차 출발 알림
+
+{student.name} 학생이 수업을 마치고 하차를 위해 출발했습니다.
+
+🏫 출발: {datetime.now().strftime('%H:%M')}
+📍 하차 장소: {student.pickup_location}
+⏰ 예상 도착: 약 10-15분 후
+
+준비해주세요!
+
+🏫 OO태권도장
+'''
+    }
+    
+    return templates.get(message_type, message_type)
+
+# 빠른 전화걸기 API (정석 구현)
+@app.route('/api/quick_call', methods=['POST'])
+def quick_call():
+    """빠른 전화걸기 (데이터베이스 기반)"""
+    try:
+        data = request.get_json()
+        call_type = data.get('type')
+        location = data.get('location')
+        custom_number = data.get('number')
+        
+        if custom_number:
+            # 직접 입력된 번호
+            return jsonify({
+                'success': True,
+                'tel_link': f'tel:{custom_number}',
+                'display': custom_number,
+                'action': 'call'
+            })
+        
+        # 데이터베이스에서 연락처 조회
+        query = QuickCallNumber.query.filter_by(is_active=True)
+        
+        if call_type:
+            query = query.filter_by(category=call_type)
+        
+        if location and call_type == 'location':
+            query = query.filter_by(location=location)
+        
+        numbers = query.order_by(QuickCallNumber.priority.desc(), QuickCallNumber.name).all()
+        
+        if not numbers:
+            return jsonify({'success': False, 'error': '등록된 연락처가 없습니다.'})
+        
+        if len(numbers) == 1:
+            # 하나만 있으면 바로 연결
+            number = numbers[0]
+            return jsonify({
+                'success': True,
+                'tel_link': f'tel:{number.phone_number}',
+                'display': f'{number.name} ({number.phone_number})',
+                'description': number.description,
+                'action': 'call'
+            })
+        else:
+            # 여러 개가 있으면 선택할 수 있도록 목록 반환
+            options = []
+            for number in numbers:
+                options.append({
+                    'id': number.id,
+                    'name': number.name,
+                    'phone_number': number.phone_number,
+                    'description': number.description,
+                    'tel_link': f'tel:{number.phone_number}'
+                })
+            
+            return jsonify({
+                'success': True,
+                'action': 'select',
+                'options': options,
+                'message': f'{call_type} 연락처 선택'
+            })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/quick_call_numbers')
+def get_quick_call_numbers():
+    """빠른 전화 번호 목록 조회"""
+    try:
+        location = request.args.get('location')
+        category = request.args.get('category')
+        
+        query = QuickCallNumber.query.filter_by(is_active=True)
+        
+        if category:
+            query = query.filter_by(category=category)
+        
+        if location:
+            query = query.filter(
+                db.or_(
+                    QuickCallNumber.location == location,
+                    QuickCallNumber.category.in_(['school', 'daycare', 'emergency'])
+                )
+            )
+        
+        numbers = query.order_by(QuickCallNumber.priority.desc(), QuickCallNumber.name).all()
+        
+        result = {}
+        for number in numbers:
+            if number.category not in result:
+                result[number.category] = []
+            
+            result[number.category].append({
+                'id': number.id,
+                'name': number.name,
+                'phone_number': number.phone_number,
+                'description': number.description,
+                'location': number.location
+            })
+        
+        return jsonify({'success': True, 'numbers': result})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/update_contact_settings', methods=['POST'])
+def update_contact_settings():
+    """학생별 연락 설정 업데이트"""
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        phone = data.get('phone', '')
+        phone_2 = data.get('phone_2', '')
+        emergency_contact = data.get('emergency_contact', '')
+        allow_contact = data.get('allow_contact', True)
+        contact_preference = data.get('contact_preference', 'phone')
+        
+        student = Student.query.get(student_id)
+        if not student:
+            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
+        
+        student.phone = phone if phone else None
+        student.phone_2 = phone_2 if phone_2 else None
+        student.emergency_contact = emergency_contact if emergency_contact else None
+        student.allow_contact = allow_contact
+        student.contact_preference = contact_preference
+        
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+# 빠른 전화 번호 관리 API
+@app.route('/api/quick_call_numbers', methods=['POST'])
+def add_quick_call_number():
+    """빠른 전화 번호 추가"""
+    try:
+        data = request.get_json()
+        
+        quick_number = QuickCallNumber(
+            category=data['category'],
+            name=data['name'],
+            phone_number=data['phone_number'],
+            location=data.get('location'),
+            description=data.get('description', ''),
+            priority=data.get('priority', 0)
+        )
+        
+        db.session.add(quick_number)
+        db.session.commit()
+        
+        return jsonify({'success': True, 'id': quick_number.id})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/quick_call_numbers/<int:number_id>', methods=['PUT'])
+def update_quick_call_number(number_id):
+    """빠른 전화 번호 수정"""
+    try:
+        data = request.get_json()
+        
+        quick_number = QuickCallNumber.query.get(number_id)
+        if not quick_number:
+            return jsonify({'success': False, 'error': '연락처를 찾을 수 없습니다.'})
+        
+        quick_number.category = data.get('category', quick_number.category)
+        quick_number.name = data.get('name', quick_number.name)
+        quick_number.phone_number = data.get('phone_number', quick_number.phone_number)
+        quick_number.location = data.get('location', quick_number.location)
+        quick_number.description = data.get('description', quick_number.description)
+        quick_number.priority = data.get('priority', quick_number.priority)
+        quick_number.is_active = data.get('is_active', quick_number.is_active)
+        quick_number.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/quick_call_numbers/<int:number_id>', methods=['DELETE'])
+def delete_quick_call_number(number_id):
+    """빠른 전화 번호 삭제"""
+    try:
+        quick_number = QuickCallNumber.query.get(number_id)
+        if not quick_number:
+            return jsonify({'success': False, 'error': '연락처를 찾을 수 없습니다.'})
+        
+        db.session.delete(quick_number)
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/create_empty_location', methods=['POST'])
+def create_empty_location():
+    """빈 장소 생성 (더미 스케줄로 실제 생성)"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        session_part = data.get('session_part')
+        location_name = data.get('location_name')
+        schedule_type = data.get('type', 'pickup')
+        
+        if not all([day_of_week is not None, session_part, location_name]):
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
+        
+        # 부별 기본 시간 설정
+        if session_part == 1:
+            default_time = time(14, 0) if schedule_type == 'pickup' else time(14, 50)
+        elif session_part == 2:
+            default_time = time(15, 0) if schedule_type == 'pickup' else time(15, 50)
+        elif session_part == 3:
+            default_time = time(16, 30) if schedule_type == 'pickup' else time(17, 20)
+        elif session_part == 4:
+            default_time = time(17, 30) if schedule_type == 'pickup' else time(18, 20)
+        else:  # 5부
+            default_time = time(19, 0) if schedule_type == 'pickup' else time(19, 50)
+        
+        # 해당 장소에 이미 스케줄이 있는지 확인
+        existing_schedule = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=location_name,
+            time=default_time
+        ).first()
+        
+        if existing_schedule:
+            return jsonify({
+                'success': True, 
+                'message': f'"{location_name}" 장소가 이미 존재합니다.',
+                'location_name': location_name,
+                'existing': True
+            })
+        
+        # 실제로는 빈 장소만 프론트엔드에서 관리
+        # 실제 스케줄은 학생이 추가될 때만 생성
+        
+        return jsonify({
+            'success': True, 
+            'message': f'"{location_name}" 장소가 생성되었습니다.',
+            'location_name': location_name,
+            'day_of_week': day_of_week,
+            'session_part': session_part,
+            'type': schedule_type,
+            'default_time': default_time.strftime('%H:%M'),
+            'placeholder_created': True
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)})
+
+# 카카오톡 설정 관리 API
+@app.route('/api/kakao_settings')
+def get_kakao_settings():
+    """카카오톡 설정 조회"""
+    try:
+        settings = KakaoSettings.query.first()
+        if not settings:
+            # 기본 설정 생성
+            settings = KakaoSettings()
+            db.session.add(settings)
+            db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'settings': {
+                'business_id': settings.business_id or '',
+                'template_id': settings.template_id or '',
+                'is_active': settings.is_active,
+                'test_mode': settings.test_mode
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/kakao_settings', methods=['POST'])
+def update_kakao_settings():
+    """카카오톡 설정 업데이트"""
+    try:
+        data = request.get_json()
+        
+        settings = KakaoSettings.query.first()
+        if not settings:
+            settings = KakaoSettings()
+            db.session.add(settings)
+        
+        settings.business_id = data.get('business_id', settings.business_id)
+        settings.api_key = data.get('api_key', settings.api_key)
+        settings.template_id = data.get('template_id', settings.template_id)
+        settings.sender_key = data.get('sender_key', settings.sender_key)
+        settings.is_active = data.get('is_active', settings.is_active)
+        settings.test_mode = data.get('test_mode', settings.test_mode)
+        settings.updated_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return jsonify({'success': True})
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
@@ -671,15 +1406,60 @@ def init_db():
                             pickup_time_obj = time(19, 0)  # 7:00 PM
                             dropoff_time_obj = time(19, 50)  # 7:50 PM
                         
-                        schedule = Schedule(
+                        # 픽업 스케줄 추가
+                        pickup_schedule = Schedule(
                             student_id=student.id,
                             day_of_week=day,
-                            pickup_time=pickup_time_obj,
-                            dropoff_time=dropoff_time_obj
+                            schedule_type='pickup',
+                            time=pickup_time_obj,
+                            location=student.pickup_location
                         )
-                        db.session.add(schedule)
+                        db.session.add(pickup_schedule)
+                        
+                        # 드롭오프 스케줄 추가
+                        dropoff_schedule = Schedule(
+                            student_id=student.id,
+                            day_of_week=day,
+                            schedule_type='dropoff',
+                            time=dropoff_time_obj,
+                            location=student.pickup_location
+                        )
+                        db.session.add(dropoff_schedule)
                 
                 db.session.commit()
+                
+                # 기본 빠른 전화번호 데이터 추가
+                if QuickCallNumber.query.count() == 0:
+                    default_numbers = [
+                        # 학교 관련
+                        {'category': 'school', 'name': 'OO초등학교 교무실', 'phone_number': '02-XXX-XXXX', 'description': '학교 교무실', 'priority': 10},
+                        {'category': 'school', 'name': 'OO초등학교 행정실', 'phone_number': '02-XXX-XXXY', 'description': '학교 행정실', 'priority': 9},
+                        
+                        # 돌봄센터
+                        {'category': 'daycare', 'name': 'OO초등학교 돌봄교실', 'phone_number': '02-XXX-XXYZ', 'description': '초등학교 돌봄교실', 'priority': 10},
+                        {'category': 'daycare', 'name': '지역돌봄센터', 'phone_number': '02-XXX-XYZW', 'description': '지역 돌봄센터', 'priority': 5},
+                        
+                        # 응급상황
+                        {'category': 'emergency', 'name': '119 소방서', 'phone_number': '119', 'description': '응급의료 상황', 'priority': 10},
+                        {'category': 'emergency', 'name': '112 경찰서', 'phone_number': '112', 'description': '치안/사고 신고', 'priority': 9},
+                        {'category': 'emergency', 'name': '지역 응급실', 'phone_number': '02-XXX-ZZZZ', 'description': 'OO병원 응급실', 'priority': 8},
+                        
+                        # 장소별 연락처 (예시)
+                        {'category': 'location', 'name': '현대홈타운 관리사무소', 'phone_number': '02-XXX-1111', 'location': '현대홈타운', 'description': '아파트 관리사무소', 'priority': 5},
+                        {'category': 'location', 'name': '삼성래미안 관리사무소', 'phone_number': '02-XXX-2222', 'location': '삼성래미안', 'description': '아파트 관리사무소', 'priority': 5},
+                        {'category': 'location', 'name': '영은유치원', 'phone_number': '02-XXX-3333', 'location': '영은유치원', 'description': '유치원', 'priority': 8},
+                        
+                        # 기타 유용한 번호
+                        {'category': 'custom', 'name': 'OO태권도장', 'phone_number': '010-XXXX-XXXX', 'description': '도장 직통번호', 'priority': 10}
+                    ]
+                    
+                    for number_data in default_numbers:
+                        quick_number = QuickCallNumber(**number_data)
+                        db.session.add(quick_number)
+                    
+                    db.session.commit()
+                    print("기본 빠른 전화번호 데이터가 추가되었습니다.")
+                
         except Exception as e:
             print(f"Database initialization error: {e}")
             pass

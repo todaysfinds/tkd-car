@@ -48,33 +48,33 @@
     {% endif %}
 
     {% if time_groups %}
-        <!-- 시간대 네비게이션 (화살표 고정, 시간 버튼 중앙 정렬) -->
-        <div class="relative mb-6">
-            <div class="flex items-center">
-                <!-- 왼쪽 화살표 (고정) -->
-                <button onclick="previousSlide()" 
-                        class="flex-shrink-0 w-10 h-10 bg-white hover:bg-gray-50 flex items-center justify-center text-lg border border-gray-300 rounded-xl shadow-sm z-10 mr-3 transition-colors">
-                    ⬅️
-                </button>
-                
-                <!-- 시간 버튼들 (중앙 정렬, 스크롤 가능) -->
-                <div class="flex-1 overflow-x-auto scrollbar-hide" id="timeNavContainer">
-                    <div class="flex space-x-3 px-2">
+        <!-- 시간대 네비게이션 (확실한 분리 구조) -->
+        <div class="flex items-center justify-center mb-6 px-4">
+            <!-- 왼쪽 화살표 -->
+            <button onclick="previousSlide()" 
+                    class="flex-shrink-0 w-12 h-12 bg-white hover:bg-blue-50 flex items-center justify-center text-2xl border-2 border-blue-300 rounded-full shadow-lg mr-8 transition-all hover:scale-110 z-30">
+                ⬅️
+            </button>
+            
+            <!-- 시간 버튼들 컨테이너 (충분한 여백) -->
+            <div class="flex-1 max-w-2xl">
+                <div class="overflow-x-auto scrollbar-hide" id="timeNavContainer">
+                    <div class="flex space-x-4 justify-center min-w-max py-2 px-8">
                         {% for time_key in time_groups.keys() %}
                         <button onclick="scrollToTimeSlot('{{ time_key }}')" id="nav-{{ time_key }}"
-                                class="flex-shrink-0 px-3 py-2 text-xs font-semibold bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-all duration-200 shadow-sm whitespace-nowrap">
+                                class="flex-shrink-0 px-6 py-3 text-base font-bold bg-white border-2 border-gray-300 rounded-2xl hover:bg-blue-50 hover:border-blue-400 transition-all duration-200 shadow-lg whitespace-nowrap min-w-[80px]">
                             {{ time_key.replace(' PM', '') }}
                         </button>
                         {% endfor %}
                     </div>
                 </div>
-                
-                <!-- 오른쪽 화살표 (고정) -->
-                <button onclick="nextSlide()" 
-                        class="flex-shrink-0 w-10 h-10 bg-white hover:bg-gray-50 flex items-center justify-center text-lg border border-gray-300 rounded-xl shadow-sm z-10 ml-3 transition-colors">
-                    ➡️
-                </button>
             </div>
+            
+            <!-- 오른쪽 화살표 -->
+            <button onclick="nextSlide()" 
+                    class="flex-shrink-0 w-12 h-12 bg-white hover:bg-blue-50 flex items-center justify-center text-2xl border-2 border-blue-300 rounded-full shadow-lg ml-8 transition-all hover:scale-110 z-30">
+                ➡️
+            </button>
         </div>
 
         <!-- 시간대별 슬라이드 -->
@@ -93,6 +93,11 @@
                             </button>
                         </div>
                         <div class="w-16 h-1 bg-blue-500 rounded-full mx-auto"></div>
+                        
+                        <!-- 빠른 전화걸기 버튼들 (정석 구현) -->
+                        <div class="flex gap-2 justify-center mt-3" id="quickCallButtons-{{ time_key }}">
+                            <!-- JavaScript로 동적 로드 -->
+                        </div>
                         
                         <!-- 시간대별 메모 -->
                         <div id="memo-{{ time_key }}" class="mt-4 hidden">
@@ -189,8 +194,13 @@
                                                 <span class="text-xs text-gray-600 ml-1">({{ student.memo }})</span>
                                             {% endif %}
                                         </button>
+                                        <button onclick="contactParent({{ student.id }}, '{{ student.name }}')"
+                                                class="text-blue-400 hover:text-blue-600 text-sm ml-1 w-5 h-5 flex items-center justify-center hover:bg-blue-100 rounded transition-colors"
+                                                title="부모님께 연락">
+                                            📞
+                                        </button>
                                         <button onclick="markAbsent({{ student.id }}, '{{ today }}')"
-                                                class="text-red-400 hover:text-red-600 text-sm ml-2 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
+                                                class="text-red-400 hover:text-red-600 text-sm ml-1 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
                                             ✕
                                         </button>
                                     </div>
@@ -261,13 +271,18 @@ function scrollToTimeSlot(timeKey) {
         currentSlideIndex = timeSlots.indexOf(timeKey);
         updateArrowStates();
         
-        // 현재 버튼을 중앙으로 스크롤 (컨테이너 기준)
+        // 현재 시간대를 localStorage에 저장 (새로고침 대응)
+        const today = '{{ today }}';
+        localStorage.setItem(`currentTimeSlot_${today}`, timeKey);
+        
+        // 현재 버튼을 정확히 중앙으로 스크롤 (화살표에 가려지지 않게)
         if (navBtn) {
-            const container = document.getElementById('timeNavContainer');
-            const containerRect = container.getBoundingClientRect();
-            const buttonRect = navBtn.getBoundingClientRect();
-            const scrollLeft = navBtn.offsetLeft - (container.offsetWidth / 2) + (navBtn.offsetWidth / 2);
-            container.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+            // scrollIntoView 사용으로 확실하게 중앙 정렬
+            navBtn.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest', 
+                inline: 'center' 
+            });
         }
     }
 }
@@ -575,18 +590,232 @@ function clearTimeSlotMemo(timeKey) {
     }
 }
 
-// 초기 슬라이드 설정
+// 부모님에게 연락하기 기능
+function contactParent(studentId, studentName) {
+    const contactOptions = [
+        { type: 'phone', label: '📞 전화 연결', message: '학생 도착 시간 안내' },
+        { type: 'kakao', label: '💬 카카오톡 알림', message: '차량 운행 알림' }
+    ];
+    
+    let optionsHTML = contactOptions.map((option, index) => 
+        `<button onclick="executeContact(${studentId}, '${studentName}', '${option.type}')" 
+                 class="w-full p-3 text-left border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors mb-2">
+            <div class="font-medium">${option.label}</div>
+            <div class="text-sm text-gray-600">${option.message}</div>
+         </button>`
+    ).join('');
+    
+    // 간단한 모달 대신 컨펌으로 대체 (일단 테스트용)
+    if (confirm(`${studentName} 학생 부모님께 연락하시겠습니까?\n\n⚠️ 안심번호 서비스는 개발 중입니다.\n현재는 시뮬레이션만 실행됩니다.`)) {
+        executeContact(studentId, studentName, 'phone');
+    }
+}
+
+function executeContact(studentId, studentName, contactType) {
+    fetch('/api/contact_parent', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            type: contactType,
+            message: `${studentName} 학생 차량 운행 관련 연락드립니다.`
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.action === 'call' && data.contacts) {
+                // 전화 연결 옵션 표시
+                showCallOptions(studentName, data.contacts);
+            } else if (data.action === 'kakao') {
+                // 카카오톡 시뮬레이션 표시
+                alert(`📱 ${data.message}\n\n미리보기:\n${data.preview}\n\n⚠️ ${data.note}`);
+            }
+        } else {
+            alert(`❌ 연락 실패: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ 연락 중 오류가 발생했습니다.');
+    });
+}
+
+function showCallOptions(studentName, contacts) {
+    // 연락처 옵션을 보여주는 간단한 선택창
+    let options = contacts.map((contact, index) => 
+        `${index + 1}. ${contact.type}: ${contact.number}`
+    ).join('\n');
+    
+    let choice = prompt(`${studentName} 학생 부모님께 전화하기\n\n연락처를 선택하세요:\n${options}\n\n번호를 입력하세요 (1-${contacts.length}):`);
+    
+    if (choice && choice >= 1 && choice <= contacts.length) {
+        let selectedContact = contacts[choice - 1];
+        // 실제 전화 앱으로 연결
+        window.location.href = selectedContact.tel_link;
+    }
+}
+
+// 빠른 전화걸기 기능 (정석 구현)
+function quickCall(type, location = null, customNumber = null) {
+    fetch('/api/quick_call', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            type: type,
+            location: location,
+            number: customNumber
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.action === 'call') {
+                if (confirm(`${data.display}에 전화를 걸까요?`)) {
+                    window.location.href = data.tel_link;
+                }
+            } else if (data.action === 'select') {
+                showCallOptions(data.options, data.message);
+            }
+        } else {
+            alert(`❌ 오류: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ 전화 연결 중 오류가 발생했습니다.');
+    });
+}
+
+// 여러 연락처 옵션 표시
+function showCallOptions(options, title) {
+    let optionsText = options.map((option, index) => 
+        `${index + 1}. ${option.name} (${option.phone_number})`
+    ).join('\n');
+    
+    let choice = prompt(`${title}\n\n${optionsText}\n\n번호를 선택하세요 (1-${options.length}):`);
+    
+    if (choice && choice >= 1 && choice <= options.length) {
+        let selectedOption = options[choice - 1];
+        if (confirm(`${selectedOption.name} (${selectedOption.phone_number})에 전화를 걸까요?`)) {
+            window.location.href = selectedOption.tel_link;
+        }
+    }
+}
+
+// 빠른 전화 버튼들 로드
+function loadQuickCallButtons(timeKey, location = null) {
+    const container = document.getElementById(`quickCallButtons-${timeKey}`);
+    if (!container) return;
+    
+    fetch(`/api/quick_call_numbers?location=${location || ''}`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayQuickCallButtons(container, data.numbers, location);
+        }
+    })
+    .catch(error => {
+        console.error('Error loading quick call buttons:', error);
+        // 기본 버튼들 표시
+        container.innerHTML = `
+            <button onclick="quickCall('school')" 
+                    class="text-xs bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded transition-colors">
+                🏫 학교
+            </button>
+            <button onclick="quickCall('daycare')" 
+                    class="text-xs bg-orange-500 hover:bg-orange-600 text-white px-2 py-1 rounded transition-colors">
+                👶 돌봄
+            </button>
+            <button onclick="quickCall('emergency')" 
+                    class="text-xs bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded transition-colors">
+                🚨 응급
+            </button>
+        `;
+    });
+}
+
+// 빠른 전화 버튼들 표시
+function displayQuickCallButtons(container, numbers, location) {
+    const categoryColors = {
+        'school': 'bg-green-500 hover:bg-green-600',
+        'daycare': 'bg-orange-500 hover:bg-orange-600', 
+        'emergency': 'bg-red-500 hover:bg-red-600',
+        'location': 'bg-blue-500 hover:bg-blue-600',
+        'custom': 'bg-gray-500 hover:bg-gray-600'
+    };
+    
+    const categoryIcons = {
+        'school': '🏫',
+        'daycare': '👶',
+        'emergency': '🚨',
+        'location': '📍',
+        'custom': '⚙️'
+    };
+    
+    const categoryNames = {
+        'school': '학교',
+        'daycare': '돌봄',
+        'emergency': '응급',
+        'location': '장소',
+        'custom': '기타'
+    };
+    
+    let buttonsHTML = '';
+    
+    // 우선순위 높은 카테고리 순서대로 표시
+    const priorityOrder = ['emergency', 'school', 'daycare', 'location', 'custom'];
+    
+    priorityOrder.forEach(category => {
+        if (numbers[category] && numbers[category].length > 0) {
+            const colorClass = categoryColors[category] || 'bg-gray-500 hover:bg-gray-600';
+            const icon = categoryIcons[category] || '📞';
+            const name = categoryNames[category] || category;
+            
+            buttonsHTML += `
+                <button onclick="quickCall('${category}', '${location || ''}')" 
+                        class="text-xs ${colorClass} text-white px-2 py-1 rounded transition-colors"
+                        title="${numbers[category].length}개의 ${name} 연락처">
+                    ${icon} ${name}
+                </button>
+            `;
+        }
+    });
+    
+    container.innerHTML = buttonsHTML || `
+        <span class="text-xs text-gray-500">등록된 빠른 전화번호가 없습니다</span>
+    `;
+}
+
+// 초기 슬라이드 설정 (새로고침 시 현재 위치 유지)
 document.addEventListener('DOMContentLoaded', function() {
     if (timeSlots.length > 0) {
         const urlParams = new URLSearchParams(window.location.search);
         const timeParam = urlParams.get('time');
+        const today = '{{ today }}';
+        const savedTimeSlot = localStorage.getItem(`currentTimeSlot_${today}`);
         
+        // 우선순위: URL 파라미터 > 저장된 시간대 > 첫 번째 시간대
+        let targetTimeSlot = null;
         if (timeParam && timeSlots.includes(timeParam)) {
-            scrollToTimeSlot(timeParam);
+            targetTimeSlot = timeParam;
+        } else if (savedTimeSlot && timeSlots.includes(savedTimeSlot)) {
+            targetTimeSlot = savedTimeSlot;
         } else {
-            scrollToTimeSlot(timeSlots[0]);
+            targetTimeSlot = timeSlots[0];
         }
+        
+        scrollToTimeSlot(targetTimeSlot);
         updateArrowStates();
+        
+        // 각 시간대별로 빠른 전화 버튼 로드
+        timeSlots.forEach(timeKey => {
+            loadQuickCallButtons(timeKey);
+        });
     }
     
     // 저장된 메모가 있으면 표시
@@ -604,12 +833,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // 이전 날짜의 메모들은 자동 정리 (일주일 이전)
+    // 이전 날짜의 메모들과 시간대 정보 자동 정리 (일주일 이전)
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     
     Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('memo_')) {
+        if (key.startsWith('memo_') || key.startsWith('currentTimeSlot_')) {
             const dateStr = key.split('_')[1];
             if (dateStr && new Date(dateStr) < oneWeekAgo) {
                 localStorage.removeItem(key);
