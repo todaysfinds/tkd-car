@@ -1553,32 +1553,49 @@ def initialize_database():
     """
     try:
         with app.app_context():
-            print("🔧 PostgreSQL 데이터베이스 초기화 시작...")
+            print("🔧 데이터베이스 초기화 시작...")
+            print(f"📍 DB URL: {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...")
             
-            # 1. 테이블 생성 (없는 경우에만)
+            # 1. 데이터베이스 연결 테스트
+            try:
+                # SQLAlchemy 2.0 호환 방식
+                from sqlalchemy import text
+                with db.engine.connect() as conn:
+                    conn.execute(text('SELECT 1'))
+                print("✅ 데이터베이스 연결 성공")
+            except Exception as e:
+                print(f"❌ 데이터베이스 연결 실패: {e}")
+                print(f"   DB URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
+                return False
+            
+            # 2. 테이블 생성 (없는 경우에만)
             db.create_all()
             print("✅ 테이블 생성/확인 완료")
             
-            # 2. 현재 데이터 확인
+            # 3. 현재 데이터 확인
             student_count = Student.query.count()
             print(f"📊 현재 학생 수: {student_count}명")
             
-            # 3. 빈 데이터베이스인 경우에만 샘플 데이터 추가
+            # 4. 빈 데이터베이스인 경우에만 샘플 데이터 추가
             if student_count == 0:
                 print("🎯 빈 데이터베이스 감지 - 기본 학생 데이터 추가 중...")
                 add_initial_data()
                 final_count = Student.query.count()
                 print(f"✅ 기본 데이터 추가 완료 - 총 {final_count}명")
+                return True
             else:
                 print(f"✅ 기존 데이터 보존 - {student_count}명 유지")
+                return True
                 
     except Exception as e:
         print(f"❌ 데이터베이스 초기화 오류: {e}")
-        # 오류가 있어도 앱은 계속 실행
+        return False
 
 def add_initial_data():
     """기본 학생 데이터 추가 (빈 데이터베이스에만)"""
     try:
+        print("📝 학생 데이터 추가 시작...")
+        
         # 실제 시간표 기반 학생 데이터
         students_data = [
             # 1부 (2:00~2:50)
@@ -1604,23 +1621,30 @@ def add_initial_data():
             {'name': '아이유', 'grade': '초등 4학년', 'phone': '010-1111-2222', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '6:40', 'session_part': 5, 'memo': ''},
         ]
         
-        for student_data in students_data:
+        for i, student_data in enumerate(students_data):
+            print(f"  📝 {i+1}/12: {student_data['name']} 추가 중...")
             student = Student(**student_data)
             db.session.add(student)
         
         db.session.commit()
+        print("✅ 학생 데이터 추가 완료")
         
         # 스케줄 데이터도 추가
+        print("📅 스케줄 데이터 추가 시작...")
         add_initial_schedules()
+        print("✅ 스케줄 데이터 추가 완료")
         
     except Exception as e:
         print(f"❌ 기본 데이터 추가 실패: {e}")
         db.session.rollback()
+        raise e
 
 def add_initial_schedules():
     """기본 스케줄 데이터 추가"""
     try:
         students = Student.query.all()
+        schedule_count = 0
+        
         for student in students:
             for day in [0, 2, 4]:  # 월, 수, 금
                 # 부별 시간 설정
@@ -1649,6 +1673,7 @@ def add_initial_schedules():
                     location=student.pickup_location
                 )
                 db.session.add(pickup_schedule)
+                schedule_count += 1
                 
                 # 드롭오프 스케줄 추가
                 dropoff_schedule = Schedule(
@@ -1659,21 +1684,31 @@ def add_initial_schedules():
                     location=student.pickup_location
                 )
                 db.session.add(dropoff_schedule)
+                schedule_count += 1
         
         db.session.commit()
+        print(f"  📅 총 {schedule_count}개 스케줄 추가 완료")
         
     except Exception as e:
         print(f"❌ 기본 스케줄 추가 실패: {e}")
         db.session.rollback()
+        raise e
+
+# 🚀 앱 시작시 즉시 초기화 실행
+print("🚀 애플리케이션 시작 - 데이터베이스 초기화 중...")
+try:
+    initialization_success = initialize_database()
+    if initialization_success:
+        print("✅ 데이터베이스 초기화 성공!")
+    else:
+        print("⚠️ 데이터베이스 초기화 실패 - 앱은 계속 실행됩니다")
+except Exception as e:
+    print(f"❌ 초기화 중 예외 발생: {e}")
 
 # 🎯 애플리케이션 실행 부분 (깔끔하고 안전)
 if __name__ == '__main__':
     # 개발 환경에서만 실행
-    initialize_database()
     app.run(debug=True)
-else:
-    # 프로덕션 환경 (gunicorn으로 실행)
-    initialize_database()
 
 # 🔧 임시 디버그 엔드포인트 (문제 해결용)
 @app.route('/debug/init-db')
@@ -1732,5 +1767,27 @@ def debug_db_status():
     except Exception as e:
         return f"""
         <h1>❌ 데이터베이스 연결 오류</h1>
+        <pre>{str(e)}</pre>
+        """
+
+# 🔧 강제 초기화 엔드포인트 (긴급용)
+@app.route('/debug/force-init')
+def debug_force_init():
+    """강제로 샘플 데이터 추가 (긴급용)"""
+    try:
+        print("🚨 강제 초기화 시작...")
+        add_initial_data()
+        final_count = Student.query.count()
+        
+        return f"""
+        <h1>🚨 강제 초기화 완료!</h1>
+        <p>학생 수: {final_count}명</p>
+        <p><strong>주의:</strong> 기존 데이터와 중복될 수 있습니다.</p>
+        <a href="/admin/students">학생 명단 보기</a>
+        """
+        
+    except Exception as e:
+        return f"""
+        <h1>❌ 강제 초기화 실패</h1>
         <pre>{str(e)}</pre>
         """
