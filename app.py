@@ -345,7 +345,11 @@ def add_location():
         if existing_students:
             return jsonify({'success': False, 'message': '이미 존재하는 장소입니다.'})
         
-        return jsonify({'success': True})
+        # 실제로 장소를 생성하기 위해 임시 학생을 만들고 바로 삭제
+        # 또는 빈 장소 정보를 저장할 수 있는 방법 필요
+        # 현재는 성공 응답만 보내고 실제 장소는 학생 추가할 때 생성됨
+        
+        return jsonify({'success': True, 'message': f'장소 "{name}" 추가 준비 완료'})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
@@ -1554,17 +1558,36 @@ def init_production_db():
     
     try:
         with app.app_context():
+            # 🛡️ 기존 데이터 확인 먼저
+            try:
+                student_count = Student.query.count()
+                print(f"🔍 프로덕션 환경 - 기존 학생 수: {student_count}명")
+            except Exception as e:
+                print(f"⚠️ 테이블이 없어서 학생 수 확인 불가: {e}")
+                student_count = 0
+            
             # 테이블이 없는 경우에만 생성 (기존 데이터 보존)
             db.create_all()
+            print("✅ 프로덕션 환경: 테이블 생성/확인 완료")
             
-            student_count = Student.query.count()
-            print(f"🏭 프로덕션 환경 초기화 완료 - 현재 학생 수: {student_count}명")
+            # 생성 후 다시 학생 수 확인
+            final_student_count = Student.query.count()
+            print(f"🏭 프로덕션 환경 초기화 완료 - 최종 학생 수: {final_student_count}명")
             
             # 환경 정보 로깅
             print(f"📊 환경 변수:")
             print(f"   - RENDER: {os.environ.get('RENDER', 'None')}")
             print(f"   - DATABASE_URL: {'설정됨' if os.environ.get('DATABASE_URL') else 'None'}")
             print(f"   - PORT: {os.environ.get('PORT', 'None')}")
+            print(f"   - PYTHON_ENV: {os.environ.get('PYTHON_ENV', 'None')}")
+            
+            # 🚨 데이터 손실 경고
+            if student_count > 0 and final_student_count == 0:
+                print("🚨🚨🚨 경고: 학생 데이터가 사라졌습니다! 🚨🚨🚨")
+            elif student_count == 0 and final_student_count == 0:
+                print("ℹ️ 새로운 데이터베이스 - 학생 데이터 없음 (정상)")
+            else:
+                print("✅ 학생 데이터 정상 보존됨")
             
     except Exception as e:
         print(f"❌ 프로덕션 데이터베이스 초기화 오류: {e}")
