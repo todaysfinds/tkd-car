@@ -3,30 +3,20 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
 import os
 import traceback
-try:
-    import psycopg2
-except ImportError:
-    import psycopg as psycopg2
+import psycopg2
 
 app = Flask(__name__)
 
-# 🎯 통합 데이터베이스 설정 (PostgreSQL 우선, SQLite 백업)
-# 환경에 관계없이 동일한 로직 사용
+# 🎯 깔끔한 데이터베이스 설정 (PostgreSQL 전용)
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
     # 프로덕션: Render PostgreSQL
-    try:
-        if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
-        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-        print("🐘 PostgreSQL 사용 (프로덕션)")
-    except Exception as e:
-        print(f"⚠️ PostgreSQL 연결 실패: {e}")
-        # 긴급 대안: SQLite 사용
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tkd_transport.db'
-        print("🗄️ SQLite 사용 (긴급 대안)")
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print("🐘 PostgreSQL 사용 (프로덕션)")
 else:
-    # 로컬 개발: PostgreSQL 시도, 실패시 SQLite
+    # 로컬 개발: PostgreSQL
     try:
         # PostgreSQL 연결 테스트
         test_conn = psycopg2.connect(
@@ -39,9 +29,9 @@ else:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost:5432/tkd_transport'
         print("🐘 PostgreSQL 사용 (로컬)")
     except:
-        # PostgreSQL 없으면 SQLite 사용
+        # 로컬에서 PostgreSQL 없으면 환경변수 사용
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tkd_transport.db'
-        print("🗄️ SQLite 사용 (로컬 백업)")
+        print("🗄️ 로컬 개발용 SQLite")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
