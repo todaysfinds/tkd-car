@@ -11,8 +11,19 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
 import os
 import traceback
-# psycopg3 사용 (Python 3.13 호환)
-import psycopg as psycopg2
+# PostgreSQL 드라이버 설정 (Python 3.13 호환)
+import sys
+try:
+    import psycopg2
+    print("🔄 psycopg2-binary 사용")
+except ImportError:
+    print("🔄 psycopg3로 대체")
+    import psycopg as psycopg2
+    # SQLAlchemy가 psycopg2를 찾을 수 있도록 sys.modules에 등록
+    sys.modules['psycopg2'] = psycopg2
+    # 추가 모듈들도 매핑
+    sys.modules['psycopg2.extensions'] = psycopg2
+    sys.modules['psycopg2.extras'] = psycopg2
 
 app = Flask(__name__)
 
@@ -22,6 +33,16 @@ if database_url:
     # 프로덕션: Render PostgreSQL
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    
+    # psycopg3 사용 시 드라이버 명시
+    if 'psycopg2' not in sys.modules or 'psycopg' in str(type(sys.modules.get('psycopg2', {}))):
+        # psycopg3 사용 중이면 URL에 드라이버 명시
+        if '?' in database_url:
+            database_url += '&'
+        else:
+            database_url += '?'
+        database_url += 'sslmode=require'
+    
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     print("🐘 PostgreSQL 사용 (프로덕션)")
 else:
