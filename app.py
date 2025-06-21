@@ -11,7 +11,25 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
 import os
 import traceback
-import psycopg2
+try:
+    import psycopg2
+except ImportError:
+    # Python 3.13 호환성을 위해 psycopg3 사용
+    import psycopg as psycopg2
+    # psycopg3는 다른 connect 방식을 사용하므로 어댑터 함수 생성
+    _original_connect = psycopg2.connect
+    def patched_connect(*args, **kwargs):
+        if 'host' in kwargs and 'database' in kwargs:
+            # psycopg3 방식으로 변환
+            return _original_connect(
+                host=kwargs.get('host'),
+                port=kwargs.get('port', 5432),
+                dbname=kwargs.get('database'),
+                user=kwargs.get('user'),
+                **{k: v for k, v in kwargs.items() if k not in ['host', 'port', 'database', 'user']}
+            )
+        return _original_connect(*args, **kwargs)
+    psycopg2.connect = patched_connect
 
 app = Flask(__name__)
 
