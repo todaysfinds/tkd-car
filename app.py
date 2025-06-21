@@ -2,11 +2,24 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for, f
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
 import os
+import traceback
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///tkd_transport.db')
+
+# 🎯 통합 데이터베이스 설정 (PostgreSQL 전용)
+# 환경에 관계없이 동일한 로직 사용
+database_url = os.environ.get('DATABASE_URL')
+if database_url:
+    # 프로덕션: Render PostgreSQL
+    if database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+else:
+    # 로컬 개발: 로컬 PostgreSQL
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost:5432/tkd_transport'
+
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
 db = SQLAlchemy(app)
 
@@ -1514,198 +1527,43 @@ def update_kakao_settings():
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
-# 앱 초기화 함수 (완전 안전 모드)
-def init_db():
-    """데이터베이스 초기화 - 개발 환경에서만 샘플 데이터 추가"""
-    import os
-    
-    # 🚫 프로덕션 환경에서는 아예 실행하지 않음
-    if (os.environ.get('RENDER') or 
-        os.environ.get('DATABASE_URL') or 
-        os.environ.get('PORT') or
-        os.environ.get('PYTHON_ENV') == 'production'):
-        print("🛡️ 프로덕션 환경: init_db() 실행 차단")
-        return
-    
-    with app.app_context():
-        # 테이블 생성 (없는 경우에만)
-        db.create_all()
-        
-        # 기존 데이터 체크
-        student_count = Student.query.count()
-        print(f"현재 학생 수: {student_count}명")
-        
-        if student_count > 0:
-            print("⚠️ 기존 학생 데이터 발견! 샘플 데이터 추가 안전 차단")
-            return
-        
-        # 샘플 데이터 추가 (개발 환경에서 처음 실행시에만)
-        try:
-            # 실제 시간표 기반 샘플 학생 데이터
-            students_data = [
-                # 1부 (2:00~2:50)
-                {'name': '홍길동', 'grade': '초등 3학년', 'phone': '010-1234-5678', 'pickup_location': '동부시스템', 'estimated_pickup_time': '2:40', 'session_part': 1, 'memo': ''},
-                {'name': '김철수', 'grade': '초등 4학년', 'phone': '010-2345-6789', 'pickup_location': '승차', 'estimated_pickup_time': '2:30', 'session_part': 1, 'memo': ''},
-                
-                # 2부 (3:00~3:50)  
-                {'name': '이영희', 'grade': '초등 2학년', 'phone': '010-1111-2222', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '3:30', 'session_part': 2, 'memo': ''},
-                {'name': '박민수', 'grade': '초등 5학년', 'phone': '010-3333-4444', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '3:40', 'session_part': 2, 'memo': ''},
-                {'name': '최수진', 'grade': '초등 3학년', 'phone': '010-4444-5555', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '3:42', 'session_part': 2, 'memo': ''},
-                
-                # 3부 (4:30~5:20)
-                {'name': '정우성', 'grade': '초등 1학년', 'phone': '010-5555-6666', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '4:15', 'session_part': 3, 'memo': ''},
-                {'name': '강호동', 'grade': '초등 4학년', 'phone': '010-6666-7777', 'pickup_location': '이화빌라', 'estimated_pickup_time': '4:10', 'session_part': 3, 'memo': ''},
-                {'name': '유재석', 'grade': '초등 6학년', 'phone': '010-7777-8888', 'pickup_location': '영은유치원', 'estimated_pickup_time': '4:14', 'session_part': 3, 'memo': ''},
-                
-                # 4부 (5:30~6:20)
-                {'name': '송중기', 'grade': '초등 2학년', 'phone': '010-8888-9999', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '6:30', 'session_part': 4, 'memo': ''},
-                {'name': '전지현', 'grade': '초등 5학년', 'phone': '010-9999-0000', 'pickup_location': '이디야', 'estimated_pickup_time': '6:35', 'session_part': 4, 'memo': ''},
-                
-                # 5부 (7:00~7:50)
-                {'name': '김수현', 'grade': '초등 3학년', 'phone': '010-0000-1111', 'pickup_location': '승차', 'estimated_pickup_time': '6:35', 'session_part': 5, 'memo': ''},
-                {'name': '아이유', 'grade': '초등 4학년', 'phone': '010-1111-2222', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '6:40', 'session_part': 5, 'memo': ''},
-            ]
-            
-            for student_data in students_data:
-                student = Student(**student_data)
-                db.session.add(student)
-            
-            db.session.commit()
-            
-            # 샘플 스케줄 데이터 (월요일, 수요일, 금요일)
-            students = Student.query.all()
-            for student in students:
-                for day in [0, 2, 4]:  # 월, 수, 금
-                    # 부별 시간 설정
-                    if student.session_part == 1:  # 1부
-                        pickup_time_obj = time(14, 0)  # 2:00 PM
-                        dropoff_time_obj = time(14, 50)  # 2:50 PM
-                    elif student.session_part == 2:  # 2부
-                        pickup_time_obj = time(15, 0)  # 3:00 PM
-                        dropoff_time_obj = time(15, 50)  # 3:50 PM
-                    elif student.session_part == 3:  # 3부
-                        pickup_time_obj = time(16, 30)  # 4:30 PM
-                        dropoff_time_obj = time(17, 20)  # 5:20 PM
-                    elif student.session_part == 4:  # 4부
-                        pickup_time_obj = time(17, 30)  # 5:30 PM
-                        dropoff_time_obj = time(18, 20)  # 6:20 PM
-                    else:  # 5부
-                        pickup_time_obj = time(19, 0)  # 7:00 PM
-                        dropoff_time_obj = time(19, 50)  # 7:50 PM
-                    
-                    # 픽업 스케줄 추가
-                    pickup_schedule = Schedule(
-                        student_id=student.id,
-                        day_of_week=day,
-                        schedule_type='pickup',
-                        time=pickup_time_obj,
-                        location=student.pickup_location
-                    )
-                    db.session.add(pickup_schedule)
-                    
-                    # 드롭오프 스케줄 추가
-                    dropoff_schedule = Schedule(
-                        student_id=student.id,
-                        day_of_week=day,
-                        schedule_type='dropoff',
-                        time=dropoff_time_obj,
-                        location=student.pickup_location
-                    )
-                    db.session.add(dropoff_schedule)
-                
-                db.session.commit()
-                
-                # 기본 빠른 전화번호 데이터 추가
-                if QuickCallNumber.query.count() == 0:
-                    default_numbers = [
-                        # 학교 관련
-                        {'category': 'school', 'name': 'OO초등학교 교무실', 'phone_number': '02-XXX-XXXX', 'description': '학교 교무실', 'priority': 10},
-                        {'category': 'school', 'name': 'OO초등학교 행정실', 'phone_number': '02-XXX-XXXY', 'description': '학교 행정실', 'priority': 9},
-                        
-                        # 돌봄센터
-                        {'category': 'daycare', 'name': 'OO초등학교 돌봄교실', 'phone_number': '02-XXX-XXYZ', 'description': '초등학교 돌봄교실', 'priority': 10},
-                        {'category': 'daycare', 'name': '지역돌봄센터', 'phone_number': '02-XXX-XYZW', 'description': '지역 돌봄센터', 'priority': 5},
-                        
-                        # 응급상황
-                        {'category': 'emergency', 'name': '119 소방서', 'phone_number': '119', 'description': '응급의료 상황', 'priority': 10},
-                        {'category': 'emergency', 'name': '112 경찰서', 'phone_number': '112', 'description': '치안/사고 신고', 'priority': 9},
-                        {'category': 'emergency', 'name': '지역 응급실', 'phone_number': '02-XXX-ZZZZ', 'description': 'OO병원 응급실', 'priority': 8},
-                        
-                        # 장소별 연락처 (예시)
-                        {'category': 'location', 'name': '현대홈타운 관리사무소', 'phone_number': '02-XXX-1111', 'location': '현대홈타운', 'description': '아파트 관리사무소', 'priority': 5},
-                        {'category': 'location', 'name': '삼성래미안 관리사무소', 'phone_number': '02-XXX-2222', 'location': '삼성래미안', 'description': '아파트 관리사무소', 'priority': 5},
-                        {'category': 'location', 'name': '영은유치원', 'phone_number': '02-XXX-3333', 'location': '영은유치원', 'description': '유치원', 'priority': 8},
-                        
-                        # 기타 유용한 번호
-                        {'category': 'custom', 'name': 'OO태권도장', 'phone_number': '010-XXXX-XXXX', 'description': '도장 직통번호', 'priority': 10}
-                    ]
-                    
-                    for number_data in default_numbers:
-                        quick_number = QuickCallNumber(**number_data)
-                        db.session.add(quick_number)
-                    
-                    db.session.commit()
-                    print("✅ 개발 환경: 샘플 데이터 추가 완료")
-                
-        except Exception as e:
-            print(f"❌ Database initialization error: {e}")
-            db.session.rollback()
-
-def init_production_db():
-    """프로덕션 환경 전용 데이터베이스 초기화 - 테이블만 생성, 데이터 절대 건드리지 않음"""
-    import os
-    
+# 🎯 단순하고 안전한 데이터베이스 초기화 (환경 통합)
+def initialize_database():
+    """
+    환경에 관계없이 동일한 로직으로 데이터베이스 초기화
+    - PostgreSQL 전용 (로컬/프로덕션 동일)
+    - 기존 데이터 절대 삭제하지 않음
+    - 필요시에만 샘플 데이터 추가
+    """
     try:
         with app.app_context():
-            # 🛡️ 기존 데이터 확인 먼저
-            try:
-                student_count = Student.query.count()
-                print(f"🔍 프로덕션 환경 - 기존 학생 수: {student_count}명")
-            except Exception as e:
-                print(f"⚠️ 테이블이 없어서 학생 수 확인 불가: {e}")
-                student_count = 0
+            print("🔧 PostgreSQL 데이터베이스 초기화 시작...")
             
-            # 테이블이 없는 경우에만 생성 (기존 데이터 보존)
+            # 1. 테이블 생성 (없는 경우에만)
             db.create_all()
-            print("✅ 프로덕션 환경: 테이블 생성/확인 완료")
+            print("✅ 테이블 생성/확인 완료")
             
-            # 생성 후 다시 학생 수 확인
-            final_student_count = Student.query.count()
-            print(f"🏭 프로덕션 환경 초기화 완료 - 최종 학생 수: {final_student_count}명")
+            # 2. 현재 데이터 확인
+            student_count = Student.query.count()
+            print(f"📊 현재 학생 수: {student_count}명")
             
-            # 🚀 처음 배포시에만 기본 학생 데이터 추가 (한 번만)
-            if final_student_count == 0 and os.environ.get('INIT_SAMPLE_DATA') == 'true':
-                print("🎯 프로덕션 환경에 기본 학생 데이터 추가 중...")
-                add_production_sample_data()
-            elif final_student_count > 0:
-                print(f"✅ 기존 학생 데이터 {final_student_count}명 보존됨 - 샘플 데이터 추가 안함")
+            # 3. 빈 데이터베이스인 경우에만 샘플 데이터 추가
+            if student_count == 0:
+                print("🎯 빈 데이터베이스 감지 - 기본 학생 데이터 추가 중...")
+                add_initial_data()
+                final_count = Student.query.count()
+                print(f"✅ 기본 데이터 추가 완료 - 총 {final_count}명")
             else:
-                print("ℹ️ 빈 데이터베이스 - 학생을 직접 추가해주세요")
-            
-            # 환경 정보 로깅
-            print(f"📊 환경 변수:")
-            print(f"   - RENDER: {os.environ.get('RENDER', 'None')}")
-            print(f"   - DATABASE_URL: {'설정됨' if os.environ.get('DATABASE_URL') else 'None'}")
-            print(f"   - PORT: {os.environ.get('PORT', 'None')}")
-            print(f"   - PYTHON_ENV: {os.environ.get('PYTHON_ENV', 'None')}")
-            print(f"   - INIT_SAMPLE_DATA: {os.environ.get('INIT_SAMPLE_DATA', 'None')}")
-            
-            # 🚨 데이터 손실 경고
-            if student_count > 0 and final_student_count == 0:
-                print("🚨🚨🚨 경고: 학생 데이터가 사라졌습니다! 🚨🚨🚨")
-            elif student_count == 0 and final_student_count == 0:
-                print("ℹ️ 새로운 데이터베이스 - 학생 데이터 없음 (정상)")
-            else:
-                print("✅ 학생 데이터 정상 보존됨")
-            
+                print(f"✅ 기존 데이터 보존 - {student_count}명 유지")
+                
     except Exception as e:
-        print(f"❌ 프로덕션 데이터베이스 초기화 오류: {e}")
-        # 오류가 있어도 앱 시작은 계속
+        print(f"❌ 데이터베이스 초기화 오류: {e}")
+        # 오류가 있어도 앱은 계속 실행
 
-def add_production_sample_data():
-    """프로덕션 환경에 기본 학생 데이터 추가 (일회성)"""
+def add_initial_data():
+    """기본 학생 데이터 추가 (빈 데이터베이스에만)"""
     try:
-        # 실제 시간표 기반 샘플 학생 데이터
+        # 실제 시간표 기반 학생 데이터
         students_data = [
             # 1부 (2:00~2:50)
             {'name': '홍길동', 'grade': '초등 3학년', 'phone': '010-1234-5678', 'pickup_location': '동부시스템', 'estimated_pickup_time': '2:40', 'session_part': 1, 'memo': ''},
@@ -1735,17 +1593,16 @@ def add_production_sample_data():
             db.session.add(student)
         
         db.session.commit()
-        print(f"✅ 프로덕션 환경에 {len(students_data)}명 학생 데이터 추가 완료")
         
         # 스케줄 데이터도 추가
-        add_production_schedule_data()
+        add_initial_schedules()
         
     except Exception as e:
-        print(f"❌ 프로덕션 샘플 데이터 추가 실패: {e}")
+        print(f"❌ 기본 데이터 추가 실패: {e}")
         db.session.rollback()
 
-def add_production_schedule_data():
-    """프로덕션 환경에 스케줄 데이터 추가"""
+def add_initial_schedules():
+    """기본 스케줄 데이터 추가"""
     try:
         students = Student.query.all()
         for student in students:
@@ -1788,23 +1645,16 @@ def add_production_schedule_data():
                 db.session.add(dropoff_schedule)
         
         db.session.commit()
-        print("✅ 프로덕션 환경에 스케줄 데이터 추가 완료")
         
     except Exception as e:
-        print(f"❌ 프로덕션 스케줄 데이터 추가 실패: {e}")
+        print(f"❌ 기본 스케줄 추가 실패: {e}")
         db.session.rollback()
 
-# 개발 환경에서만 Flask 직접 실행
+# 🎯 애플리케이션 실행 부분 (깔끔하고 안전)
 if __name__ == '__main__':
-    import os
-    print("🔧 개발 환경에서 직접 실행")
-    # 개발 환경에서만 데이터베이스 초기화
-    init_db()
-    port = int(os.environ.get('PORT', 5000))
-    host = '0.0.0.0'
-    debug = not (os.environ.get('RENDER') or os.environ.get('DATABASE_URL'))
-    app.run(host=host, port=port, debug=debug)
+    # 개발 환경에서만 실행
+    initialize_database()
+    app.run(debug=True)
 else:
-    print("🏭 프로덕션 환경에서 gunicorn으로 실행")
-    # 프로덕션 환경에서는 안전한 초기화만
-    init_production_db()
+    # 프로덕션 환경 (gunicorn으로 실행)
+    initialize_database()
