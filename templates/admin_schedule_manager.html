@@ -70,7 +70,7 @@
                                 + 학생
                             </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
                                 {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
                                 <div class="flex flex-wrap gap-1">
@@ -243,25 +243,20 @@
                                 + 학생
                             </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care2' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care2'] %}
                                 {% for location, students in schedule_data[day_num]['care2']['students'].items() %}
                                 <div class="flex flex-wrap gap-1">
-                                        {% for student_data in students %}
-                                        <div class="flex items-center justify-between text-xs bg-orange-100 px-1 py-0.5 rounded border border-orange-300 min-w-[50px] max-w-[100px]">
-                                            <span class="text-orange-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care2')" 
-                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                        </div>
-                                        {% endfor %}
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care2')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                     </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
                             {% endif %}
-                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care2')" 
-                                    class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-100">
-                                + 학생 추가
-                            </button>
                         </div>
                     </div>
 
@@ -420,7 +415,7 @@
                                 + 학생
                             </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care3' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care3'] %}
                                 {% for location, students in schedule_data[day_num]['care3']['students'].items() %}
                                 <div class="flex flex-wrap gap-1">
@@ -446,7 +441,7 @@
                                 + 학생
                             </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'national' in schedule_data[day_num] and 'students' in schedule_data[day_num]['national'] %}
                                 {% for location, students in schedule_data[day_num]['national']['students'].items() %}
                                 <div class="flex flex-wrap gap-1">
