@@ -1546,6 +1546,12 @@ if __name__ == '__main__':
     debug = not (os.environ.get('RENDER') or os.environ.get('DATABASE_URL'))
     app.run(host=host, port=port, debug=debug)
 else:
-    # 프로덕션 환경에서는 테이블만 생성하고 데이터는 건드리지 않음
-    with app.app_context():
-        db.create_all()  # 테이블이 없으면 생성만 
+    # 프로덕션 환경에서는 테이블만 생성하고 데이터는 절대 건드리지 않음
+    try:
+        with app.app_context():
+            # 테이블이 없으면 생성만 하고, 기존 데이터는 절대 삭제하지 않음
+            db.create_all()
+            print(f"프로덕션 환경: 테이블 초기화 완료. 현재 학생 수: {Student.query.count()}명")
+    except Exception as e:
+        print(f"프로덕션 환경 데이터베이스 초기화 오류: {e}")
+        # 오류가 있어도 앱 시작은 계속 
