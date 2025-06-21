@@ -52,36 +52,42 @@
     <!-- 학생 목록 -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="p-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">전체 학생 명단</h2>
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">전체 학생 명단</h2>
+                <span class="text-lg font-semibold text-gray-900">총 {{ students|length }}명</span>
+            </div>
         </div>
-        <div class="divide-y divide-gray-200">
-            {% for student in students %}
-            <div class="p-4 flex items-center justify-between hover:bg-gray-50">
-                <div class="flex-1">
-                    <div class="flex items-center space-x-2">
-                        <span class="text-sm font-medium text-gray-900">{{ student.name }}</span>
-                        {% if student.grade %}
-                        <span class="text-gray-400">|</span>
-                        <span class="text-sm text-gray-500">{{ student.grade }}</span>
-                        {% endif %}
+        <div class="p-4">
+            {% if students %}
+            <div class="grid grid-cols-2 gap-4">
+                {% for student in students %}
+                <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50" data-student-id="{{ student.id }}">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm font-medium text-gray-900">{{ student.name }}</span>
+                            {% if student.grade %}
+                            <span class="text-xs text-gray-500">{{ student.grade }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="flex space-x-1">
+                            <button onclick="editStudent({{ student.id }}, '{{ student.name|replace('\'', '\\\'') }}', '{{ (student.grade or '')|replace('\'', '\\\'') }}')" 
+                                    class="text-blue-600 hover:text-blue-800 text-xs">
+                                수정
+                            </button>
+                            <button onclick="deleteStudent({{ student.id }}, '{{ student.name|replace('\'', '\\\'') }}')" 
+                                    class="text-red-600 hover:text-red-800 text-xs">
+                                삭제
+                            </button>
+                        </div>
                     </div>
                 </div>
-                <div class="flex space-x-2">
-                    <button onclick="editStudent({{ student.id }}, '{{ student.name|replace("'", "\\'") }}', '{{ (student.grade or '')|replace("'", "\\'") }}')" 
-                            class="text-blue-600 hover:text-blue-800 text-sm">
-                        수정
-                    </button>
-                    <button onclick="deleteStudent({{ student.id }}, '{{ student.name|replace("'", "\\'") }}')" 
-                            class="text-red-600 hover:text-red-800 text-sm">
-                        삭제
-                    </button>
-                </div>
+                {% endfor %}
             </div>
             {% else %}
             <div class="p-8 text-center text-gray-500">
                 등록된 학생이 없습니다.
             </div>
-            {% endfor %}
+            {% endif %}
         </div>
     </div>
 </div>
@@ -299,30 +305,80 @@ document.getElementById('editStudentForm').addEventListener('submit', function(e
         });
 });
 
-// 학생 삭제
+// 학생 삭제 (개선된 버전)
 function deleteStudent(id, name) {
-    if (confirm(name + ' 학생을 삭제하시겠습니까?')) {
+    var confirmMessage = '⚠️ ' + name + ' 학생을 삭제하시겠습니까?\n\n삭제되는 데이터:\n• 학생 기본 정보\n• 모든 스케줄 정보\n• 출석 기록\n• 결석 요청\n\n이 작업은 되돌릴 수 없습니다.';
+    
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+    
+    // 로딩 표시
+    var deleteButtons = document.querySelectorAll('button');
+    var deleteButton = null;
+    for (var i = 0; i < deleteButtons.length; i++) {
+        if (deleteButtons[i].onclick && deleteButtons[i].onclick.toString().includes('deleteStudent(' + id + ',')) {
+            deleteButton = deleteButtons[i];
+            break;
+        }
+    }
+    
+    if (deleteButton) {
+        var originalText = deleteButton.innerHTML;
+        deleteButton.innerHTML = '삭제중...';
+        deleteButton.disabled = true;
+    }
+    
         fetch('/api/delete_student', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
             },
             body: JSON.stringify({
-                id: id
+            id: parseInt(id)
             })
         })
-        .then(response => response.json())
-        .then(data => {
+    .then(function(response) {
+        if (!response.ok) {
+            throw new Error('HTTP error! status: ' + response.status);
+        }
+        return response.json();
+    })
+    .then(function(data) {
             if (data.success) {
-                location.reload();
+            var successMessage = '✅ ' + data.message + '\n\n삭제된 정보:\n• 출석 기록: ' + data.deleted_counts.attendance + '건\n• 요청 기록: ' + data.deleted_counts.requests + '건\n• 스케줄: ' + data.deleted_counts.schedules + '건';
+            alert(successMessage);
+            
+            // 해당 학생 행을 즉시 DOM에서 제거
+            var studentRow = document.querySelector('[data-student-id="' + id + '"]');
+            if (studentRow) {
+                studentRow.remove();
+            }
+            
+            // 1초 후 캐시 방지하여 강제 새로고침
+            setTimeout(function() {
+                location.href = location.pathname + '?t=' + Date.now();
+            }, 1000);
             } else {
-                alert('오류가 발생했습니다: ' + data.error);
+            alert('❌ 삭제 실패: ' + data.error);
+            // 버튼 복원
+            if (deleteButton) {
+                deleteButton.innerHTML = originalText;
+                deleteButton.disabled = false;
+            }
             }
         })
-        .catch(error => {
-            alert('오류가 발생했습니다: ' + error);
-        });
+    .catch(function(error) {
+        console.error('Delete error:', error);
+        alert('❌ 삭제 중 오류가 발생했습니다: ' + error.message);
+        // 버튼 복원
+        if (deleteButton) {
+            deleteButton.innerHTML = originalText;
+            deleteButton.disabled = false;
     }
+    });
 }
 
 // 모달 배경 클릭시 닫기

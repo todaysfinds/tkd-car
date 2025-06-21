@@ -42,6 +42,48 @@
         .scrollbar-hide::-webkit-scrollbar {
             display: none;
         }
+        
+        /* 플로팅 메신저 애니메이션 */
+        @keyframes bounce {
+            0%, 20%, 53%, 80%, 100% {
+                animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+                transform: translate3d(0, 0, 0);
+            }
+            40%, 43% {
+                animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+                transform: translate3d(0, -5px, 0);
+            }
+            70% {
+                animation-timing-function: cubic-bezier(0.755, 0.05, 0.855, 0.06);
+                transform: translate3d(0, -3px, 0);
+            }
+            90% {
+                transform: translate3d(0, -1px, 0);
+            }
+        }
+        
+        .messenger-button:hover {
+            animation: bounce 1s;
+        }
+        
+        /* 메신저 모달 스타일 */
+        .messenger-modal {
+            backdrop-filter: blur(10px);
+        }
+        
+        .chat-bubble {
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        
+        .chat-bubble.sent {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        
+        .chat-bubble.received {
+            background: #f1f5f9;
+            color: #334155;
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen-safe" style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;">
@@ -91,39 +133,379 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- 플로팅 메신저 버튼 -->
+    <div id="floatingMessenger" class="fixed bottom-6 right-6 z-50">
+        <button onclick="toggleMessenger()" 
+                class="messenger-button w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center text-2xl">
+            💬
+        </button>
+        <!-- 미읽음 메시지 알림 배지 -->
+        <div id="messageBadge" class="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white text-xs rounded-full flex items-center justify-center hidden">
+            0
+        </div>
+    </div>
+
+    <!-- 메신저 모달 -->
+    <div id="messengerModal" class="fixed inset-0 bg-black bg-opacity-50 messenger-modal hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col">
+            <!-- 메신저 헤더 -->
+            <div class="flex items-center justify-between p-4 border-b border-gray-200 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-2xl">
+                <div class="flex items-center space-x-3">
+                    <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
+                        💬
+                    </div>
+                    <div>
+                        <h3 class="font-semibold">학부모 메신저</h3>
+                        <p class="text-xs opacity-80">실시간 소통</p>
+                    </div>
+                </div>
+                <button onclick="closeMessenger()" class="text-white hover:text-gray-200 text-2xl">×</button>
+            </div>
+
+            <!-- 학생 검색/선택 -->
+            <div class="p-4 border-b border-gray-200 bg-gray-50">
+                <div class="relative">
+                    <input type="text" 
+                           id="studentSearch" 
+                           placeholder="학생 이름으로 검색..." 
+                           class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                           onkeyup="searchStudents()"
+                           autocomplete="off">
+                    <div class="absolute left-3 top-2.5 text-gray-400">🔍</div>
+                </div>
+                
+                <!-- 학생 목록 드롭다운 -->
+                <div id="studentDropdown" class="absolute left-4 right-4 bg-white border border-gray-200 rounded-lg mt-1 max-h-40 overflow-y-auto hidden shadow-lg z-10">
+                    <!-- JavaScript로 동적 로드 -->
+                </div>
+                
+                <!-- 선택된 학생 -->
+                <div id="selectedStudent" class="mt-2 hidden">
+                    <div class="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                <span id="studentInitial"></span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-blue-900" id="studentName"></p>
+                                <p class="text-xs text-blue-600" id="studentGrade"></p>
+                            </div>
+                        </div>
+                        <button onclick="clearSelectedStudent()" class="text-blue-400 hover:text-blue-600">×</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 채팅 영역 -->
+            <div id="chatArea" class="flex-1 p-4 overflow-y-auto bg-gray-50">
+                <div class="text-center text-gray-500 text-sm py-8">
+                    학생을 선택하면 메시지를 보낼 수 있습니다
+                </div>
+            </div>
+
+            <!-- 메시지 입력 및 템플릿 -->
+            <div id="messageInput" class="hidden border-t border-gray-200 bg-white">
+                <!-- 빠른 템플릿 버튼 -->
+                <div class="flex space-x-2 p-3 border-b border-gray-100 overflow-x-auto">
+                    <button onclick="useTemplate('pickup')" class="flex-shrink-0 px-3 py-1 bg-green-100 text-green-700 text-xs rounded-full hover:bg-green-200">
+                        🚌 픽업 알림
+                    </button>
+                    <button onclick="useTemplate('arrival')" class="flex-shrink-0 px-3 py-1 bg-blue-100 text-blue-700 text-xs rounded-full hover:bg-blue-200">
+                        🏫 도착 알림
+                    </button>
+                    <button onclick="useTemplate('departure')" class="flex-shrink-0 px-3 py-1 bg-orange-100 text-orange-700 text-xs rounded-full hover:bg-orange-200">
+                        🏠 출발 알림
+                    </button>
+                    <button onclick="useTemplate('custom')" class="flex-shrink-0 px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded-full hover:bg-gray-200">
+                        ✏️ 직접 입력
+                    </button>
+                </div>
+                
+                <!-- 메시지 입력창 -->
+                <div class="flex items-end space-x-2 p-3">
+                    <div class="flex-1">
+                        <textarea id="messageText" 
+                                  placeholder="메시지를 입력하세요..."
+                                  class="w-full resize-none border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                  rows="2"
+                                  onkeypress="handleMessageKeyPress(event)"></textarea>
+                    </div>
+                    <button onclick="sendMessage()" 
+                            class="w-10 h-10 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center">
+                        📤
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
-        // 기본적인 JavaScript 유틸리티
-        function updateAttendance(studentId, date, status, type = 'pickup') {
-            fetch('/api/update_attendance', {
+    let allStudents = [];
+    let selectedStudentData = null;
+    let messageHistory = {};
+
+    // 페이지 로드 시 학생 목록 로드
+    document.addEventListener('DOMContentLoaded', function() {
+        loadAllStudents();
+    });
+
+    // 모든 학생 목록 로드
+    function loadAllStudents() {
+        fetch('/api/get_all_students')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                allStudents = data.students;
+            }
+        })
+        .catch(error => console.error('Error loading students:', error));
+    }
+
+    // 메신저 토글
+    function toggleMessenger() {
+        const modal = document.getElementById('messengerModal');
+        if (modal.classList.contains('hidden')) {
+            modal.classList.remove('hidden');
+            document.getElementById('studentSearch').focus();
+        } else {
+            closeMessenger();
+        }
+    }
+
+    // 메신저 닫기
+    function closeMessenger() {
+        document.getElementById('messengerModal').classList.add('hidden');
+        document.getElementById('studentDropdown').classList.add('hidden');
+    }
+
+    // 학생 검색
+    function searchStudents() {
+        const searchTerm = document.getElementById('studentSearch').value.toLowerCase();
+        const dropdown = document.getElementById('studentDropdown');
+        
+        if (searchTerm.length === 0) {
+            dropdown.classList.add('hidden');
+            return;
+        }
+
+        const filteredStudents = allStudents.filter(student => 
+            student.name.toLowerCase().includes(searchTerm)
+        );
+
+        if (filteredStudents.length === 0) {
+            dropdown.innerHTML = '<div class="p-3 text-gray-500 text-sm">검색 결과가 없습니다</div>';
+        } else {
+            dropdown.innerHTML = filteredStudents.map(student => `
+                <div onclick="selectStudent(${student.id}, '${student.name}', '${student.grade || ''}')" 
+                     class="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                            ${student.name.charAt(0)}
+                        </div>
+                        <div>
+                            <p class="font-medium">${student.name}</p>
+                            <p class="text-xs text-gray-500">${student.grade || '학년 정보 없음'}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        dropdown.classList.remove('hidden');
+    }
+
+    // 학생 선택
+    function selectStudent(studentId, studentName, studentGrade) {
+        selectedStudentData = { id: studentId, name: studentName, grade: studentGrade };
+        
+        // 선택된 학생 정보 표시
+        document.getElementById('studentInitial').textContent = studentName.charAt(0);
+        document.getElementById('studentName').textContent = studentName;
+        document.getElementById('studentGrade').textContent = studentGrade || '학년 정보 없음';
+        
+        // UI 업데이트
+        document.getElementById('selectedStudent').classList.remove('hidden');
+        document.getElementById('messageInput').classList.remove('hidden');
+        document.getElementById('studentDropdown').classList.add('hidden');
+        document.getElementById('studentSearch').value = '';
+        
+        // 채팅 내역 로드
+        loadChatHistory(studentId);
+    }
+
+    // 선택된 학생 지우기
+    function clearSelectedStudent() {
+        selectedStudentData = null;
+        document.getElementById('selectedStudent').classList.add('hidden');
+        document.getElementById('messageInput').classList.add('hidden');
+        document.getElementById('chatArea').innerHTML = `
+            <div class="text-center text-gray-500 text-sm py-8">
+                학생을 선택하면 메시지를 보낼 수 있습니다
+            </div>
+        `;
+    }
+
+    // 채팅 내역 로드
+    function loadChatHistory(studentId) {
+        const history = messageHistory[studentId] || [];
+        const chatArea = document.getElementById('chatArea');
+        
+        if (history.length === 0) {
+            chatArea.innerHTML = `
+                <div class="text-center text-gray-500 text-sm py-4">
+                    ${selectedStudentData.name} 학생과의 대화를 시작하세요
+                </div>
+            `;
+        } else {
+            chatArea.innerHTML = history.map(msg => `
+                <div class="mb-3 flex ${msg.type === 'sent' ? 'justify-end' : 'justify-start'}">
+                    <div class="chat-bubble ${msg.type} px-3 py-2 rounded-lg text-sm text-white">
+                        <p class="whitespace-pre-wrap">${msg.message}</p>
+                        <p class="text-xs opacity-70 mt-1">${msg.timestamp}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    // 템플릿 사용
+    function useTemplate(type) {
+        if (!selectedStudentData) return;
+        
+        let template = '';
+        
+        switch(type) {
+            case 'pickup':
+                template = `🚌 차량 픽업 알림
+
+안녕하세요! ${selectedStudentData.name} 학생 부모님께 알려드립니다.
+
+차량이 곧 도착할 예정입니다.
+준비해주세요!
+
+🏫 OO태권도장`;
+                break;
+                
+            case 'arrival':
+                template = `🏫 도장 도착 알림
+
+${selectedStudentData.name} 학생이 안전하게 도장에 도착했습니다.
+
+⏰ 도착 시간: ${new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})}
+
+수업 후 하차 시간을 별도로 안내드리겠습니다.
+
+🏫 OO태권도장`;
+                break;
+                
+            case 'departure':
+                template = `🚌 하차 출발 알림
+
+${selectedStudentData.name} 학생이 수업을 마치고 하차를 위해 출발했습니다.
+
+🏫 출발: ${new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})}
+⏰ 예상 도착: 약 10-15분 후
+
+준비해주세요!
+
+🏫 OO태권도장`;
+                break;
+                
+            case 'custom':
+                template = '';
+                break;
+        }
+        
+        document.getElementById('messageText').value = template;
+        document.getElementById('messageText').focus();
+    }
+
+    // 메시지 키 입력 처리
+    function handleMessageKeyPress(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+        }
+    }
+
+    // 메시지 전송
+    function sendMessage() {
+        if (!selectedStudentData) return;
+        
+        const messageText = document.getElementById('messageText').value.trim();
+        if (!messageText) return;
+        
+        // 메시지 히스토리에 추가
+        if (!messageHistory[selectedStudentData.id]) {
+            messageHistory[selectedStudentData.id] = [];
+        }
+        
+        const timestamp = new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'});
+        
+        messageHistory[selectedStudentData.id].push({
+            type: 'sent',
+            message: messageText,
+            timestamp: timestamp
+        });
+        
+        // 실제 카카오톡 발송 API 호출
+        fetch('/api/send_message_template', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    student_id: studentId,
-                    date: date,
-                    status: status,
-                    type: type
+                student_id: selectedStudentData.id,
+                message_type: 'custom',
+                custom_message: messageText
                 })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // 페이지 새로고침으로 상태 업데이트
-                    location.reload();
+                // 성공 응답을 히스토리에 추가
+                messageHistory[selectedStudentData.id].push({
+                    type: 'received',
+                    message: data.simulation ? `✅ 시뮬레이션 발송 완료\n${data.note || ''}` : '✅ 메시지가 발송되었습니다.',
+                    timestamp: new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})
+                });
                 } else {
-                    alert('오류가 발생했습니다.');
+                // 실패 응답을 히스토리에 추가
+                messageHistory[selectedStudentData.id].push({
+                    type: 'received',
+                    message: `❌ 발송 실패: ${data.error}`,
+                    timestamp: new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})
+                });
                 }
+            
+            // 채팅 내역 새로고침
+            loadChatHistory(selectedStudentData.id);
             })
             .catch(error => {
-                console.error('Error:', error);
-                alert('오류가 발생했습니다.');
+            messageHistory[selectedStudentData.id].push({
+                type: 'received',
+                message: `❌ 네트워크 오류: ${error.message}`,
+                timestamp: new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})
             });
+            loadChatHistory(selectedStudentData.id);
+        });
+        
+        // 입력창 초기화 및 채팅 내역 새로고침
+        document.getElementById('messageText').value = '';
+        loadChatHistory(selectedStudentData.id);
         }
 
-        function updateButtonState(button, status) {
-            // 이 함수는 더 이상 사용하지 않음 (페이지 새로고침으로 대체)
+    // 외부 클릭 시 드롭다운 닫기
+    document.addEventListener('click', function(event) {
+        const dropdown = document.getElementById('studentDropdown');
+        const searchInput = document.getElementById('studentSearch');
+        
+        if (!dropdown.contains(event.target) && event.target !== searchInput) {
+            dropdown.classList.add('hidden');
         }
+    });
     </script>
 </body>
 </html> 

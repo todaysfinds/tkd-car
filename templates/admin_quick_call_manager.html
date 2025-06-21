@@ -1,0 +1,534 @@
+{% extends "base.html" %}
+
+{% block page_title %}빠른 전화번호 관리{% endblock %}
+
+{% block content %}
+<div class="px-4 py-6">
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">빠른 전화번호 관리</h1>
+        <p class="text-gray-600">시간대별로 표시되는 빠른 전화번호를 관리할 수 있습니다.</p>
+    </div>
+
+    <!-- 새 번호 추가 -->
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-lg font-semibold mb-4">새 전화번호 추가</h2>
+        <form id="addNumberForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
+                <select name="category" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="">선택하세요</option>
+                    <option value="school">🏫 학교</option>
+                    <option value="daycare">👶 돌봄센터</option>
+                    <option value="emergency">🚨 응급상황</option>
+                    <option value="location">📍 장소별</option>
+                    <option value="custom">⚙️ 기타</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">이름</label>
+                <input type="text" name="name" required placeholder="예: OO초등학교 교무실" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">전화번호</label>
+                <input type="tel" name="phone_number" required placeholder="예: 02-123-4567" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">장소 (선택)</label>
+                <input type="text" name="location" placeholder="예: 현대홈타운 (장소별 카테고리인 경우)" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">우선순위</label>
+                <input type="number" name="priority" value="5" min="0" max="10" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                <p class="text-xs text-gray-500 mt-1">숫자가 클수록 먼저 표시됩니다 (0-10)</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">설명 (선택)</label>
+                <input type="text" name="description" placeholder="예: 학교 교무실" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div class="md:col-span-2 lg:col-span-3">
+                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition-colors">
+                    전화번호 추가
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 기존 번호 목록 -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold">등록된 전화번호</h2>
+            <button onclick="refreshNumbers()" class="text-blue-600 hover:text-blue-800 text-sm">
+                🔄 새로고침
+            </button>
+        </div>
+        
+        <!-- 카테고리별 탭 -->
+        <div class="flex space-x-1 mb-4 border-b">
+            <button onclick="showCategory('all')" id="tab-all" class="tab-button active px-4 py-2 text-sm font-medium border-b-2 border-blue-500 text-blue-600">
+                전체
+            </button>
+            <button onclick="showCategory('school')" id="tab-school" class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                🏫 학교
+            </button>
+            <button onclick="showCategory('daycare')" id="tab-daycare" class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                👶 돌봄센터
+            </button>
+            <button onclick="showCategory('emergency')" id="tab-emergency" class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                🚨 응급상황
+            </button>
+            <button onclick="showCategory('location')" id="tab-location" class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                📍 장소별
+            </button>
+            <button onclick="showCategory('custom')" id="tab-custom" class="tab-button px-4 py-2 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700">
+                ⚙️ 기타
+            </button>
+        </div>
+        
+        <!-- 번호 목록 -->
+        <div id="numbersList" class="space-y-3">
+            <!-- JavaScript로 동적 로드 -->
+        </div>
+    </div>
+
+    <!-- 카카오톡 설정 -->
+    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+        <h2 class="text-lg font-semibold mb-4">카카오톡 알림 설정</h2>
+        <div id="kakaoSettings">
+            <!-- JavaScript로 동적 로드 -->
+        </div>
+    </div>
+</div>
+
+<!-- 수정 모달 -->
+<div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <h3 class="text-lg font-semibold mb-4">전화번호 수정</h3>
+        <form id="editForm">
+            <input type="hidden" id="editId" name="id">
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">카테고리</label>
+                <select id="editCategory" name="category" required class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="school">🏫 학교</option>
+                    <option value="daycare">👶 돌봄센터</option>
+                    <option value="emergency">🚨 응급상황</option>
+                    <option value="location">📍 장소별</option>
+                    <option value="custom">⚙️ 기타</option>
+                </select>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">이름</label>
+                <input type="text" id="editName" name="name" required 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">전화번호</label>
+                <input type="tel" id="editPhone" name="phone_number" required 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">장소 (선택)</label>
+                <input type="text" id="editLocation" name="location" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">우선순위</label>
+                <input type="number" id="editPriority" name="priority" min="0" max="10" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">설명 (선택)</label>
+                <input type="text" id="editDescription" name="description" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div class="mb-4">
+                <label class="flex items-center">
+                    <input type="checkbox" id="editActive" name="is_active" class="mr-2">
+                    <span class="text-sm text-gray-700">활성화</span>
+                </label>
+            </div>
+            
+            <div class="flex space-x-3">
+                <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition-colors">
+                    수정
+                </button>
+                <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 rounded-lg transition-colors">
+                    취소
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentCategory = 'all';
+
+// 페이지 로드 시 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    loadNumbers();
+    loadKakaoSettings();
+    
+    // 새 번호 추가 폼 처리
+    document.getElementById('addNumberForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        addNumber();
+    });
+    
+    // 수정 폼 처리
+    document.getElementById('editForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        updateNumber();
+    });
+});
+
+// 번호 목록 로드
+function loadNumbers() {
+    fetch('/api/quick_call_numbers')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayNumbers(data.numbers);
+        } else {
+            alert('번호 목록 로드 실패: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('번호 목록 로드 중 오류가 발생했습니다.');
+    });
+}
+
+// 번호 목록 표시
+function displayNumbers(numbers) {
+    const container = document.getElementById('numbersList');
+    container.innerHTML = '';
+    
+    const categories = ['school', 'daycare', 'emergency', 'location', 'custom'];
+    const categoryNames = {
+        'school': '🏫 학교',
+        'daycare': '👶 돌봄센터', 
+        'emergency': '🚨 응급상황',
+        'location': '📍 장소별',
+        'custom': '⚙️ 기타'
+    };
+    
+    categories.forEach(category => {
+        if (!numbers[category] || numbers[category].length === 0) return;
+        
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = `category-section ${currentCategory !== 'all' && currentCategory !== category ? 'hidden' : ''}`;
+        categoryDiv.setAttribute('data-category', category);
+        
+        if (currentCategory === 'all') {
+            const categoryHeader = document.createElement('h3');
+            categoryHeader.className = 'text-md font-medium text-gray-800 mb-2 mt-4 first:mt-0';
+            categoryHeader.textContent = categoryNames[category];
+            categoryDiv.appendChild(categoryHeader);
+        }
+        
+        numbers[category].forEach(number => {
+            const numberDiv = document.createElement('div');
+            numberDiv.className = 'flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50';
+            
+            numberDiv.innerHTML = `
+                <div class="flex-1">
+                    <div class="flex items-center space-x-3">
+                        <span class="font-medium text-gray-900">${number.name}</span>
+                        <span class="text-sm text-blue-600">${number.phone_number}</span>
+                        ${number.location ? `<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">${number.location}</span>` : ''}
+                        <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">우선순위: ${number.priority || 0}</span>
+                    </div>
+                    ${number.description ? `<p class="text-sm text-gray-600 mt-1">${number.description}</p>` : ''}
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="editNumber(${number.id})" class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1 rounded hover:bg-blue-50">
+                        수정
+                    </button>
+                    <button onclick="deleteNumber(${number.id})" class="text-red-600 hover:text-red-800 text-sm px-2 py-1 rounded hover:bg-red-50">
+                        삭제
+                    </button>
+                    <button onclick="testCall('${number.phone_number}', '${number.name}')" class="text-green-600 hover:text-green-800 text-sm px-2 py-1 rounded hover:bg-green-50">
+                        📞 테스트
+                    </button>
+                </div>
+            `;
+            
+            categoryDiv.appendChild(numberDiv);
+        });
+        
+        container.appendChild(categoryDiv);
+    });
+    
+    if (container.innerHTML === '') {
+        container.innerHTML = '<p class="text-gray-500 text-center py-8">등록된 전화번호가 없습니다.</p>';
+    }
+}
+
+// 카테고리 표시
+function showCategory(category) {
+    currentCategory = category;
+    
+    // 탭 버튼 활성화 상태 변경
+    document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active', 'border-blue-500', 'text-blue-600');
+        btn.classList.add('border-transparent', 'text-gray-500');
+    });
+    
+    const activeTab = document.getElementById(`tab-${category}`);
+    activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
+    activeTab.classList.remove('border-transparent', 'text-gray-500');
+    
+    // 카테고리별 섹션 표시/숨김
+    document.querySelectorAll('.category-section').forEach(section => {
+        if (category === 'all') {
+            section.classList.remove('hidden');
+        } else {
+            if (section.getAttribute('data-category') === category) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        }
+    });
+}
+
+// 새 번호 추가
+function addNumber() {
+    const formData = new FormData(document.getElementById('addNumberForm'));
+    const data = Object.fromEntries(formData.entries());
+    
+    fetch('/api/quick_call_numbers', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('전화번호가 추가되었습니다.');
+            document.getElementById('addNumberForm').reset();
+            loadNumbers();
+        } else {
+            alert('추가 실패: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('추가 중 오류가 발생했습니다.');
+    });
+}
+
+// 번호 수정
+function editNumber(id) {
+    // 현재 데이터 가져와서 폼에 채우기
+    fetch(`/api/quick_call_numbers`)
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 모든 번호에서 해당 ID 찾기
+            let targetNumber = null;
+            Object.values(data.numbers).forEach(categoryNumbers => {
+                const found = categoryNumbers.find(num => num.id === id);
+                if (found) targetNumber = found;
+            });
+            
+            if (targetNumber) {
+                document.getElementById('editId').value = targetNumber.id;
+                document.getElementById('editCategory').value = targetNumber.category || '';
+                document.getElementById('editName').value = targetNumber.name || '';
+                document.getElementById('editPhone').value = targetNumber.phone_number || '';
+                document.getElementById('editLocation').value = targetNumber.location || '';
+                document.getElementById('editPriority').value = targetNumber.priority || 0;
+                document.getElementById('editDescription').value = targetNumber.description || '';
+                document.getElementById('editActive').checked = targetNumber.is_active !== false;
+                
+                document.getElementById('editModal').classList.remove('hidden');
+            }
+        }
+    });
+}
+
+// 수정 모달 닫기
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+}
+
+// 번호 업데이트
+function updateNumber() {
+    const formData = new FormData(document.getElementById('editForm'));
+    const data = Object.fromEntries(formData.entries());
+    data.is_active = document.getElementById('editActive').checked;
+    
+    const id = document.getElementById('editId').value;
+    
+    fetch(`/api/quick_call_numbers/${id}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('전화번호가 수정되었습니다.');
+            closeEditModal();
+            loadNumbers();
+        } else {
+            alert('수정 실패: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('수정 중 오류가 발생했습니다.');
+    });
+}
+
+// 번호 삭제
+function deleteNumber(id) {
+    if (!confirm('이 전화번호를 삭제하시겠습니까?')) return;
+    
+    fetch(`/api/quick_call_numbers/${id}`, {
+        method: 'DELETE'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('전화번호가 삭제되었습니다.');
+            loadNumbers();
+        } else {
+            alert('삭제 실패: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+    });
+}
+
+// 전화 테스트
+function testCall(phoneNumber, name) {
+    if (confirm(`${name} (${phoneNumber})로 전화를 걸까요?`)) {
+        window.location.href = `tel:${phoneNumber}`;
+    }
+}
+
+// 목록 새로고침
+function refreshNumbers() {
+    loadNumbers();
+}
+
+// 카카오톡 설정 로드
+function loadKakaoSettings() {
+    fetch('/api/kakao_settings')
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            displayKakaoSettings(data.settings);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// 카카오톡 설정 표시
+function displayKakaoSettings(settings) {
+    const container = document.getElementById('kakaoSettings');
+    container.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">비즈니스 계정 ID</label>
+                <input type="text" id="businessId" value="${settings.business_id || ''}" placeholder="카카오 비즈니스 계정 ID" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">템플릿 ID</label>
+                <input type="text" id="templateId" value="${settings.template_id || ''}" placeholder="메시지 템플릿 ID" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            
+            <div>
+                <label class="flex items-center">
+                    <input type="checkbox" id="isActive" ${settings.is_active ? 'checked' : ''} class="mr-2">
+                    <span class="text-sm text-gray-700">카카오톡 알림 활성화</span>
+                </label>
+            </div>
+            
+            <div>
+                <label class="flex items-center">
+                    <input type="checkbox" id="testMode" ${settings.test_mode ? 'checked' : ''} class="mr-2">
+                    <span class="text-sm text-gray-700">테스트 모드 (실제 발송 안함)</span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <button onclick="saveKakaoSettings()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors">
+                카카오톡 설정 저장
+            </button>
+            <p class="text-sm text-gray-600 mt-2">
+                💡 실제 카카오톡 발송을 위해서는 카카오 비즈니스 계정과 API 연동이 필요합니다.
+            </p>
+        </div>
+    `;
+}
+
+// 카카오톡 설정 저장
+function saveKakaoSettings() {
+    const data = {
+        business_id: document.getElementById('businessId').value,
+        template_id: document.getElementById('templateId').value,
+        is_active: document.getElementById('isActive').checked,
+        test_mode: document.getElementById('testMode').checked
+    };
+    
+    fetch('/api/kakao_settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('카카오톡 설정이 저장되었습니다.');
+        } else {
+            alert('저장 실패: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('저장 중 오류가 발생했습니다.');
+    });
+}
+</script>
+
+<style>
+.tab-button.active {
+    border-bottom-color: #3b82f6 !important;
+    color: #3b82f6 !important;
+}
+</style>
+{% endblock %} 
