@@ -3,7 +3,10 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
 import os
 import traceback
-import psycopg2
+try:
+    import psycopg2
+except ImportError:
+    import psycopg as psycopg2
 
 app = Flask(__name__)
 
@@ -12,10 +15,16 @@ app = Flask(__name__)
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
     # 프로덕션: Render PostgreSQL
-    if database_url.startswith('postgres://'):
-        database_url = database_url.replace('postgres://', 'postgresql://', 1)
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print("🐘 PostgreSQL 사용 (프로덕션)")
+    try:
+        if database_url.startswith('postgres://'):
+            database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+        print("🐘 PostgreSQL 사용 (프로덕션)")
+    except Exception as e:
+        print(f"⚠️ PostgreSQL 연결 실패: {e}")
+        # 긴급 대안: SQLite 사용
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tkd_transport.db'
+        print("🗄️ SQLite 사용 (긴급 대안)")
 else:
     # 로컬 개발: PostgreSQL 시도, 실패시 SQLite
     try:
