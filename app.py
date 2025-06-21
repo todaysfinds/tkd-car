@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+태권도 운송 관리 시스템
+Python 3.11.8 전용
+"""
+import sys
+print(f"🐍 Python 버전: {sys.version}")
+
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
