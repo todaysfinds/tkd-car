@@ -105,7 +105,9 @@ class Request(db.Model):
     
     student = db.relationship('Student', backref=db.backref('requests', lazy=True))
 
-class Attendance(db.Model):
+class TkdAttendance(db.Model):
+    __tablename__ = 'tkd_attendance'
+    
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
@@ -115,7 +117,7 @@ class Attendance(db.Model):
     dropoff_status = db.Column(db.String(20), default='pending')  # 'pending', 'dropped', 'absent', 'dojo_pickup'
     notes = db.Column(db.Text)
     
-    student = db.relationship('Student', backref=db.backref('attendances', lazy=True))
+    student = db.relationship('Student', backref=db.backref('tkd_attendances', lazy=True))
 
 class QuickCallNumber(db.Model):
     """빠른 전화걸기용 연락처 관리"""
@@ -202,7 +204,7 @@ def today():
             time_groups[time_key][location_key] = []
         
         # 오늘 출석 정보 조회
-        attendance = Attendance.query.filter_by(
+        attendance = TkdAttendance.query.filter_by(
             student_id=student.id,
             date=today_date
         ).first()
@@ -344,13 +346,13 @@ def update_attendance():
     status = data.get('status')
     attendance_type = data.get('type', 'pickup')  # pickup or dropoff
     
-    attendance = Attendance.query.filter_by(
+    attendance = TkdAttendance.query.filter_by(
         student_id=student_id,
         date=attendance_date
     ).first()
     
     if not attendance:
-        attendance = Attendance(student_id=student_id, date=attendance_date)
+        attendance = TkdAttendance(student_id=student_id, date=attendance_date)
         db.session.add(attendance)
     
     if attendance_type == 'pickup':
@@ -672,8 +674,8 @@ def delete_student():
         
         # 관련된 데이터를 순서대로 삭제
         # 1. 출석 정보 삭제
-        attendance_count = Attendance.query.filter_by(student_id=student_id).count()
-        Attendance.query.filter_by(student_id=student_id).delete()
+        attendance_count = TkdAttendance.query.filter_by(student_id=student_id).count()
+        TkdAttendance.query.filter_by(student_id=student_id).delete()
         
         # 2. 요청 정보 삭제  
         request_count = Request.query.filter_by(student_id=student_id).count()
