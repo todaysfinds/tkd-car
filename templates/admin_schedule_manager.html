@@ -62,37 +62,28 @@
                 <!-- 시간표 구조 -->
                 <div class="space-y-6">
                     <!-- 돌봄시스템 1 (1부 전) -->
-                    <div class="border rounded-lg overflow-hidden border-orange-200 bg-orange-50">
-                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
+                    <div class="border rounded-lg overflow-hidden border-orange-200">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
                             <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
+                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care1')" 
+                                    class="text-xs text-orange-600 hover:text-orange-800">
+                                + 학생
+                            </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px]">
+                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
                             {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
                                 {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
-                                <div class="border border-orange-200 rounded p-1 bg-white">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-orange-700">📍 {{ location }}</span>
-                                        <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care1')" 
-                                                class="text-xs text-orange-600 hover:text-orange-800">
-                                            + 학생
-                                        </button>
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care1')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                     </div>
-                                    <div class="flex flex-wrap gap-1">
-                                        {% for student_data in students %}
-                                        <div class="flex items-center justify-between text-xs bg-orange-100 px-1 py-0.5 rounded border border-orange-300 min-w-[50px] max-w-[100px]">
-                                            <span class="text-orange-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care1')" 
-                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
                             {% endif %}
-                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care1')" 
-                                    class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-100">
-                                + 학생 추가
-                            </button>
                         </div>
                     </div>
 
@@ -244,22 +235,18 @@
                     </div>
 
                     <!-- 돌봄시스템 2 (2부와 3부 사이) -->
-                    <div class="border rounded-lg overflow-hidden border-orange-200 bg-orange-50">
-                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
+                    <div class="border rounded-lg overflow-hidden border-orange-200">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
                             <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
+                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care2')" 
+                                    class="text-xs text-orange-600 hover:text-orange-800">
+                                + 학생
+                            </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px]">
+                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
                             {% if day_num in schedule_data and 'care2' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care2'] %}
                                 {% for location, students in schedule_data[day_num]['care2']['students'].items() %}
-                                <div class="border border-orange-200 rounded p-1 bg-white">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-orange-700">📍 {{ location }}</span>
-                                        <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care2')" 
-                                                class="text-xs text-orange-600 hover:text-orange-800">
-                                            + 학생
-                                        </button>
-                                    </div>
-                                    <div class="flex flex-wrap gap-1">
+                                <div class="flex flex-wrap gap-1">
                                         {% for student_data in students %}
                                         <div class="flex items-center justify-between text-xs bg-orange-100 px-1 py-0.5 rounded border border-orange-300 min-w-[50px] max-w-[100px]">
                                             <span class="text-orange-800 truncate text-xs">{{ student_data.student.name }}</span>
@@ -425,72 +412,54 @@
                     </div>
 
                     <!-- 돌봄시스템 3 (4부와 5부 사이) -->
-                    <div class="border rounded-lg overflow-hidden border-orange-200 bg-orange-50">
-                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
+                    <div class="border rounded-lg overflow-hidden border-orange-200">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
                             <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
+                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care3')" 
+                                    class="text-xs text-orange-600 hover:text-orange-800">
+                                + 학생
+                            </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px]">
+                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
                             {% if day_num in schedule_data and 'care3' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care3'] %}
                                 {% for location, students in schedule_data[day_num]['care3']['students'].items() %}
-                                <div class="border border-orange-200 rounded p-1 bg-white">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-orange-700">📍 {{ location }}</span>
-                                        <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care3')" 
-                                                class="text-xs text-orange-600 hover:text-orange-800">
-                                            + 학생
-                                        </button>
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care3')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                     </div>
-                                    <div class="flex flex-wrap gap-1">
-                                        {% for student_data in students %}
-                                        <div class="flex items-center justify-between text-xs bg-orange-100 px-1 py-0.5 rounded border border-orange-300 min-w-[50px] max-w-[100px]">
-                                            <span class="text-orange-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care3')" 
-                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
                             {% endif %}
-                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care3')" 
-                                    class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-100">
-                                + 학생 추가
-                            </button>
                         </div>
                     </div>
 
                     <!-- 국기원부 (4부와 5부 사이) -->
-                    <div class="border rounded-lg overflow-hidden border-purple-200 bg-purple-50">
-                        <div class="bg-purple-100 px-3 py-1 border-b border-purple-200">
+                    <div class="border rounded-lg overflow-hidden border-purple-200">
+                        <div class="bg-purple-100 px-3 py-1 border-b border-purple-200 flex items-center justify-between">
                             <h3 class="font-semibold text-purple-800 text-sm">🇰🇷 국기원부</h3>
+                            <button onclick="addStudentToNationalTraining({{ day_num }}, '도장')" 
+                                    class="text-xs text-purple-600 hover:text-purple-800">
+                                + 학생
+                            </button>
                         </div>
-                        <div class="p-2 space-y-2 min-h-[60px]">
+                        <div class="p-2 space-y-2 min-h-[60px] bg-white">
                             {% if day_num in schedule_data and 'national' in schedule_data[day_num] and 'students' in schedule_data[day_num]['national'] %}
                                 {% for location, students in schedule_data[day_num]['national']['students'].items() %}
-                                <div class="border border-purple-200 rounded p-1 bg-white">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-purple-700">📍 {{ location }}</span>
-                                        <button onclick="addStudentToNationalTraining({{ day_num }}, '{{ location }}')" 
-                                                class="text-xs text-purple-600 hover:text-purple-800">
-                                            + 학생
-                                        </button>
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, '{{ location }}')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                     </div>
-                                    <div class="flex flex-wrap gap-1">
-                                        {% for student_data in students %}
-                                        <div class="flex items-center justify-between text-xs bg-purple-100 px-1 py-0.5 rounded border border-purple-300 min-w-[50px] max-w-[100px]">
-                                            <span class="text-purple-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                            <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, '{{ location }}')" 
-                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                        </div>
-                                        {% endfor %}
-                                    </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
                             {% endif %}
-                            <button onclick="addStudentToNationalTraining({{ day_num }}, '도장')" 
-                                    class="w-full text-xs text-purple-600 border border-dashed border-purple-300 rounded p-1 hover:bg-purple-100">
-                                + 학생 추가
-                            </button>
                         </div>
                     </div>
 
