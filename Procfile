@@ -1,1 +1,1 @@
-web: PYTHON_ENV=production gunicorn app:app 
+web: PYTHON_ENV=production INIT_SAMPLE_DATA=true gunicorn app:app 

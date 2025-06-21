@@ -1642,12 +1642,18 @@ def init_production_db():
             final_student_count = Student.query.count()
             print(f"🏭 프로덕션 환경 초기화 완료 - 최종 학생 수: {final_student_count}명")
             
+            # 🚀 처음 배포시에만 기본 학생 데이터 추가 (한 번만)
+            if final_student_count == 0 and os.environ.get('INIT_SAMPLE_DATA') == 'true':
+                print("🎯 프로덕션 환경에 기본 학생 데이터 추가 중...")
+                add_production_sample_data()
+            
             # 환경 정보 로깅
             print(f"📊 환경 변수:")
             print(f"   - RENDER: {os.environ.get('RENDER', 'None')}")
             print(f"   - DATABASE_URL: {'설정됨' if os.environ.get('DATABASE_URL') else 'None'}")
             print(f"   - PORT: {os.environ.get('PORT', 'None')}")
             print(f"   - PYTHON_ENV: {os.environ.get('PYTHON_ENV', 'None')}")
+            print(f"   - INIT_SAMPLE_DATA: {os.environ.get('INIT_SAMPLE_DATA', 'None')}")
             
             # 🚨 데이터 손실 경고
             if student_count > 0 and final_student_count == 0:
@@ -1660,6 +1666,98 @@ def init_production_db():
     except Exception as e:
         print(f"❌ 프로덕션 데이터베이스 초기화 오류: {e}")
         # 오류가 있어도 앱 시작은 계속
+
+def add_production_sample_data():
+    """프로덕션 환경에 기본 학생 데이터 추가 (일회성)"""
+    try:
+        # 실제 시간표 기반 샘플 학생 데이터
+        students_data = [
+            # 1부 (2:00~2:50)
+            {'name': '홍길동', 'grade': '초등 3학년', 'phone': '010-1234-5678', 'pickup_location': '동부시스템', 'estimated_pickup_time': '2:40', 'session_part': 1, 'memo': ''},
+            {'name': '김철수', 'grade': '초등 4학년', 'phone': '010-2345-6789', 'pickup_location': '승차', 'estimated_pickup_time': '2:30', 'session_part': 1, 'memo': ''},
+            
+            # 2부 (3:00~3:50)  
+            {'name': '이영희', 'grade': '초등 2학년', 'phone': '010-1111-2222', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '3:30', 'session_part': 2, 'memo': ''},
+            {'name': '박민수', 'grade': '초등 5학년', 'phone': '010-3333-4444', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '3:40', 'session_part': 2, 'memo': ''},
+            {'name': '최수진', 'grade': '초등 3학년', 'phone': '010-4444-5555', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '3:42', 'session_part': 2, 'memo': ''},
+            
+            # 3부 (4:30~5:20)
+            {'name': '정우성', 'grade': '초등 1학년', 'phone': '010-5555-6666', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '4:15', 'session_part': 3, 'memo': ''},
+            {'name': '강호동', 'grade': '초등 4학년', 'phone': '010-6666-7777', 'pickup_location': '이화빌라', 'estimated_pickup_time': '4:10', 'session_part': 3, 'memo': ''},
+            {'name': '유재석', 'grade': '초등 6학년', 'phone': '010-7777-8888', 'pickup_location': '영은유치원', 'estimated_pickup_time': '4:14', 'session_part': 3, 'memo': ''},
+            
+            # 4부 (5:30~6:20)
+            {'name': '송중기', 'grade': '초등 2학년', 'phone': '010-8888-9999', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '6:30', 'session_part': 4, 'memo': ''},
+            {'name': '전지현', 'grade': '초등 5학년', 'phone': '010-9999-0000', 'pickup_location': '이디야', 'estimated_pickup_time': '6:35', 'session_part': 4, 'memo': ''},
+            
+            # 5부 (7:00~7:50)
+            {'name': '김수현', 'grade': '초등 3학년', 'phone': '010-0000-1111', 'pickup_location': '승차', 'estimated_pickup_time': '6:35', 'session_part': 5, 'memo': ''},
+            {'name': '아이유', 'grade': '초등 4학년', 'phone': '010-1111-2222', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '6:40', 'session_part': 5, 'memo': ''},
+        ]
+        
+        for student_data in students_data:
+            student = Student(**student_data)
+            db.session.add(student)
+        
+        db.session.commit()
+        print(f"✅ 프로덕션 환경에 {len(students_data)}명 학생 데이터 추가 완료")
+        
+        # 스케줄 데이터도 추가
+        add_production_schedule_data()
+        
+    except Exception as e:
+        print(f"❌ 프로덕션 샘플 데이터 추가 실패: {e}")
+        db.session.rollback()
+
+def add_production_schedule_data():
+    """프로덕션 환경에 스케줄 데이터 추가"""
+    try:
+        students = Student.query.all()
+        for student in students:
+            for day in [0, 2, 4]:  # 월, 수, 금
+                # 부별 시간 설정
+                if student.session_part == 1:  # 1부
+                    pickup_time_obj = time(14, 0)  # 2:00 PM
+                    dropoff_time_obj = time(14, 50)  # 2:50 PM
+                elif student.session_part == 2:  # 2부
+                    pickup_time_obj = time(15, 0)  # 3:00 PM
+                    dropoff_time_obj = time(15, 50)  # 3:50 PM
+                elif student.session_part == 3:  # 3부
+                    pickup_time_obj = time(16, 30)  # 4:30 PM
+                    dropoff_time_obj = time(17, 20)  # 5:20 PM
+                elif student.session_part == 4:  # 4부
+                    pickup_time_obj = time(17, 30)  # 5:30 PM
+                    dropoff_time_obj = time(18, 20)  # 6:20 PM
+                else:  # 5부
+                    pickup_time_obj = time(19, 0)  # 7:00 PM
+                    dropoff_time_obj = time(19, 50)  # 7:50 PM
+                
+                # 픽업 스케줄 추가
+                pickup_schedule = Schedule(
+                    student_id=student.id,
+                    day_of_week=day,
+                    schedule_type='pickup',
+                    time=pickup_time_obj,
+                    location=student.pickup_location
+                )
+                db.session.add(pickup_schedule)
+                
+                # 드롭오프 스케줄 추가
+                dropoff_schedule = Schedule(
+                    student_id=student.id,
+                    day_of_week=day,
+                    schedule_type='dropoff',
+                    time=dropoff_time_obj,
+                    location=student.pickup_location
+                )
+                db.session.add(dropoff_schedule)
+        
+        db.session.commit()
+        print("✅ 프로덕션 환경에 스케줄 데이터 추가 완료")
+        
+    except Exception as e:
+        print(f"❌ 프로덕션 스케줄 데이터 추가 실패: {e}")
+        db.session.rollback()
 
 # 개발 환경에서만 Flask 직접 실행
 if __name__ == '__main__':
