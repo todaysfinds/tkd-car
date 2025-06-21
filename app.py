@@ -1418,7 +1418,12 @@ def init_db():
         # 테이블이 없으면 생성만 하고, 기존 데이터는 보존
         db.create_all()
         
-        # 샘플 데이터 추가 (처음 실행시에만)
+        # 배포 환경에서는 샘플 데이터를 추가하지 않음
+        if os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):
+            print("프로덕션 환경: 샘플 데이터 추가 건너뜀")
+            return
+        
+        # 샘플 데이터 추가 (개발 환경에서 처음 실행시에만)
         try:
             if Student.query.count() == 0:
                 # 실제 시간표 기반 샘플 학생 데이터
@@ -1541,5 +1546,6 @@ if __name__ == '__main__':
     debug = not (os.environ.get('RENDER') or os.environ.get('DATABASE_URL'))
     app.run(host=host, port=port, debug=debug)
 else:
-    # 프로덕션 환경 (gunicorn)에서는 초기화 실행
-    init_db() 
+    # 프로덕션 환경에서는 테이블만 생성하고 데이터는 건드리지 않음
+    with app.app_context():
+        db.create_all()  # 테이블이 없으면 생성만 

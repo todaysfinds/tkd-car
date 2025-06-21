@@ -826,6 +826,21 @@ function initStudentSearch() {
     searchInput.removeEventListener('input', performSearch);
     searchInput.addEventListener('input', performSearch);
     
+    // 엔터키 이벤트 추가 - 첫 번째 검색 결과 자동 선택
+    searchInput.removeEventListener('keydown', handleKeyDown);
+    function handleKeyDown(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const firstStudentItem = dropdown.querySelector('.student-item');
+            if (firstStudentItem && !dropdown.classList.contains('hidden')) {
+                const studentId = parseInt(firstStudentItem.getAttribute('data-student-id'));
+                const studentName = firstStudentItem.getAttribute('data-student-name');
+                selectStudentSafely(studentId, studentName);
+            }
+        }
+    }
+    searchInput.addEventListener('keydown', handleKeyDown);
+    
     // 포커스 시 검색 실행
     searchInput.removeEventListener('focus', performSearch);
     searchInput.addEventListener('focus', function() {
