@@ -3,10 +3,11 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
 import os
 import traceback
+import psycopg2
 
 app = Flask(__name__)
 
-# 🎯 통합 데이터베이스 설정 (PostgreSQL 전용)
+# 🎯 통합 데이터베이스 설정 (PostgreSQL 우선, SQLite 백업)
 # 환경에 관계없이 동일한 로직 사용
 database_url = os.environ.get('DATABASE_URL')
 if database_url:
@@ -14,9 +15,24 @@ if database_url:
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+    print("🐘 PostgreSQL 사용 (프로덕션)")
 else:
-    # 로컬 개발: 로컬 PostgreSQL
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost:5432/tkd_transport'
+    # 로컬 개발: PostgreSQL 시도, 실패시 SQLite
+    try:
+        # PostgreSQL 연결 테스트
+        test_conn = psycopg2.connect(
+            host='localhost',
+            port=5432,
+            database='tkd_transport',
+            user='postgres'
+        )
+        test_conn.close()
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost:5432/tkd_transport'
+        print("🐘 PostgreSQL 사용 (로컬)")
+    except:
+        # PostgreSQL 없으면 SQLite 사용
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tkd_transport.db'
+        print("🗄️ SQLite 사용 (로컬 백업)")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -1658,3 +1674,63 @@ if __name__ == '__main__':
 else:
     # 프로덕션 환경 (gunicorn으로 실행)
     initialize_database()
+
+# 🔧 임시 디버그 엔드포인트 (문제 해결용)
+@app.route('/debug/init-db')
+def debug_init_db():
+    """수동으로 데이터베이스 초기화 트리거 (임시용)"""
+    try:
+        student_count = Student.query.count()
+        
+        if student_count == 0:
+            print("🎯 수동 초기화 시작...")
+            add_initial_data()
+            final_count = Student.query.count()
+            return f"""
+            <h1>✅ 초기화 완료!</h1>
+            <p>학생 수: {final_count}명 추가됨</p>
+            <a href="/admin/students">학생 명단 보기</a>
+            """
+        else:
+            return f"""
+            <h1>ℹ️ 이미 데이터가 있습니다</h1>
+            <p>현재 학생 수: {student_count}명</p>
+            <a href="/admin/students">학생 명단 보기</a>
+            """
+            
+    except Exception as e:
+        return f"""
+        <h1>❌ 오류 발생</h1>
+        <pre>{str(e)}</pre>
+        """
+
+@app.route('/debug/db-status')
+def debug_db_status():
+    """데이터베이스 상태 확인"""
+    try:
+        student_count = Student.query.count()
+        schedule_count = Schedule.query.count()
+        
+        # 최근 학생 3명
+        recent_students = Student.query.limit(3).all()
+        student_list = [f"{s.name} ({s.grade})" for s in recent_students]
+        
+        return f"""
+        <h1>📊 데이터베이스 상태</h1>
+        <p><strong>학생 수:</strong> {student_count}명</p>
+        <p><strong>스케줄 수:</strong> {schedule_count}개</p>
+        <p><strong>데이터베이스 URL:</strong> {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...</p>
+        
+        <h3>최근 학생:</h3>
+        <ul>
+        {''.join([f'<li>{student}</li>' for student in student_list])}
+        </ul>
+        
+        <p><a href="/debug/init-db">수동 초기화</a> | <a href="/admin/students">학생 명단</a></p>
+        """
+        
+    except Exception as e:
+        return f"""
+        <h1>❌ 데이터베이스 연결 오류</h1>
+        <pre>{str(e)}</pre>
+        """
