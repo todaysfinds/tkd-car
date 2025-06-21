@@ -22,7 +22,7 @@ class Student(db.Model):
     estimated_pickup_time = db.Column(db.String(10))  # 예상 픽업 시간 (12시간제)
     is_private_car = db.Column(db.Boolean, default=False)  # 개인차량 여부
     memo = db.Column(db.String(200))  # 메모 필드 추가
-    session_part = db.Column(db.Integer)  # 부 (1부, 2부, 3부, 4부, 5부)
+    session_part = db.Column(db.Integer)  # 부 (1부, 2부, 3부, 4부, 5부) 또는 특수 시간대 (6=돌봄시스템, 7=국기원부)
     # 안심번호 서비스용 필드
     allow_contact = db.Column(db.Boolean, default=True)  # 연락 허용 여부
     contact_preference = db.Column(db.String(20), default='phone')  # phone, kakao, both
@@ -32,7 +32,7 @@ class Schedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 0=월요일, 6=일요일
-    schedule_type = db.Column(db.String(10), nullable=False)  # 'pickup' or 'dropoff'
+    schedule_type = db.Column(db.String(10), nullable=False)  # 'pickup', 'dropoff', 'care_system', 'national_training'
     time = db.Column(db.Time, nullable=False)  # 픽업 또는 드롭오프 시간
     location = db.Column(db.String(100))  # 각 스케줄별 장소 (Student의 pickup_location과 다를 수 있음)
     
@@ -98,10 +98,11 @@ def today():
     today_date = date.today()
     day_of_week = today_date.weekday()
     
-    # 오늘 픽업 스케줄이 있는 학생들 조회 (시간 순서대로 정렬)
+    # 오늘 픽업 스케줄이 있는 학생들 조회 (1부~5부만, 돌봄시스템/국기원부 제외)
     students_with_schedule = db.session.query(Student, Schedule).join(Schedule).filter(
         Schedule.day_of_week == day_of_week,
-        Schedule.schedule_type == 'pickup'
+        Schedule.schedule_type == 'pickup',
+        Student.session_part.between(1, 5)  # 1부~5부만 표시
     ).order_by(Schedule.time, Schedule.location, Student.estimated_pickup_time).all()
     
     # 시간 순서대로 그룹화 (승차/하차 구분)
@@ -203,9 +204,22 @@ def admin_schedule_manager():
     
     for student, schedule in schedules:
         day = schedule.day_of_week
-        part = student.session_part or 1
-        location = schedule.location or student.pickup_location or '미정'
-        schedule_type = schedule.schedule_type  # 'pickup' or 'dropoff'
+        # 돌봄시스템/국기원부의 경우 location에서 part 정보를 추출
+        if schedule.schedule_type in ['care_system', 'national_training']:
+            # location에 part 정보가 있는지 확인 (예: "도장_care1", "도장_national")
+            if '_' in (schedule.location or ''):
+                location_parts = schedule.location.split('_')
+                part = location_parts[1] if len(location_parts) > 1 else 'care1'
+                location = location_parts[0]
+            else:
+                # 기본값 설정
+                part = 'care1' if schedule.schedule_type == 'care_system' else 'national'
+                location = schedule.location or '도장'
+        else:
+            part = student.session_part or 1
+            location = schedule.location or student.pickup_location or '미정'
+        
+        schedule_type = schedule.schedule_type  # 'pickup', 'dropoff', 'care_system', 'national_training'
         
         # 요일별 구조 초기화
         if day not in schedule_data:
@@ -215,19 +229,36 @@ def admin_schedule_manager():
         if part not in schedule_data[day]:
             schedule_data[day][part] = {}
             
-        # 승차/하차별 구조 초기화
-        if schedule_type not in schedule_data[day][part]:
-            schedule_data[day][part][schedule_type] = {}
+        # 승차/하차별 구조 초기화 (돌봄시스템과 국기원부는 단일 구조)
+        if schedule_type in ['care_system', 'national_training']:
+            # 돌봄시스템/국기원부는 승차/하차 구분 없이 단일 구조
+            # part를 문자열로 처리 (care1, care2, care3, national)
+            part_key = str(part) if isinstance(part, str) else part
             
-        # 장소별 구조 초기화
-        if location not in schedule_data[day][part][schedule_type]:
-            schedule_data[day][part][schedule_type][location] = []
-            
-        # 학생 추가
-        schedule_data[day][part][schedule_type][location].append({
-            'student': student,
-            'schedule': schedule
-        })
+            if part_key not in schedule_data[day]:
+                schedule_data[day][part_key] = {}
+            if 'students' not in schedule_data[day][part_key]:
+                schedule_data[day][part_key]['students'] = {}
+            if location not in schedule_data[day][part_key]['students']:
+                schedule_data[day][part_key]['students'][location] = []
+            schedule_data[day][part_key]['students'][location].append({
+                'student': student,
+                'schedule': schedule
+            })
+        else:
+            # 기존 승차/하차 구조
+            if schedule_type not in schedule_data[day][part]:
+                schedule_data[day][part][schedule_type] = {}
+                
+            # 장소별 구조 초기화
+            if location not in schedule_data[day][part][schedule_type]:
+                schedule_data[day][part][schedule_type][location] = []
+                
+            # 학생 추가
+            schedule_data[day][part][schedule_type][location].append({
+                'student': student,
+                'schedule': schedule
+            })
     
     return render_template('admin_schedule_manager.html', schedule_data=schedule_data)
 
@@ -508,38 +539,33 @@ def delete_student():
         student_name = student.name  # 삭제 전에 이름 저장
         
         # 관련된 데이터를 순서대로 삭제
-        try:
-            # 1. 출석 정보 삭제
-            attendance_count = Attendance.query.filter_by(student_id=student_id).count()
-            Attendance.query.filter_by(student_id=student_id).delete()
-            
-            # 2. 요청 정보 삭제  
-            request_count = Request.query.filter_by(student_id=student_id).count()
-            Request.query.filter_by(student_id=student_id).delete()
-            
-            # 3. 스케줄 정보 삭제
-            schedule_count = Schedule.query.filter_by(student_id=student_id).count()
-            Schedule.query.filter_by(student_id=student_id).delete()
-            
-            # 4. 학생 정보 삭제
-            db.session.delete(student)
-            
-            # 모든 변경사항 커밋
-            db.session.commit()
-            
-            return jsonify({
-                'success': True, 
-                'message': f'{student_name} 학생의 모든 정보가 삭제되었습니다.',
-                'deleted_counts': {
-                    'attendance': attendance_count,
-                    'requests': request_count,
-                    'schedules': schedule_count
-                }
-            })
-            
-        except Exception as inner_e:
-            db.session.rollback()
-            return jsonify({'success': False, 'error': f'데이터 삭제 중 오류: {str(inner_e)}'})
+        # 1. 출석 정보 삭제
+        attendance_count = Attendance.query.filter_by(student_id=student_id).count()
+        Attendance.query.filter_by(student_id=student_id).delete()
+        
+        # 2. 요청 정보 삭제  
+        request_count = Request.query.filter_by(student_id=student_id).count()
+        Request.query.filter_by(student_id=student_id).delete()
+        
+        # 3. 스케줄 정보 삭제
+        schedule_count = Schedule.query.filter_by(student_id=student_id).count()
+        Schedule.query.filter_by(student_id=student_id).delete()
+        
+        # 4. 학생 정보 삭제
+        db.session.delete(student)
+        
+        # 모든 변경사항 커밋
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'message': f'{student_name} 학생의 모든 정보가 삭제되었습니다.',
+            'deleted_counts': {
+                'attendance': attendance_count,
+                'requests': request_count,
+                'schedules': schedule_count
+            }
+        })
     
     except Exception as e:
         db.session.rollback()
@@ -589,15 +615,32 @@ def add_student_to_schedule():
         elif session_part == 4:  # 4부
             pickup_time = time(17, 30)  # 5:30 PM
             dropoff_time = time(18, 20)  # 6:20 PM
-        else:  # 5부
+        elif session_part == 5:  # 5부
+            pickup_time = time(19, 0)  # 7:00 PM
+            dropoff_time = time(19, 50)  # 7:50 PM
+        elif session_part == 6:  # 돌봄시스템
+            pickup_time = time(12, 0)  # 12:00 PM (임시 시간)
+            dropoff_time = time(12, 0)  # 돌봄시스템은 시간 구분 없음
+        elif session_part == 7:  # 국기원부
+            pickup_time = time(18, 30)  # 6:30 PM (임시 시간)
+            dropoff_time = time(18, 30)  # 국기원부는 시간 구분 없음
+        else:  # 기본값 (5부)
             pickup_time = time(19, 0)  # 7:00 PM
             dropoff_time = time(19, 50)  # 7:50 PM
         
         # 학생의 부 정보 업데이트
-        student.session_part = session_part
+        if schedule_type not in ['care_system', 'national_training']:
+            student.session_part = session_part
         
         # 스케줄 타입에 따른 시간 설정
-        schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
+        # 돌봄시스템과 국기원부는 특별 처리
+        if schedule_type in ['care_system', 'national_training']:
+            schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
+            # location에 part 정보 포함 (예: "도장_care1", "도장_national")
+            if isinstance(session_part, str):
+                target_location = f"{target_location}_{session_part}"
+        else:
+            schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
         # 중복 체크 (같은 학생, 같은 날, 같은 타입, 같은 장소)
         existing_schedule = Schedule.query.filter_by(
@@ -655,11 +698,27 @@ def add_multiple_students_to_schedule():
         elif session_part == 4:  # 4부
             pickup_time = time(17, 30)  # 5:30 PM
             dropoff_time = time(18, 20)  # 6:20 PM
-        else:  # 5부
+        elif session_part == 5:  # 5부
+            pickup_time = time(19, 0)  # 7:00 PM
+            dropoff_time = time(19, 50)  # 7:50 PM
+        elif session_part == 6:  # 돌봄시스템
+            pickup_time = time(12, 0)  # 12:00 PM (임시 시간)
+            dropoff_time = time(12, 0)  # 돌봄시스템은 시간 구분 없음
+        elif session_part == 7:  # 국기원부
+            pickup_time = time(18, 30)  # 6:30 PM (임시 시간)
+            dropoff_time = time(18, 30)  # 국기원부는 시간 구분 없음
+        else:  # 기본값 (5부)
             pickup_time = time(19, 0)  # 7:00 PM
             dropoff_time = time(19, 50)  # 7:50 PM
         
-        schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
+        # 돌봄시스템과 국기원부는 특별 처리
+        if schedule_type in ['care_system', 'national_training']:
+            schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
+            # location에 part 정보 포함 (예: "도장_care1", "도장_national")
+            if isinstance(session_part, str):
+                target_location = f"{target_location}_{session_part}"
+        else:
+            schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
         # 🔥 모든 학생에 대해 먼저 중복 체크 (하나라도 중복이면 전체 취소)
         duplicates = []
@@ -707,9 +766,10 @@ def add_multiple_students_to_schedule():
             student_id = student_data.get('id')
             student_name = student_data.get('name', f'학생{student_id}')
             
-            # 학생의 부 정보 업데이트
-            student = Student.query.get(student_id)
-            student.session_part = session_part
+            # 학생의 부 정보 업데이트 (돌봄시스템/국기원부 제외)
+            if schedule_type not in ['care_system', 'national_training']:
+                student = Student.query.get(student_id)
+                student.session_part = session_part
             
             # 새 스케줄 추가
             new_schedule = Schedule(
@@ -773,13 +833,24 @@ def remove_student_from_schedule():
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
         
-        # 정확한 스케줄 찾기 (승차/하차 구분)
-        schedule = Schedule.query.filter_by(
-            student_id=student_id,
-            day_of_week=day_of_week,
-            schedule_type=schedule_type,
-            location=location
-        ).first()
+        # 정확한 스케줄 찾기 (돌봄시스템/국기원부 특별 처리)
+        if schedule_type in ['care_system', 'national_training']:
+            # 돌봄시스템/국기원부의 경우 location에 part 정보가 포함됨
+            target_location = f"{location}_{session_part}"
+            schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=target_location
+            ).first()
+        else:
+            # 기존 승차/하차 방식
+            schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=location
+            ).first()
         
         if schedule:
             student_name = student.name
@@ -1335,7 +1406,7 @@ def update_kakao_settings():
         db.session.commit()
         
         return jsonify({'success': True})
-        
+    
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
@@ -1344,12 +1415,8 @@ def update_kakao_settings():
 def init_db():
     import os
     with app.app_context():
-        # 배포환경에서는 데이터 보존, 개발환경에서만 재생성
-        if os.environ.get('RENDER') or os.environ.get('DATABASE_URL'):  # Render 환경 감지
-            db.create_all()  # 테이블이 없으면 생성만
-        else:
-            db.drop_all()
-            db.create_all()
+        # 테이블이 없으면 생성만 하고, 기존 데이터는 보존
+        db.create_all()
         
         # 샘플 데이터 추가 (처음 실행시에만)
         try:

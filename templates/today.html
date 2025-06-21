@@ -51,11 +51,11 @@
         <!-- 시간대 네비게이션 (확실한 분리 구조) -->
         <div class="flex items-center justify-center mb-6 px-4">
             <!-- 왼쪽 화살표 -->
-            <button onclick="previousSlide()" 
+                <button onclick="previousSlide()" 
                     class="flex-shrink-0 w-12 h-12 bg-white hover:bg-blue-50 flex items-center justify-center text-2xl border-2 border-blue-300 rounded-full shadow-lg mr-8 transition-all hover:scale-110 z-30">
-                ⬅️
-            </button>
-            
+                    ⬅️
+                </button>
+                
             <!-- 시간 버튼들 컨테이너 (충분한 여백) -->
             <div class="flex-1 max-w-2xl">
                 <div class="overflow-x-auto scrollbar-hide" id="timeNavContainer">
@@ -67,14 +67,14 @@
                         </button>
                         {% endfor %}
                     </div>
+                    </div>
                 </div>
-            </div>
-            
+                
             <!-- 오른쪽 화살표 -->
-            <button onclick="nextSlide()" 
+                <button onclick="nextSlide()" 
                     class="flex-shrink-0 w-12 h-12 bg-white hover:bg-blue-50 flex items-center justify-center text-2xl border-2 border-blue-300 rounded-full shadow-lg ml-8 transition-all hover:scale-110 z-30">
-                ➡️
-            </button>
+                    ➡️
+                </button>
         </div>
 
         <!-- 시간대별 슬라이드 -->

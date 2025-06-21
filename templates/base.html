@@ -452,38 +452,38 @@ ${selectedStudentData.name} 학생이 수업을 마치고 하차를 위해 출�
         
         // 실제 카카오톡 발송 API 호출
         fetch('/api/send_message_template', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
                 student_id: selectedStudentData.id,
                 message_type: 'custom',
                 custom_message: messageText
+                })
             })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
                 // 성공 응답을 히스토리에 추가
                 messageHistory[selectedStudentData.id].push({
                     type: 'received',
                     message: data.simulation ? `✅ 시뮬레이션 발송 완료\n${data.note || ''}` : '✅ 메시지가 발송되었습니다.',
                     timestamp: new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})
                 });
-            } else {
+                } else {
                 // 실패 응답을 히스토리에 추가
                 messageHistory[selectedStudentData.id].push({
                     type: 'received',
                     message: `❌ 발송 실패: ${data.error}`,
                     timestamp: new Date().toLocaleTimeString('ko-KR', {hour: '2-digit', minute: '2-digit'})
                 });
-            }
+                }
             
             // 채팅 내역 새로고침
             loadChatHistory(selectedStudentData.id);
-        })
-        .catch(error => {
+            })
+            .catch(error => {
             messageHistory[selectedStudentData.id].push({
                 type: 'received',
                 message: `❌ 네트워크 오류: ${error.message}`,
@@ -495,7 +495,7 @@ ${selectedStudentData.name} 학생이 수업을 마치고 하차를 위해 출�
         // 입력창 초기화 및 채팅 내역 새로고침
         document.getElementById('messageText').value = '';
         loadChatHistory(selectedStudentData.id);
-    }
+        }
 
     // 외부 클릭 시 드롭다운 닫기
     document.addEventListener('click', function(event) {

@@ -323,17 +323,17 @@ function deleteStudent(id, name) {
         deleteButton.disabled = true;
     }
     
-    fetch('/api/delete_student', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
+        fetch('/api/delete_student', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
-        },
-        body: JSON.stringify({
+            },
+            body: JSON.stringify({
             id: parseInt(id)
+            })
         })
-    })
     .then(function(response) {
         if (!response.ok) {
             throw new Error('HTTP error! status: ' + response.status);
@@ -341,7 +341,7 @@ function deleteStudent(id, name) {
         return response.json();
     })
     .then(function(data) {
-        if (data.success) {
+            if (data.success) {
             var successMessage = '✅ ' + data.message + '\n\n삭제된 정보:\n• 출석 기록: ' + data.deleted_counts.attendance + '건\n• 요청 기록: ' + data.deleted_counts.requests + '건\n• 스케줄: ' + data.deleted_counts.schedules + '건';
             alert(successMessage);
             
@@ -355,15 +355,15 @@ function deleteStudent(id, name) {
             setTimeout(function() {
                 location.href = location.pathname + '?t=' + Date.now();
             }, 1000);
-        } else {
+            } else {
             alert('❌ 삭제 실패: ' + data.error);
             // 버튼 복원
             if (deleteButton) {
                 deleteButton.innerHTML = originalText;
                 deleteButton.disabled = false;
             }
-        }
-    })
+            }
+        })
     .catch(function(error) {
         console.error('Delete error:', error);
         alert('❌ 삭제 중 오류가 발생했습니다: ' + error.message);
@@ -371,7 +371,7 @@ function deleteStudent(id, name) {
         if (deleteButton) {
             deleteButton.innerHTML = originalText;
             deleteButton.disabled = false;
-        }
+    }
     });
 }
 
