@@ -10,6 +10,31 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# 전역 에러 핸들러
+@app.errorhandler(404)
+def not_found_error(error):
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': 'API 엔드포인트를 찾을 수 없습니다.'}), 404
+    return render_template('base.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    db.session.rollback()
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': '서버 내부 오류가 발생했습니다.'}), 500
+    return render_template('base.html'), 500
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    db.session.rollback()
+    print(f"🚨 예외 발생: {str(e)}")
+    import traceback
+    traceback.print_exc()
+    
+    if request.path.startswith('/api/'):
+        return jsonify({'success': False, 'error': f'오류 발생: {str(e)}'}), 500
+    return render_template('base.html'), 500
+
 # 데이터베이스 모델
 class Student(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -464,11 +489,26 @@ def get_locations():
 @app.route('/api/add_student', methods=['POST'])
 def add_student():
     try:
+        print(f"🔍 학생 추가 요청 받음")
+        print(f"   - Content-Type: {request.content_type}")
+        print(f"   - Form data: {request.form}")
+        print(f"   - JSON data: {request.get_json(silent=True)}")
+        
         name = request.form.get('name')
         birth_year = request.form.get('birth_year')
         
+        print(f"   - 이름: {name}")
+        print(f"   - 출생년도: {birth_year}")
+        
         if not name:
+            print("❌ 이름이 없음")
             return jsonify({'success': False, 'error': '이름을 입력해주세요.'})
+        
+        # 중복 체크
+        existing_student = Student.query.filter_by(name=name).first()
+        if existing_student:
+            print(f"❌ 중복된 이름: {name}")
+            return jsonify({'success': False, 'error': f'"{name}" 학생이 이미 존재합니다.'})
         
         # 새 학생 추가 (간단한 정보만)
         new_student = Student(
@@ -476,35 +516,63 @@ def add_student():
             grade=birth_year  # grade 필드를 출생년도로 사용
         )
         
+        print(f"✅ 새 학생 생성: {new_student.name}")
+        
         db.session.add(new_student)
         db.session.commit()
         
-        return jsonify({'success': True})
+        print(f"✅ 학생 추가 완료: ID={new_student.id}")
+        
+        return jsonify({'success': True, 'message': f'{name} 학생이 추가되었습니다.'})
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        print(f"❌ 학생 추가 에러: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'학생 추가 실패: {str(e)}'})
 
 @app.route('/api/check_duplicate_name', methods=['POST'])
 def check_duplicate_name():
     try:
+        print(f"🔍 중복 체크 요청 받음")
+        
         data = request.get_json()
+        if not data:
+            print("❌ JSON 데이터 없음")
+            return jsonify({'success': False, 'error': 'JSON 데이터가 필요합니다.'})
+            
         name = data.get('name')
         exclude_id = data.get('exclude_id')
+        
+        print(f"   - 이름: {name}")
+        print(f"   - 제외 ID: {exclude_id}")
+        
+        if not name:
+            print("❌ 이름이 없음")
+            return jsonify({'success': False, 'error': '이름이 필요합니다.'})
         
         query = Student.query.filter_by(name=name)
         if exclude_id:
             query = query.filter(Student.id != exclude_id)
         
         existing_student = query.first()
+        is_duplicate = existing_student is not None
+        
+        print(f"   - 중복 여부: {is_duplicate}")
+        if existing_student:
+            print(f"   - 기존 학생 ID: {existing_student.id}")
         
         return jsonify({
             'success': True,
-            'duplicate': existing_student is not None
+            'duplicate': is_duplicate
         })
     
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
+        print(f"❌ 중복 체크 에러: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': f'중복 체크 실패: {str(e)}'})
 
 @app.route('/api/update_student', methods=['POST'])
 def update_student():
