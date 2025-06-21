@@ -34,14 +34,10 @@ if database_url:
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     
-    # psycopg3 사용 시 드라이버 명시
+    # psycopg3 사용 시 dialect 명시
     if 'psycopg2' not in sys.modules or 'psycopg' in str(type(sys.modules.get('psycopg2', {}))):
-        # psycopg3 사용 중이면 URL에 드라이버 명시
-        if '?' in database_url:
-            database_url += '&'
-        else:
-            database_url += '?'
-        database_url += 'sslmode=require'
+        # psycopg3 전용 dialect 사용 (SQLAlchemy 2.0+)
+        database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
     
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     print("🐘 PostgreSQL 사용 (프로덕션)")
