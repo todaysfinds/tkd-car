@@ -113,6 +113,16 @@ class KakaoSettings(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class Location(db.Model):
+    """장소 정보 저장용 모델"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    default_time = db.Column(db.String(10))  # 기본 픽업 시간
+    description = db.Column(db.String(200))  # 장소 설명
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
 # 라우트
 @app.route('/')
 def index():
@@ -358,25 +368,46 @@ def admin_locations():
 @app.route('/api/add_location', methods=['POST'])
 def add_location():
     try:
+        print(f"🔍 장소 추가 요청 받음")
+        
         data = request.get_json()
         name = data.get('name')
         default_time = data.get('default_time')
         
+        print(f"   - 장소명: {name}")
+        print(f"   - 기본 시간: {default_time}")
+        
         if not name:
+            print("❌ 장소명이 없음")
             return jsonify({'success': False, 'message': '장소명이 필요합니다.'})
         
-        # 중복 체크
-        existing_students = Student.query.filter_by(pickup_location=name).first()
-        if existing_students:
+        # 중복 체크 (Location 테이블과 기존 학생 장소 모두 체크)
+        existing_location = Location.query.filter_by(name=name).first()
+        existing_student_location = Student.query.filter_by(pickup_location=name).first()
+        
+        if existing_location or existing_student_location:
+            print(f"❌ 중복된 장소: {name}")
             return jsonify({'success': False, 'message': '이미 존재하는 장소입니다.'})
         
-        # 실제로 장소를 생성하기 위해 임시 학생을 만들고 바로 삭제
-        # 또는 빈 장소 정보를 저장할 수 있는 방법 필요
-        # 현재는 성공 응답만 보내고 실제 장소는 학생 추가할 때 생성됨
+        # 새 장소 추가
+        new_location = Location(
+            name=name,
+            default_time=default_time
+        )
         
-        return jsonify({'success': True, 'message': f'장소 "{name}" 추가 준비 완료'})
+        db.session.add(new_location)
+        db.session.commit()
+        
+        print(f"✅ 장소 '{name}' 추가 완료 (ID: {new_location.id})")
+        
+        return jsonify({'success': True, 'message': f'장소 "{name}"이 추가되었습니다.'})
+        
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        db.session.rollback()
+        print(f"❌ 장소 추가 에러: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'장소 추가 실패: {str(e)}'})
 
 @app.route('/api/update_location', methods=['POST'])
 def update_location():
@@ -1646,6 +1677,10 @@ def init_production_db():
             if final_student_count == 0 and os.environ.get('INIT_SAMPLE_DATA') == 'true':
                 print("🎯 프로덕션 환경에 기본 학생 데이터 추가 중...")
                 add_production_sample_data()
+            elif final_student_count > 0:
+                print(f"✅ 기존 학생 데이터 {final_student_count}명 보존됨 - 샘플 데이터 추가 안함")
+            else:
+                print("ℹ️ 빈 데이터베이스 - 학생을 직접 추가해주세요")
             
             # 환경 정보 로깅
             print(f"📊 환경 변수:")

@@ -52,8 +52,10 @@
     <!-- 학생 목록 -->
     <div class="bg-white rounded-lg shadow-sm border border-gray-200">
         <div class="p-4 border-b border-gray-200">
-            <h2 class="text-lg font-semibold text-gray-900">전체 학생 명단</h2>
-            <p class="text-xs text-gray-500 mt-1">총 {{ students|length }}명</p>
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-gray-900">전체 학생 명단</h2>
+                <span class="text-lg font-semibold text-gray-900">총 {{ students|length }}명</span>
+            </div>
         </div>
         <div class="p-4">
             {% if students %}
