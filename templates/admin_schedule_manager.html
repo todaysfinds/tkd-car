@@ -1108,28 +1108,35 @@ function createStudentElementHTML(student, dayNum, sessionPart, type, location) 
     `;
 }
 
-// 빈 장소를 UI에 임시 추가
+// 빈 장소를 UI에 임시 추가 (제자리 유지)
 function addEmptyLocationToUI(dayNum, sessionPart, locationName, type) {
     console.log('🏗️ UI에 빈 장소 추가:', {dayNum, sessionPart, locationName, type});
     
-    // 해당 요일, 부, 타입의 컨테이너 찾기
+    // 해당 요일 페이지 찾기
     const dayPage = document.getElementById(`day-page-${dayNum}`);
     if (!dayPage) {
         console.error('요일 페이지를 찾을 수 없습니다.');
-        refreshScheduleDisplay();
         return;
     }
     
-    // 해당 부와 타입의 섹션 찾기
+    // 정확한 섹션 찾기 - 부와 타입 매칭
     const typeText = type === 'dropoff' ? '하차' : '승차';
-    const sections = dayPage.querySelectorAll('.space-y-2');
-    
-    // 적절한 섹션에 빈 장소 추가
     let targetSection = null;
-    sections.forEach(section => {
-        const header = section.querySelector('h4');
-        if (header && header.textContent.includes(`${sessionPart}부`) && header.textContent.includes(typeText)) {
-            targetSection = section;
+    
+    // 모든 시간대 컨테이너 검색
+    const sessionContainers = dayPage.querySelectorAll('.border.rounded-lg.overflow-hidden');
+    
+    sessionContainers.forEach(container => {
+        const sessionTitle = container.querySelector('h3');
+        if (sessionTitle && sessionTitle.textContent.includes(`${sessionPart}부`)) {
+            // 해당 부 찾음, 이제 승차/하차 구분
+            const typeHeaders = container.querySelectorAll('.text-sm.font-medium.text-center.border-b');
+            typeHeaders.forEach(header => {
+                if (header.textContent.includes(typeText)) {
+                    // 해당 타입의 컨테이너 찾음
+                    targetSection = header.nextElementSibling; // .p-2.space-y-2 부분
+                }
+            });
         }
     });
     
@@ -1138,8 +1145,8 @@ function addEmptyLocationToUI(dayNum, sessionPart, locationName, type) {
         const addButton = targetSection.querySelector('button[onclick*="addNewLocation"]');
         if (addButton) {
             const emptyLocationHTML = `
-                <div class="border border-gray-200 rounded-lg p-2 bg-white">
-                    <div class="flex items-center justify-between mb-2">
+                <div class="border border-gray-200 rounded p-1 bg-white">
+                    <div class="flex items-center justify-between mb-1">
                         <span class="text-xs font-medium text-gray-700">📍 ${locationName}</span>
                         <button onclick="addStudentToLocation(${dayNum}, ${sessionPart}, '${locationName}', '${type}')" 
                                 class="text-xs text-blue-600 hover:text-blue-800">+ 학생</button>
@@ -1150,10 +1157,13 @@ function addEmptyLocationToUI(dayNum, sessionPart, locationName, type) {
                 </div>
             `;
             addButton.insertAdjacentHTML('beforebegin', emptyLocationHTML);
+            console.log('✅ 빈 장소 UI 추가 완료 - 제자리 유지');
+        } else {
+            console.error('새 장소 추가 버튼을 찾을 수 없습니다.');
         }
     } else {
-        // 섹션을 찾을 수 없으면 새로고침
-        console.error('적절한 섹션을 찾을 수 없습니다.');
+        console.error('적절한 섹션을 찾을 수 없습니다. 수동 새로고침 필요');
+        alert('장소가 추가되었지만 화면 새로고침이 필요합니다.');
         refreshScheduleDisplay();
     }
 }
@@ -1270,7 +1280,7 @@ function removeNationalStudentFromDOM(studentElement) {
     }, 300);
 }
 
-// 초기 설정  
+// 초기 설정 - 애니메이션 없이 바로 해당 요일 표시
 document.addEventListener('DOMContentLoaded', function() {
     console.log('📄 페이지 로드 완료');
     
@@ -1279,10 +1289,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedDay = urlParams.get('day');
     
     if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
-        // URL에 저장된 요일로 즉시 이동 (애니메이션 없음)
+        // URL에 저장된 요일로 즉시 설정 (DOM 조작 없이)
         currentDayIndex = parseInt(savedDay);
-        console.log('🔄 저장된 요일로 즉시 표시:', currentDayIndex);
-        showDayPage(currentDayIndex);
+        console.log('🔄 저장된 요일로 즉시 설정:', currentDayIndex);
     } else {
         // 오늘 요일로 초기화
         const today = new Date();
@@ -1297,8 +1306,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         console.log('🗓️ 오늘 요일로 초기화:', currentDayIndex);
-        showDayPage(currentDayIndex);
     }
+    
+    // 🚀 페이지 로드 시 애니메이션 없이 바로 해당 요일만 표시
+    initializeDayPageDirectly(currentDayIndex);
 });
+
+// 페이지 로드 시 애니메이션 없이 직접 초기화
+function initializeDayPageDirectly(dayNum) {
+    console.log('⚡ 직접 초기화 - 애니메이션 없음:', dayNum);
+    
+    // 모든 요일 페이지를 처음부터 숨김 상태로 설정
+    document.querySelectorAll('.day-page').forEach((page, index) => {
+        if (index === dayNum) {
+            page.classList.remove('hidden'); // 해당 요일만 표시
+        } else {
+            page.classList.add('hidden'); // 나머지는 숨김
+        }
+    });
+    
+    // 네비게이션 버튼도 처음부터 올바른 상태로 설정
+    document.querySelectorAll('[id^="day-nav-"]').forEach((btn, index) => {
+        if (index === dayNum) {
+            btn.classList.add('bg-blue-500', 'text-white');
+            btn.classList.remove('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
+        } else {
+            btn.classList.remove('bg-blue-500', 'text-white');
+            btn.classList.add('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
+        }
+    });
+    
+    // 현재 요일을 URL에 저장
+    const url = new URL(window.location);
+    url.searchParams.set('day', dayNum);
+    window.history.replaceState({}, '', url);
+    
+    console.log('✅ 직접 초기화 완료 - 이동 없음');
+}
 </script>
 {% endblock %} 
