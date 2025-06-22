@@ -794,9 +794,14 @@ def add_student_to_schedule():
         # 돌봄시스템과 국기원부는 특별 처리
         if schedule_type in ['care_system', 'national_training']:
             schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
-            # location에 part 정보 포함 (예: "도장_care1", "도장_national")
+            # 🚨 location 길이 제한 해결: 긴 장소명은 짧게 축약
             if isinstance(session_part, str):
-                target_location = f"{target_location}_{session_part}"
+                # 장소명이 너무 길면 축약 (데이터베이스 VARCHAR 제한 고려)
+                base_location = target_location[:20]  # 기본 장소명 20자 제한
+                target_location = f"{base_location}_{session_part}"
+                # 최종 길이가 100자를 넘지 않도록 제한
+                if len(target_location) > 100:
+                    target_location = target_location[:100]
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
@@ -1015,15 +1020,26 @@ def remove_student_from_schedule():
             db.session.delete(schedule)
             db.session.commit()
             
+            # 🚨 해당 장소에 다른 학생이 있는지 확인
+            remaining_students = Schedule.query.filter_by(
+                day_of_week=day_of_week,
+                location=location,
+                schedule_type=schedule_type
+            ).count()
+            
+            # 학생이 0명이어도 장소는 유지 (사용자 요청)
+            keep_location = True
+            
             message = f'{student_name} 학생이 {location}에서 제거되었습니다.'
-            if keep_location:
-                message += f' "{location}" 장소는 유지됩니다.'
+            if remaining_students == 0:
+                message += f' "{location}" 장소는 빈 상태로 유지됩니다.'
             
             return jsonify({
                 'success': True, 
                 'message': message,
                 'keep_location': keep_location,
-                'location': location
+                'location': location,
+                'remaining_students': remaining_students
             })
         else:
             return jsonify({'success': False, 'error': '해당 스케줄을 찾을 수 없습니다.'})

@@ -1059,8 +1059,11 @@ function modalKeyHandler(e) {
         
         // 그렇지 않으면 추가 버튼 클릭 (학생이 선택되어 있을 때만)
         const addBtn = document.getElementById('addStudentBtn');
-        if (selectedStudents.length > 0 && !addBtn.disabled) {
+        if (selectedStudents.length > 0 && addBtn && !addBtn.disabled) {
+            console.log('🚀 엔터키로 학생 추가 실행');
             confirmAddStudents();
+        } else {
+            console.log('⚠️ 학생이 선택되지 않았거나 버튼이 비활성화됨');
         }
     }
     
@@ -1074,7 +1077,25 @@ function modalKeyHandler(e) {
 // 새로고침 없이 스케줄 디스플레이 업데이트
 function refreshScheduleDisplay() {
     console.log('🔄 스케줄 화면 새로고침');
-    // 간단하게 페이지 새로고침 (나중에 AJAX로 개선 가능)
+    
+    // 🚨 현재 활성화된 요일 탭 저장
+    const activeTab = document.querySelector('button[onclick*="scrollToDaySlot"].bg-blue-500');
+    let currentDay = 0; // 기본값: 월요일
+    
+    if (activeTab) {
+        const onclickAttr = activeTab.getAttribute('onclick');
+        const dayMatch = onclickAttr.match(/scrollToDaySlot\((\d+)\)/);
+        if (dayMatch) {
+            currentDay = parseInt(dayMatch[1]);
+        }
+    }
+    
+    // 현재 요일 정보를 URL 파라미터로 저장
+    const url = new URL(window.location);
+    url.searchParams.set('day', currentDay);
+    window.history.replaceState({}, '', url);
+    
+    // 페이지 새로고침
     window.location.reload();
 }
 
@@ -1210,7 +1231,22 @@ function removeStudentFromNationalTraining(studentId, dayNum, location) {
 
 // 초기 설정
 document.addEventListener('DOMContentLoaded', function() {
-    scrollToDaySlot(0); // 월요일부터 시작
+    // 🚨 URL 파라미터에서 현재 요일 복원
+    const urlParams = new URLSearchParams(window.location.search);
+    const savedDay = urlParams.get('day');
+    
+    let startDay = 0; // 기본값: 월요일
+    
+    if (savedDay !== null && !isNaN(parseInt(savedDay))) {
+        startDay = parseInt(savedDay);
+        // 0-6 범위 내 유효한 값인지 확인
+        if (startDay >= 0 && startDay <= 6) {
+            startDay = parseInt(savedDay);
+        }
+    }
+    
+    console.log('🗓️ 페이지 로드 시 요일 복원:', startDay);
+    scrollToDaySlot(startDay);
 });
 </script>
 {% endblock %} 
