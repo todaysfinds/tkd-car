@@ -888,7 +888,9 @@ def add_student_to_schedule():
             # 장소명은 그대로 사용 (프론트엔드에서 이미 처리됨)
             # 길이 제한만 적용
             if len(target_location) > 100:
+                print(f"⚠️ 장소명이 너무 길어서 자름: {target_location[:100]}")
                 target_location = target_location[:100]
+            print(f"🔍 특수 시간대 처리: {schedule_type}, 부={session_part}, 장소={target_location}")
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
@@ -903,6 +905,14 @@ def add_student_to_schedule():
         if existing_schedule:
             return jsonify({'success': False, 'error': '이미 해당 스케줄이 존재합니다.'})
         
+        # 새 스케줄 추가 전 최종 검증
+        print(f"✅ 스케줄 생성 데이터:")
+        print(f"   - 학생ID: {student_id}")
+        print(f"   - 요일: {day_of_week}")
+        print(f"   - 타입: {schedule_type}")
+        print(f"   - 시간: {schedule_time}")
+        print(f"   - 장소: {target_location} (길이: {len(target_location)})")
+        
         # 새 스케줄 추가 (승차/하차 별도)
         new_schedule = Schedule(
             student_id=student_id,
@@ -915,11 +925,25 @@ def add_student_to_schedule():
         db.session.add(new_schedule)
         db.session.commit()
         
+        print(f"✅ 스케줄 추가 완료: ID={new_schedule.id}")
         return jsonify({'success': True})
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        print(f"❌ 단일 스케줄 추가 에러: {str(e)}")
+        print(f"   - 에러 타입: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        
+        # 사용자 친화적 에러 메시지
+        if 'StringDataRightTruncation' in str(e) or 'value too long' in str(e):
+            error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
+        elif 'duplicate' in str(e).lower():
+            error_msg = '이미 동일한 스케줄이 존재합니다.'
+        else:
+            error_msg = f'스케줄 추가 중 오류가 발생했습니다: {str(e)}'
+        
+        return jsonify({'success': False, 'error': error_msg})
 
 @app.route('/api/add_multiple_students_to_schedule', methods=['POST'])
 def add_multiple_students_to_schedule():
@@ -1060,7 +1084,20 @@ def add_multiple_students_to_schedule():
     except Exception as e:
         # 🔄 오류 발생 시 모든 변경사항 롤백
         db.session.rollback()
-        return jsonify({'success': False, 'error': f'서버 오류: {str(e)}'})
+        print(f"❌ 다중 스케줄 추가 에러: {str(e)}")
+        print(f"   - 에러 타입: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        
+        # 사용자 친화적 에러 메시지
+        if 'StringDataRightTruncation' in str(e) or 'value too long' in str(e):
+            error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
+        elif 'duplicate' in str(e).lower():
+            error_msg = '이미 동일한 스케줄이 존재합니다.'
+        else:
+            error_msg = f'서버 오류: {str(e)}'
+        
+        return jsonify({'success': False, 'error': error_msg})
 
 # 장소 및 스케줄 관리 API
 @app.route('/api/update_location_name', methods=['POST'])

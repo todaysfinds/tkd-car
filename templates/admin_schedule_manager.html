@@ -955,35 +955,34 @@ function modalKeyHandler(e) {
         return;
     }
     
-    // 엔터키 처리
+    // 엔터키 처리 (2단계)
     if (e.key === 'Enter') {
         e.preventDefault();
         
-        // 검색창에 포커스가 있고 드롭다운이 보이면 첫 번째 학생 선택만
         const searchInput = document.getElementById('studentSearch');
         const dropdown = document.getElementById('studentDropdown');
+        const addBtn = document.getElementById('addStudentBtn');
         
+        // 1단계: 검색창에 포커스가 있고 드롭다운이 보이면 첫 번째 학생 선택
         if (document.activeElement === searchInput && !dropdown.classList.contains('hidden')) {
             const firstStudentItem = dropdown.querySelector('.student-item');
             if (firstStudentItem) {
                 const studentId = parseInt(firstStudentItem.getAttribute('data-student-id'));
                 const studentName = firstStudentItem.getAttribute('data-student-name');
                 selectStudentSafely(studentId, studentName);
-                // 학생 선택 후 검색창에서 포커스 제거 (두 번째 엔터를 위해)
-                searchInput.blur();
-                return; // 여기서 완전히 종료 - 추가 버튼 실행 안함
+                console.log('✅ 1단계: 학생 선택 완료, 다시 엔터를 누르면 추가됩니다');
+                return; // 1단계 완료 - 추가 버튼 실행 안함
             }
         }
         
-        // 검색창에 포커스가 없고 학생이 선택되어 있을 때만 추가 버튼 실행
-        if (document.activeElement !== searchInput) {
-        const addBtn = document.getElementById('addStudentBtn');
-            if (selectedStudents.length > 0 && addBtn && !addBtn.disabled) {
-                console.log('🚀 엔터키로 학생 추가 실행');
+        // 2단계: 학생이 선택된 상태에서 다시 엔터 누르면 추가 실행
+        if (selectedStudents.length > 0 && addBtn && !addBtn.disabled) {
+            console.log('🚀 2단계: 엔터키로 학생 추가 실행');
             confirmAddStudents();
-            } else {
-                console.log('⚠️ 학생이 선택되지 않았거나 버튼이 비활성화됨');
-            }
+        } else if (selectedStudents.length === 0) {
+            console.log('⚠️ 먼저 학생을 선택해주세요');
+        } else {
+            console.log('⚠️ 추가 버튼이 비활성화되어 있습니다');
         }
     }
     
@@ -1137,7 +1136,7 @@ function createStudentElementHTML(student, dayNum, sessionPart, type, location) 
     }
     
     return `
-        <div class="flex items-center justify-between text-xs ${bgColor} px-1 py-0.5 rounded ${borderColor} min-w-[50px] max-w-[100px]">
+        <div class="flex items-center justify-between text-xs ${bgColor} px-1 py-0.5 rounded border ${borderColor} min-w-[50px] max-w-[100px]">
             <span class="text-gray-800 truncate text-xs">${student.name}</span>
             <button onclick="${removeFunction}" 
                     class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
@@ -1210,11 +1209,15 @@ function addStudentToCareSystem(dayNum, locationName, careType) {
     // careType을 숫자로 변환 (care1->6, care2->6, care3->6)
     let sessionPartNum = 6; // 돌봄시스템은 모두 6번으로 통일
     
+    // 장소명을 짧게 유지 (데이터베이스 제한 고려)
+    let shortLocation = locationName.length > 90 ? locationName.substring(0, 90) : locationName;
+    let finalLocation = `${shortLocation}_${careType}`;
+    
     currentModalConfig = {
         dayNum: dayNum,
         sessionPart: sessionPartNum,
         type: 'care_system',
-        location: `${locationName}_${careType}` // 장소명에 타입 포함
+        location: finalLocation
     };
     
     document.getElementById('modalTitle').textContent = `${locationName}에 학생 추가 (돌봄시스템)`;
