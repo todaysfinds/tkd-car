@@ -348,7 +348,7 @@
                     <div class="border rounded-lg overflow-hidden border-purple-200">
                         <div class="bg-purple-100 px-3 py-1 border-b border-purple-200 flex items-center justify-between">
                             <h3 class="font-semibold text-purple-800 text-sm">🇰🇷 국기원부</h3>
-                            <button onclick="addStudentToNationalTraining({{ day_num }}, '도장')" 
+                            <button onclick="addStudentToNationalTraining({{ day_num }})" 
                                     class="text-xs text-purple-600 hover:text-purple-800">
                                 + 학생
                             </button>
@@ -360,7 +360,7 @@
                                     {% for student_data in students %}
                                     <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
                                         <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                        <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, '{{ location }}')" 
+                                        <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }})" 
                                                 class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                     </div>
                                     {% endfor %}
@@ -538,7 +538,7 @@ function addStudentToLocation(dayNum, sessionPart, locationName, type = 'pickup'
     document.getElementById('studentModal').classList.remove('hidden');
     initStudentSearch();
     
-    // 모달 전체에 키보드 이벤트 추가
+    // 모달 키보드 이벤트 설정
     setupModalKeyboardEvents();
 }
 
@@ -1124,7 +1124,7 @@ function createStudentElementHTML(student, dayNum, sessionPart, type, location) 
     } else if (type === 'national_training') {
         bgColor = 'bg-purple-50';
         borderColor = 'border-purple-200';
-        removeFunction = `removeStudentFromNationalTraining(${student.id}, ${dayNum}, '${location}')`;
+        removeFunction = `removeStudentFromNationalTraining(${student.id}, ${dayNum})`;
     } else if (type === 'pickup') {
         bgColor = 'bg-pink-50';
         borderColor = 'border-pink-200';
@@ -1223,6 +1223,9 @@ function addStudentToCareSystem(dayNum, locationName, careType) {
     document.getElementById('modalTitle').textContent = `${locationName}에 학생 추가 (돌봄시스템)`;
     document.getElementById('studentModal').classList.remove('hidden');
     initStudentSearch();
+    
+    // 모달 키보드 이벤트 설정
+    setupModalKeyboardEvents();
 }
 
 function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
@@ -1268,20 +1271,23 @@ function removeCareSystemStudentFromDOM(studentElement) {
 }
 
 // 국기원부 관련 함수들
-function addStudentToNationalTraining(dayNum, locationName) {
+function addStudentToNationalTraining(dayNum) {
     currentModalConfig = {
         dayNum: dayNum,
         sessionPart: 7,  // 국기원부는 숫자 7로 통일
         type: 'national_training',
-        location: locationName
+        location: null   // 국기원부는 장소 개념 없음
     };
     
-    document.getElementById('modalTitle').textContent = `${locationName}에 학생 추가 (국기원부)`;
+    document.getElementById('modalTitle').textContent = `국기원부에 학생 추가`;
     document.getElementById('studentModal').classList.remove('hidden');
     initStudentSearch();
+    
+    // 모달 키보드 이벤트 설정
+    setupModalKeyboardEvents();
 }
 
-function removeStudentFromNationalTraining(studentId, dayNum, location) {
+function removeStudentFromNationalTraining(studentId, dayNum) {
     // 학생 요소를 미리 찾아두기 (제거 전)
     const studentButton = event.target;
     const studentElement = studentButton.closest('.flex.items-center.justify-between');
@@ -1294,7 +1300,7 @@ function removeStudentFromNationalTraining(studentId, dayNum, location) {
             body: JSON.stringify({
                 student_id: studentId,
                 day_of_week: dayNum,
-                location: location,
+                location: null, // 국기원부는 장소 없음
                 session_part: 7, // 국기원부는 숫자 7로 통일
                 type: 'national_training',
                 keep_location: true

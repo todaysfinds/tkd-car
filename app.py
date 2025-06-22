@@ -885,22 +885,34 @@ def add_student_to_schedule():
         # 돌봄시스템과 국기원부는 특별 처리
         if schedule_type in ['care_system', 'national_training']:
             schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
-            # 장소명은 그대로 사용 (프론트엔드에서 이미 처리됨)
-            # 길이 제한만 적용
-            if len(target_location) > 100:
+            
+            # 국기원부는 장소 개념 없음 (null 허용)
+            if schedule_type == 'national_training' and target_location is None:
+                target_location = None  # 국기원부는 location null로 저장
+                print(f"🔍 국기원부 처리: 장소 없음")
+            elif target_location and len(target_location) > 100:
                 print(f"⚠️ 장소명이 너무 길어서 자름: {target_location[:100]}")
                 target_location = target_location[:100]
+            
             print(f"🔍 특수 시간대 처리: {schedule_type}, 부={session_part}, 장소={target_location}")
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
         # 중복 체크 (같은 학생, 같은 날, 같은 타입, 같은 장소)
-        existing_schedule = Schedule.query.filter_by(
-            student_id=student_id,
-            day_of_week=day_of_week,
-            schedule_type=schedule_type,
-            location=target_location
-        ).first()
+        # 국기원부는 location이 null일 수 있으므로 특별 처리
+        if schedule_type == 'national_training' and target_location is None:
+            existing_schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type
+            ).filter(Schedule.location.is_(None)).first()
+        else:
+            existing_schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=target_location
+            ).first()
         
         if existing_schedule:
             return jsonify({'success': False, 'error': '이미 해당 스케줄이 존재합니다.'})
@@ -988,9 +1000,11 @@ def add_multiple_students_to_schedule():
         # 돌봄시스템과 국기원부는 특별 처리
         if schedule_type in ['care_system', 'national_training']:
             schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
-            # 장소명은 프론트엔드에서 이미 처리되어 넘어옴
-            # 길이 제한만 적용
-            if len(target_location) > 100:
+            
+            # 국기원부는 장소 개념 없음 (null 허용)
+            if schedule_type == 'national_training' and target_location is None:
+                target_location = None  # 국기원부는 location null로 저장
+            elif target_location and len(target_location) > 100:
                 target_location = target_location[:100]
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
@@ -1009,13 +1023,20 @@ def add_multiple_students_to_schedule():
                 invalid_students.append(student_name)
                 continue
             
-            # 중복 체크
-            existing_schedule = Schedule.query.filter_by(
-                student_id=student_id,
-                day_of_week=day_of_week,
-                schedule_type=schedule_type,
-                location=target_location
-            ).first()
+            # 중복 체크 (국기원부는 location null 특별 처리)
+            if schedule_type == 'national_training' and target_location is None:
+                existing_schedule = Schedule.query.filter_by(
+                    student_id=student_id,
+                    day_of_week=day_of_week,
+                    schedule_type=schedule_type
+                ).filter(Schedule.location.is_(None)).first()
+            else:
+                existing_schedule = Schedule.query.filter_by(
+                    student_id=student_id,
+                    day_of_week=day_of_week,
+                    schedule_type=schedule_type,
+                    location=target_location
+                ).first()
             
             if existing_schedule:
                 duplicates.append(student_name)
@@ -1136,8 +1157,15 @@ def remove_student_from_schedule():
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
         
         # 정확한 스케줄 찾기 (돌봄시스템/국기원부 특별 처리)
-        if schedule_type in ['care_system', 'national_training']:
-            # 돌봄시스템/국기원부의 경우 location에 part 정보가 포함됨
+        if schedule_type == 'national_training':
+            # 국기원부는 location이 null
+            schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type
+            ).filter(Schedule.location.is_(None)).first()
+        elif schedule_type == 'care_system':
+            # 돌봄시스템의 경우 location에 part 정보가 포함됨
             target_location = f"{location}_{session_part}"
             schedule = Schedule.query.filter_by(
                 student_id=student_id,
