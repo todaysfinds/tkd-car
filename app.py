@@ -1618,15 +1618,10 @@ def initialize_database():
             except Exception as schema_error:
                 print(f"⚠️ 스키마 업데이트 스킵 (이미 적용됨 또는 불필요): {schema_error}")
             
-            # 빈 데이터베이스인지 확인
+            # 빈 데이터베이스 확인 (샘플 데이터 자동 생성 제거)
             student_count = Student.query.count()
-            if student_count == 0:
-                print("🔍 빈 데이터베이스 감지 - 샘플 데이터 추가 중...")
-                add_initial_data()
-                add_initial_schedules()
-                print("✅ 초기 데이터 설정 완료")
-            else:
-                print(f"📊 기존 학생 {student_count}명 확인됨")
+            print(f"📊 현재 학생 수: {student_count}명")
+            print("✅ 데이터베이스 초기화 완료 - 깔끔한 상태")
     except Exception as e:
         print(f"❌ 데이터베이스 초기화 실패: {e}")
         import traceback
@@ -1852,3 +1847,133 @@ def debug_fix_schema():
             'success': False,
             'error': f'스키마 수정 실패: {str(e)}'
         })
+
+@app.route('/debug/clean-start', methods=['POST'])
+def debug_clean_start():
+    """🧹 완전 초기화 - 모든 데이터 삭제 후 깔끔하게 시작"""
+    try:
+        with app.app_context():
+            # 모든 테이블 데이터 삭제 (순서 중요 - 외래키 관계 고려)
+            print("🧹 데이터베이스 완전 정리 시작...")
+            
+            # 1. 스케줄 데이터 삭제
+            Schedule.query.delete()
+            print("✅ Schedule 데이터 삭제 완료")
+            
+            # 2. 출석 데이터 삭제
+            TkdAttendance.query.delete()
+            print("✅ TkdAttendance 데이터 삭제 완료")
+            
+            # 3. 요청 데이터 삭제
+            Request.query.delete()
+            print("✅ Request 데이터 삭제 완료")
+            
+            # 4. 학생 데이터 삭제
+            Student.query.delete()
+            print("✅ Student 데이터 삭제 완료")
+            
+            # 5. 장소 데이터 삭제
+            Location.query.delete()
+            print("✅ Location 데이터 삭제 완료")
+            
+            # 6. 빠른 전화 데이터 삭제
+            QuickCallNumber.query.delete()
+            print("✅ QuickCallNumber 데이터 삭제 완료")
+            
+            # 커밋
+            db.session.commit()
+            print("💾 모든 데이터 삭제 완료")
+            
+            return jsonify({
+                'success': True,
+                'message': '데이터베이스가 완전히 정리되었습니다. 이제 깔끔하게 시작할 수 있습니다!',
+                'next_step': '학생 관리에서 실제 학생들을 추가해주세요.'
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 데이터 정리 실패: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'데이터 정리 중 오류 발생: {str(e)}'
+        })
+
+@app.route('/debug/clean-start')
+def debug_clean_start_page():
+    """🧹 데이터베이스 완전 정리 페이지"""
+    return '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>데이터베이스 완전 정리</title>
+        <meta charset="UTF-8">
+        <style>
+            body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+            .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+            .button { background: #dc3545; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 5px; cursor: pointer; }
+            .button:hover { background: #c82333; }
+            .success { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 20px 0; }
+            .error { background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        </style>
+    </head>
+    <body>
+        <h1>🧹 데이터베이스 완전 정리</h1>
+        
+        <div class="warning">
+            <h3>⚠️ 주의사항</h3>
+            <ul>
+                <li>모든 학생 데이터가 삭제됩니다</li>
+                <li>모든 스케줄 데이터가 삭제됩니다</li>
+                <li>모든 출석 기록이 삭제됩니다</li>
+                <li>이 작업은 되돌릴 수 없습니다</li>
+            </ul>
+        </div>
+        
+        <p>샘플 데이터와 테스트 데이터를 모두 삭제하고 깔끔하게 시작하시겠습니까?</p>
+        
+        <button class="button" onclick="cleanStart()">🧹 완전 정리 실행</button>
+        
+        <div id="result"></div>
+        
+        <script>
+        function cleanStart() {
+            if (confirm('정말로 모든 데이터를 삭제하시겠습니까?\\n이 작업은 되돌릴 수 없습니다!')) {
+                fetch('/debug/clean-start', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'}
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const resultDiv = document.getElementById('result');
+                    if (data.success) {
+                        resultDiv.innerHTML = `
+                            <div class="success">
+                                <h3>✅ 완료!</h3>
+                                <p>${data.message}</p>
+                                <p><strong>다음 단계:</strong> ${data.next_step}</p>
+                                <p><a href="/admin/students">학생 관리로 이동</a></p>
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="error">
+                                <h3>❌ 오류 발생</h3>
+                                <p>${data.error}</p>
+                            </div>
+                        `;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('result').innerHTML = `
+                        <div class="error">
+                            <h3>❌ 네트워크 오류</h3>
+                            <p>서버 연결에 실패했습니다: ${error}</p>
+                        </div>
+                    `;
+                });
+            }
+        }
+        </script>
+    </body>
+    </html>
+    '''
