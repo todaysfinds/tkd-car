@@ -575,12 +575,12 @@ function createEmptyLocation(dayNum, sessionPart, locationName, type) {
             addEmptyLocationToUI(dayNum, sessionPart, locationName, type);
         } else {
             console.error('❌ 장소 생성 실패:', data);
-            alert('장소 추가 중 오류가 발생했습니다: ' + data.error);
+            showNotification(`장소 추가 실패: ${data.error}`, 'error');
         }
     })
     .catch(error => {
         console.error('❌ 장소 생성 오류:', error);
-        alert('장소 추가 중 오류가 발생했습니다.');
+        showNotification('장소 추가 중 오류가 발생했습니다.', 'error');
     });
 }
 
@@ -614,12 +614,12 @@ function removeStudentFromLocation(studentId, dayNum, location, sessionPart, typ
             // 🚀 새로고침 대신 동적 제거 (제자리 유지)
             removeStudentFromDOM(studentElement, locationContainer, data.remaining_students, location);
         } else {
-            alert('오류가 발생했습니다: ' + data.error);
+            showNotification(`삭제 실패: ${data.error}`, 'error');
         }
     })
     .catch(error => {
         console.error('❌ 삭제 오류:', error);
-        alert('삭제 중 오류가 발생했습니다.');
+        showNotification('삭제 중 오류가 발생했습니다.', 'error');
     });
 }
 
@@ -880,14 +880,13 @@ function confirmAddStudents() {
         
         if (data.success) {
             console.log('✅ 모든 학생 추가 완료:', data.added_students);
-            // alert 제거 - 성공 시 바로 닫고 DOM 업데이트 (스크롤 위치 유지)
+            showNotification(`${data.added_students.length}명의 학생이 추가되었습니다`, 'success');
             closeModal();
-            // 새로고침 대신 DOM 직접 업데이트로 스크롤 위치 유지
+            // DOM 직접 업데이트로 즉시 반영
             addStudentsToDOM(data.added_students);
         } else {
             console.error('❌ 학생 추가 실패:', data);
-            // 🚨 중복이나 오류 발생 시 명확한 메시지
-            alert(`추가 실패!\n\n${data.error}\n\n`);
+            showNotification(`학생 추가 실패: ${data.error}`, 'error');
             
             // 버튼 상태 복원
             addBtn.disabled = false;
@@ -896,7 +895,7 @@ function confirmAddStudents() {
     })
     .catch(error => {
         console.error('❌ 네트워크 오류:', error);
-        alert('서버 연결 오류가 발생했습니다. 다시 시도해주세요.');
+        showNotification('서버 연결 오류가 발생했습니다. 다시 시도해주세요.', 'error');
         
         // 버튼 상태 복원
         addBtn.disabled = false;

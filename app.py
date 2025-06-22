@@ -84,8 +84,25 @@ def handle_exception(e):
     import traceback
     traceback.print_exc()
     
+    # 사용자 친화적 에러 메시지
+    user_friendly_errors = {
+        'IntegrityError': '데이터 무결성 오류가 발생했습니다. 중복된 데이터가 있는지 확인해주세요.',
+        'OperationalError': '데이터베이스 연결 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        'ValidationError': '입력된 데이터가 올바르지 않습니다. 다시 확인해주세요.',
+        'PermissionError': '권한이 없습니다.',
+        'TimeoutError': '요청 시간이 초과되었습니다. 다시 시도해주세요.'
+    }
+    
+    error_type = type(e).__name__
+    user_message = user_friendly_errors.get(error_type, '시스템 오류가 발생했습니다. 관리자에게 문의해주세요.')
+    
     if request.path.startswith('/api/'):
-        return jsonify({'success': False, 'error': f'오류 발생: {str(e)}'}), 500
+        return jsonify({
+            'success': False, 
+            'error': user_message,
+            'error_type': error_type,
+            'debug_info': str(e) if app.debug else None
+        }), 500
     return render_template('base.html'), 500
 
 # 데이터베이스 모델
@@ -576,30 +593,33 @@ def get_locations():
 def add_student():
     try:
         print(f"🔍 학생 추가 요청 받음")
-        print(f"   - Content-Type: {request.content_type}")
-        print(f"   - Form data: {request.form}")
-        print(f"   - JSON data: {request.get_json(silent=True)}")
         
+        # 입력 데이터 검증
         name = request.form.get('name')
         birth_year = request.form.get('birth_year')
         
         print(f"   - 이름: {name}")
         print(f"   - 출생년도: {birth_year}")
         
-        if not name:
-            print("❌ 이름이 없음")
-            return jsonify({'success': False, 'error': '이름을 입력해주세요.'})
+        # 이름 검증
+        is_valid, validated_name = validate_student_name(name)
+        if not is_valid:
+            print(f"❌ 이름 검증 실패: {validated_name}")
+            return error_response(validated_name)
         
         # 중복 체크
-        existing_student = Student.query.filter_by(name=name).first()
+        existing_student = Student.query.filter_by(name=validated_name).first()
         if existing_student:
-            print(f"❌ 중복된 이름: {name}")
-            return jsonify({'success': False, 'error': f'"{name}" 학생이 이미 존재합니다.'})
+            print(f"❌ 중복된 이름: {validated_name}")
+            return error_response(f'"{validated_name}" 학생이 이미 존재합니다. 구분을 위해 다른 이름을 사용해주세요.')
         
-        # 새 학생 추가 (간단한 정보만)
+        # 출생년도 검증
+        birth_year = sanitize_input(birth_year, 10)
+        
+        # 새 학생 추가
         new_student = Student(
-            name=name,
-            grade=birth_year  # grade 필드를 출생년도로 사용
+            name=validated_name,
+            grade=birth_year
         )
         
         print(f"✅ 새 학생 생성: {new_student.name}")
@@ -609,14 +629,17 @@ def add_student():
         
         print(f"✅ 학생 추가 완료: ID={new_student.id}")
         
-        return jsonify({'success': True, 'message': f'{name} 학생이 추가되었습니다.'})
+        return success_response(
+            f'{validated_name} 학생이 성공적으로 추가되었습니다.',
+            {'student_id': new_student.id, 'student_name': validated_name}
+        )
     
     except Exception as e:
         db.session.rollback()
         print(f"❌ 학생 추가 에러: {str(e)}")
         import traceback
         traceback.print_exc()
-        return jsonify({'success': False, 'error': f'학생 추가 실패: {str(e)}'})
+        return error_response('학생 추가 중 시스템 오류가 발생했습니다. 다시 시도해주세요.', 500)
 
 @app.route('/api/check_duplicate_name', methods=['POST'])
 def check_duplicate_name():
@@ -664,70 +687,138 @@ def check_duplicate_name():
 def update_student():
     try:
         data = request.get_json()
+        if not data:
+            return error_response('요청 데이터가 없습니다.')
+        
         student_id = data.get('id')
         name = data.get('name')
         birth_year = data.get('birth_year')
         
+        # 학생 ID 검증
+        if not student_id:
+            return error_response('학생 ID가 필요합니다.')
+        
+        try:
+            student_id = int(student_id)
+        except (ValueError, TypeError):
+            return error_response('올바른 학생 ID가 아닙니다.')
+        
+        # 학생 존재 확인
         student = Student.query.get(student_id)
         if not student:
-            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
+            return error_response('학생을 찾을 수 없습니다.')
         
-        student.name = name
+        # 이름 검증
+        is_valid, validated_name = validate_student_name(name)
+        if not is_valid:
+            return error_response(validated_name)
+        
+        # 중복 체크 (본인 제외)
+        existing_student = Student.query.filter(
+            Student.name == validated_name,
+            Student.id != student_id
+        ).first()
+        
+        if existing_student:
+            return error_response(f'"{validated_name}" 이름의 다른 학생이 이미 존재합니다.')
+        
+        # 출생년도 검증
+        birth_year = sanitize_input(birth_year, 10)
+        
+        # 업데이트
+        old_name = student.name
+        student.name = validated_name
         student.grade = birth_year
         
         db.session.commit()
         
-        return jsonify({'success': True})
+        print(f"✅ 학생 정보 업데이트: {old_name} → {validated_name}")
+        
+        return success_response(
+            f'학생 정보가 성공적으로 수정되었습니다.',
+            {'student_id': student.id, 'old_name': old_name, 'new_name': validated_name}
+        )
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)})
+        print(f"❌ 학생 업데이트 오류: {str(e)}")
+        return error_response('학생 정보 수정 중 오류가 발생했습니다.', 500)
 
 @app.route('/api/delete_student', methods=['POST'])
 def delete_student():
     try:
         data = request.get_json()
+        if not data:
+            return error_response('요청 데이터가 없습니다.')
+        
         student_id = data.get('id')
         
-        # 먼저 학생이 존재하는지 확인
+        # 학생 ID 검증
+        if not student_id:
+            return error_response('학생 ID가 필요합니다.')
+        
+        try:
+            student_id = int(student_id)
+        except (ValueError, TypeError):
+            return error_response('올바른 학생 ID가 아닙니다.')
+        
+        # 학생 존재 확인
         student = Student.query.get(student_id)
         if not student:
-            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
+            return error_response('삭제할 학생을 찾을 수 없습니다.')
         
         student_name = student.name  # 삭제 전에 이름 저장
+        print(f"🗑️ 학생 삭제 시작: {student_name} (ID: {student_id})")
         
-        # 관련된 데이터를 순서대로 삭제
-        # 1. 출석 정보 삭제
-        attendance_count = TkdAttendance.query.filter_by(student_id=student_id).count()
-        TkdAttendance.query.filter_by(student_id=student_id).delete()
+        # 관련된 데이터를 안전하게 순서대로 삭제
+        deleted_counts = {}
         
-        # 2. 요청 정보 삭제  
-        request_count = Request.query.filter_by(student_id=student_id).count()
-        Request.query.filter_by(student_id=student_id).delete()
-        
-        # 3. 스케줄 정보 삭제
-        schedule_count = Schedule.query.filter_by(student_id=student_id).count()
-        Schedule.query.filter_by(student_id=student_id).delete()
-        
-        # 4. 학생 정보 삭제
-        db.session.delete(student)
-        
-        # 모든 변경사항 커밋
-        db.session.commit()
-        
-        return jsonify({
-            'success': True, 
-            'message': f'{student_name} 학생의 모든 정보가 삭제되었습니다.',
-            'deleted_counts': {
-                'attendance': attendance_count,
-                'requests': request_count,
-                'schedules': schedule_count
-            }
-        })
+        try:
+            # 1. 출석 정보 삭제
+            attendance_count = TkdAttendance.query.filter_by(student_id=student_id).count()
+            TkdAttendance.query.filter_by(student_id=student_id).delete(synchronize_session=False)
+            deleted_counts['attendance'] = attendance_count
+            print(f"   - 출석 기록 삭제: {attendance_count}건")
+            
+            # 2. 요청 정보 삭제  
+            request_count = Request.query.filter_by(student_id=student_id).count()
+            Request.query.filter_by(student_id=student_id).delete(synchronize_session=False)
+            deleted_counts['requests'] = request_count
+            print(f"   - 요청 기록 삭제: {request_count}건")
+            
+            # 3. 스케줄 정보 삭제
+            schedule_count = Schedule.query.filter_by(student_id=student_id).count()
+            Schedule.query.filter_by(student_id=student_id).delete(synchronize_session=False)
+            deleted_counts['schedules'] = schedule_count
+            print(f"   - 스케줄 삭제: {schedule_count}건")
+            
+            # 4. 학생 정보 삭제
+            db.session.delete(student)
+            
+            # 모든 변경사항 커밋
+            db.session.commit()
+            
+            print(f"✅ 학생 삭제 완료: {student_name}")
+            
+            return success_response(
+                f'{student_name} 학생의 모든 정보가 성공적으로 삭제되었습니다.',
+                {
+                    'deleted_student': student_name,
+                    'deleted_counts': deleted_counts,
+                    'total_records': sum(deleted_counts.values())
+                }
+            )
+            
+        except Exception as delete_error:
+            print(f"❌ 데이터 삭제 중 오류: {str(delete_error)}")
+            raise delete_error
     
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'error': f'학생 삭제 실패: {str(e)}'})
+        print(f"❌ 학생 삭제 실패: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return error_response('학생 삭제 중 오류가 발생했습니다. 다시 시도해주세요.', 500)
 
 # 스케줄 관리 API
 @app.route('/api/get_all_students')
@@ -1977,3 +2068,91 @@ def debug_clean_start_page():
     </body>
     </html>
     '''
+
+# 🎯 데이터 검증 유틸리티 함수들
+def validate_student_name(name):
+    """학생 이름 검증"""
+    if not name or not name.strip():
+        return False, "이름을 입력해주세요."
+    
+    name = name.strip()
+    if len(name) > 50:
+        return False, "이름은 50자를 초과할 수 없습니다."
+    
+    # 특수문자 검증 (한글, 영문, 숫자, 일부 특수문자만 허용)
+    import re
+    if not re.match(r'^[가-힣a-zA-Z0-9\s\-_()]+$', name):
+        return False, "이름에 허용되지 않는 문자가 포함되어 있습니다."
+    
+    return True, name
+
+def validate_phone_number(phone):
+    """전화번호 검증"""
+    if not phone:
+        return True, None  # 선택사항
+    
+    phone = phone.strip()
+    if len(phone) > 20:
+        return False, "전화번호가 너무 깁니다."
+    
+    # 기본적인 전화번호 형식 검증
+    import re
+    if not re.match(r'^[0-9\-+\s()]+$', phone):
+        return False, "올바른 전화번호 형식이 아닙니다."
+    
+    return True, phone
+
+def validate_location_name(location):
+    """장소명 검증"""
+    if not location or not location.strip():
+        return False, "장소명을 입력해주세요."
+    
+    location = location.strip()
+    if len(location) > 100:
+        return False, "장소명은 100자를 초과할 수 없습니다."
+    
+    return True, location
+
+def validate_session_part(session_part):
+    """부 검증"""
+    if session_part is None:
+        return True, None  # 선택사항
+    
+    try:
+        session_part = int(session_part)
+        if session_part < 1 or session_part > 7:
+            return False, "올바른 부를 선택해주세요. (1-7)"
+        return True, session_part
+    except (ValueError, TypeError):
+        return False, "올바른 부를 선택해주세요."
+
+def sanitize_input(text, max_length=None):
+    """입력 데이터 정리"""
+    if not text:
+        return None
+    
+    text = text.strip()
+    if max_length and len(text) > max_length:
+        text = text[:max_length]
+    
+    return text if text else None
+
+# 🎯 에러 응답 통일화
+def error_response(message, status_code=400):
+    """통일된 에러 응답"""
+    return jsonify({
+        'success': False,
+        'error': message,
+        'timestamp': datetime.utcnow().isoformat()
+    }), status_code
+
+def success_response(message, data=None):
+    """통일된 성공 응답"""
+    response = {
+        'success': True,
+        'message': message,
+        'timestamp': datetime.utcnow().isoformat()
+    }
+    if data:
+        response['data'] = data
+    return jsonify(response)

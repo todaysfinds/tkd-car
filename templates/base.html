@@ -87,6 +87,9 @@
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen-safe" style="font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;">
+    <!-- 🎯 사용자 친화적 알림 시스템 -->
+    <div id="notification-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
     <!-- 네비게이션 헤더 -->
     <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
         <div class="max-w-md mx-auto px-4 py-3">
@@ -506,6 +509,188 @@ ${selectedStudentData.name} 학생이 수업을 마치고 하차를 위해 출�
             dropdown.classList.add('hidden');
         }
     });
+
+    // 🎯 사용자 친화적 알림 시스템
+    function showNotification(message, type = 'info', duration = 5000) {
+        const container = document.getElementById('notification-container');
+        const id = 'notif-' + Date.now();
+        
+        const colors = {
+            success: 'bg-green-500 border-green-600',
+            error: 'bg-red-500 border-red-600',
+            warning: 'bg-yellow-500 border-yellow-600',
+            info: 'bg-blue-500 border-blue-600'
+        };
+        
+        const icons = {
+            success: '✅',
+            error: '❌',
+            warning: '⚠️',
+            info: 'ℹ️'
+        };
+        
+        const notification = document.createElement('div');
+        notification.id = id;
+        notification.className = `${colors[type]} text-white px-4 py-3 rounded-lg shadow-lg border-l-4 max-w-sm transform transition-all duration-300 translate-x-full opacity-0`;
+        notification.innerHTML = `
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">${icons[type]}</span>
+                    <span class="font-medium">${message}</span>
+                </div>
+                <button onclick="closeNotification('${id}')" class="text-white hover:text-gray-200 ml-4">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(notification);
+        
+        // 애니메이션 시작
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full', 'opacity-0');
+        }, 100);
+        
+        // 자동 제거
+        if (duration > 0) {
+            setTimeout(() => {
+                closeNotification(id);
+            }, duration);
+        }
+        
+        return id;
+    }
+    
+    function closeNotification(id) {
+        const notification = document.getElementById(id);
+        if (notification) {
+            notification.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                notification.remove();
+            }, 300);
+        }
+    }
+    
+    // 기존 alert 함수 오버라이드
+    const originalAlert = window.alert;
+    window.alert = function(message) {
+        if (message.includes('❌') || message.includes('오류') || message.includes('실패')) {
+            showNotification(message.replace(/❌\s*/, ''), 'error');
+        } else if (message.includes('✅') || message.includes('완료') || message.includes('성공')) {
+            showNotification(message.replace(/✅\s*/, ''), 'success');
+        } else if (message.includes('⚠️') || message.includes('주의')) {
+            showNotification(message.replace(/⚠️\s*/, ''), 'warning');
+        } else {
+            showNotification(message, 'info');
+        }
+    };
+    
+    // 로딩 스피너 시스템
+    function showLoading(message = '처리 중...') {
+        const loader = document.createElement('div');
+        loader.id = 'global-loader';
+        loader.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        loader.innerHTML = `
+            <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+                <span class="text-gray-700 font-medium">${message}</span>
+            </div>
+        `;
+        document.body.appendChild(loader);
+    }
+    
+    function hideLoading() {
+        const loader = document.getElementById('global-loader');
+        if (loader) {
+            loader.remove();
+        }
+    }
+
+    // 🎯 네트워크 요청 통합 처리 함수
+    async function safeApiCall(url, options = {}, loadingMessage = '처리 중...') {
+        try {
+            showLoading(loadingMessage);
+            
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Cache-Control': 'no-cache',
+                    ...options.headers
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            hideLoading();
+            
+            return data;
+            
+        } catch (error) {
+            hideLoading();
+            console.error('API 요청 오류:', error);
+            
+            // 네트워크 오류 타입별 처리
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                showNotification('네트워크 연결을 확인해주세요.', 'error');
+            } else if (error.message.includes('500')) {
+                showNotification('서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.', 'error');
+            } else if (error.message.includes('404')) {
+                showNotification('요청한 페이지를 찾을 수 없습니다.', 'error');
+            } else {
+                showNotification('요청 처리 중 오류가 발생했습니다.', 'error');
+            }
+            
+            throw error;
+        }
+    }
+    
+    // 🎯 확인창 시스템 (alert 대체)
+    function showConfirm(message, type = 'warning') {
+        return new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            
+            const colors = {
+                danger: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-md mx-4">
+                    <div class="flex items-center space-x-3 mb-4">
+                        <div class="w-8 h-8 rounded-full ${colors[type]} flex items-center justify-center">
+                            <span class="text-white font-bold">!</span>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900">확인</h3>
+                    </div>
+                    <p class="text-gray-700 mb-6">${message}</p>
+                    <div class="flex space-x-3 justify-end">
+                        <button onclick="confirmAction(false)" class="px-4 py-2 bg-gray-300 text-gray-700 rounded hover:bg-gray-400 transition-colors">
+                            취소
+                        </button>
+                        <button onclick="confirmAction(true)" class="px-4 py-2 ${colors[type]} text-white rounded hover:opacity-90 transition-opacity">
+                            확인
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            window.confirmAction = function(result) {
+                modal.remove();
+                delete window.confirmAction;
+                resolve(result);
+            };
+        });
+    }
     </script>
 </body>
 </html> 

@@ -637,10 +637,10 @@ function executeContact(studentId, studentName, contactType) {
             alert(`❌ 연락 실패: ${data.error}`);
         }
     })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('❌ 연락 중 오류가 발생했습니다.');
-    });
+            .catch(error => {
+            console.error('Error:', error);
+            showNotification('연락 중 오류가 발생했습니다.', 'error');
+        });
 }
 
 function showCallOptions(studentName, contacts) {
