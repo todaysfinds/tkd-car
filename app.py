@@ -34,13 +34,12 @@ if database_url:
     if database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
     
-    # psycopg3 사용 시 dialect 명시
-    if 'psycopg2' not in sys.modules or 'psycopg' in str(type(sys.modules.get('psycopg2', {}))):
-        # psycopg3 전용 dialect 사용 (SQLAlchemy 2.0+)
-        database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
+    # 🚨 SQLAlchemy가 psycopg3를 사용하도록 명시적으로 설정
+    # postgresql+psycopg:// 를 사용하면 SQLAlchemy가 psycopg3 네이티브 dialect를 사용
+    database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
     
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    print("🐘 PostgreSQL 사용 (프로덕션)")
+    print(f"🐘 PostgreSQL 사용 (프로덕션): {database_url[:50]}...")
 else:
     # 로컬 개발: PostgreSQL
     try:
@@ -52,7 +51,7 @@ else:
             user='postgres'
         )
         test_conn.close()
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost:5432/tkd_transport'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://localhost:5432/tkd_transport'
         print("🐘 PostgreSQL 사용 (로컬)")
     except:
         # 로컬에서 PostgreSQL 없으면 환경변수 사용
