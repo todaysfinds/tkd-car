@@ -885,14 +885,10 @@ def add_student_to_schedule():
         # 돌봄시스템과 국기원부는 특별 처리
         if schedule_type in ['care_system', 'national_training']:
             schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
-            # 🚨 location 길이 제한 해결: 긴 장소명은 짧게 축약
-            if isinstance(session_part, str):
-                # 장소명이 너무 길면 축약 (데이터베이스 VARCHAR 제한 고려)
-                base_location = target_location[:20]  # 기본 장소명 20자 제한
-                target_location = f"{base_location}_{session_part}"
-                # 최종 길이가 100자를 넘지 않도록 제한
-                if len(target_location) > 100:
-                    target_location = target_location[:100]
+            # 장소명은 그대로 사용 (프론트엔드에서 이미 처리됨)
+            # 길이 제한만 적용
+            if len(target_location) > 100:
+                target_location = target_location[:100]
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
@@ -968,9 +964,10 @@ def add_multiple_students_to_schedule():
         # 돌봄시스템과 국기원부는 특별 처리
         if schedule_type in ['care_system', 'national_training']:
             schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
-            # location에 part 정보 포함 (예: "도장_care1", "도장_national")
-            if isinstance(session_part, str):
-                target_location = f"{target_location}_{session_part}"
+            # 장소명은 프론트엔드에서 이미 처리되어 넘어옴
+            # 길이 제한만 적용
+            if len(target_location) > 100:
+                target_location = target_location[:100]
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         

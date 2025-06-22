@@ -37,415 +37,415 @@
     </div>
 
     <!-- 요일별 스케줄 페이지들 (한 번에 하나만 표시) -->
-    {% for day_name, day_num in [('월요일', 0), ('화요일', 1), ('수요일', 2), ('목요일', 3), ('금요일', 4)] %}
+        {% for day_name, day_num in [('월요일', 0), ('화요일', 1), ('수요일', 2), ('목요일', 3), ('금요일', 4)] %}
     <div class="day-page {% if not loop.first %}hidden{% endif %}" id="day-page-{{ day_num }}" data-day="{{ day_num }}">
-        <div class="bg-white rounded-lg shadow p-4">
-            <div class="flex items-center justify-between mb-6">
-                <h2 class="text-lg font-semibold text-gray-900">{{ day_name }} 스케줄</h2>
-            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-lg font-semibold text-gray-900">{{ day_name }} 스케줄</h2>
+                </div>
 
-            <!-- 시간표 구조 -->
-            <div class="space-y-6">
-                <!-- 돌봄시스템 1 (1부 전) -->
-                <div class="border rounded-lg overflow-hidden border-orange-200">
-                    <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
-                        <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
-                        <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care1')" 
-                                class="text-xs text-orange-600 hover:text-orange-800">
-                            + 학생
-                        </button>
-                    </div>
-                    <div class="p-2 space-y-2 min-h-[30px] bg-white">
-                        {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
-                            {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
-                            <div class="flex flex-wrap gap-1">
-                                {% for student_data in students %}
-                                <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                    <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care1')" 
-                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                <!-- 시간표 구조 -->
+                <div class="space-y-6">
+                    <!-- 돌봄시스템 1 (1부 전) -->
+                    <div class="border rounded-lg overflow-hidden border-orange-200">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
+                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care1')" 
+                                    class="text-xs text-orange-600 hover:text-orange-800">
+                                + 학생
+                            </button>
+                        </div>
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
+                            {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
+                                {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care1')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                    </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
-                            </div>
-                            {% endfor %}
-                        {% endif %}
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
 
-                <!-- 1부 (2:00-2:50) -->
-                <div class="border rounded-lg overflow-hidden">
-                    <div class="bg-white px-3 py-1 border-b">
-                        <h3 class="font-semibold text-gray-800 text-sm">1부 (2:00-2:50)</h3>
-                    </div>
-                    <div class="grid grid-cols-2 gap-0">
-                        <!-- 승차 -->
-                        <div class="border-r">
-                            <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][1] %}
-                                    {% for location, students in schedule_data[day_num][1]['pickup'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'pickup')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'pickup')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                    <!-- 1부 (2:00-2:50) -->
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-white px-3 py-1 border-b">
+                            <h3 class="font-semibold text-gray-800 text-sm">1부 (2:00-2:50)</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-0">
+                            <!-- 승차 -->
+                            <div class="border-r">
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][1] %}
+                                        {% for location, students in schedule_data[day_num][1]['pickup'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
                                             </div>
-                                            {% endfor %}
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
                                         </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                
-                                <button onclick="addNewLocation({{ day_num }}, 1, 'pickup')" 
-                                        class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
-                                    + 새 장소 추가
-                                </button>
+                                        {% endfor %}
+                                    {% endif %}
+                                    
+                                    <button onclick="addNewLocation({{ day_num }}, 1, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 하차 -->
+                            <div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][1] %}
+                                        {% for location, students in schedule_data[day_num][1]['dropoff'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 1, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <!-- 하차 -->
-                        <div>
-                            <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][1] %}
-                                    {% for location, students in schedule_data[day_num][1]['dropoff'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'dropoff')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'dropoff')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                <button onclick="addNewLocation({{ day_num }}, 1, 'dropoff')" 
-                                        class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
-                                    + 새 장소 추가
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                </div>
 
-                <!-- 2부 (3:00-3:50) -->
-                <div class="border rounded-lg overflow-hidden">
-                    <div class="bg-white px-3 py-1 border-b">
-                        <h3 class="font-semibold text-gray-800 text-sm">2부 (3:00-3:50)</h3>
-                    </div>
-                    <div class="grid grid-cols-2 gap-0">
-                        <!-- 승차 -->
-                        <div class="border-r">
-                            <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][2] %}
-                                    {% for location, students in schedule_data[day_num][2]['pickup'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'pickup')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'pickup')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                    <!-- 2부 (3:00-3:50) -->
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-white px-3 py-1 border-b">
+                            <h3 class="font-semibold text-gray-800 text-sm">2부 (3:00-3:50)</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-0">
+                            <!-- 승차 -->
+                            <div class="border-r">
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][2] %}
+                                        {% for location, students in schedule_data[day_num][2]['pickup'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
                                             </div>
-                                            {% endfor %}
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
                                         </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                <button onclick="addNewLocation({{ day_num }}, 2, 'pickup')" 
-                                        class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
-                                    + 새 장소 추가
-                                </button>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 2, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 하차 -->
+                            <div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][2] %}
+                                        {% for location, students in schedule_data[day_num][2]['dropoff'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 2, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                        <!-- 하차 -->
-                        <div>
-                            <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][2] %}
-                                    {% for location, students in schedule_data[day_num][2]['dropoff'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'dropoff')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'dropoff')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                <button onclick="addNewLocation({{ day_num }}, 2, 'dropoff')" 
-                                        class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
-                                    + 새 장소 추가
-                                </button>
-                            </div>
-                        </div>
                     </div>
-                </div>
 
-                <!-- 돌봄시스템 2 (2부와 3부 사이) -->
-                <div class="border rounded-lg overflow-hidden border-orange-200">
-                    <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
-                        <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
-                        <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care2')" 
-                                class="text-xs text-orange-600 hover:text-orange-800">
-                            + 학생
-                        </button>
-                    </div>
-                    <div class="p-2 space-y-2 min-h-[30px] bg-white">
-                        {% if day_num in schedule_data and 'care2' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care2'] %}
-                            {% for location, students in schedule_data[day_num]['care2']['students'].items() %}
-                            <div class="flex flex-wrap gap-1">
-                                {% for student_data in students %}
-                                <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                    <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care2')" 
-                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                    <!-- 돌봄시스템 2 (2부와 3부 사이) -->
+                    <div class="border rounded-lg overflow-hidden border-orange-200">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
+                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care2')" 
+                                    class="text-xs text-orange-600 hover:text-orange-800">
+                                + 학생
+                            </button>
+                        </div>
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
+                            {% if day_num in schedule_data and 'care2' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care2'] %}
+                                {% for location, students in schedule_data[day_num]['care2']['students'].items() %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care2')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                    </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
-                            </div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- 3부 (4:30-5:20) -->
-                <div class="border rounded-lg overflow-hidden">
-                    <div class="bg-white px-3 py-1 border-b">
-                        <h3 class="font-semibold text-gray-800 text-sm">3부 (4:30-5:20)</h3>
-                    </div>
-                    <div class="grid grid-cols-2 gap-0">
-                        <!-- 승차 -->
-                        <div class="border-r">
-                            <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 3 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][3] %}
-                                    {% for location, students in schedule_data[day_num][3]['pickup'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'pickup')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'pickup')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                <button onclick="addNewLocation({{ day_num }}, 3, 'pickup')" 
-                                        class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
-                                    + 새 장소 추가
-                                </button>
-                            </div>
-                        </div>
-                        <!-- 하차 -->
-                        <div>
-                            <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 3 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][3] %}
-                                    {% for location, students in schedule_data[day_num][3]['dropoff'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'dropoff')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'dropoff')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                <button onclick="addNewLocation({{ day_num }}, 3, 'dropoff')" 
-                                        class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
-                                    + 새 장소 추가
-                                </button>
-                            </div>
+                            {% endif %}
                         </div>
                     </div>
-                </div>
 
-                <!-- 돌봄시스템 3 (4부와 5부 사이) -->
-                <div class="border rounded-lg overflow-hidden border-orange-200">
-                    <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
-                        <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
-                        <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care3')" 
-                                class="text-xs text-orange-600 hover:text-orange-800">
-                            + 학생
-                        </button>
+                    <!-- 3부 (4:30-5:20) -->
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-white px-3 py-1 border-b">
+                            <h3 class="font-semibold text-gray-800 text-sm">3부 (4:30-5:20)</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-0">
+                            <!-- 승차 -->
+                            <div class="border-r">
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 3 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][3] %}
+                                        {% for location, students in schedule_data[day_num][3]['pickup'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 3, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 하차 -->
+                            <div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 3 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][3] %}
+                                        {% for location, students in schedule_data[day_num][3]['dropoff'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 3, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="p-2 space-y-2 min-h-[30px] bg-white">
-                        {% if day_num in schedule_data and 'care3' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care3'] %}
-                            {% for location, students in schedule_data[day_num]['care3']['students'].items() %}
-                            <div class="flex flex-wrap gap-1">
-                                {% for student_data in students %}
-                                <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                    <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care3')" 
-                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+
+                    <!-- 돌봄시스템 3 (4부와 5부 사이) -->
+                    <div class="border rounded-lg overflow-hidden border-orange-200">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
+                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care3')" 
+                                    class="text-xs text-orange-600 hover:text-orange-800">
+                                + 학생
+                            </button>
+                        </div>
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
+                            {% if day_num in schedule_data and 'care3' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care3'] %}
+                                {% for location, students in schedule_data[day_num]['care3']['students'].items() %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care3')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                    </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
-                            </div>
-                            {% endfor %}
-                        {% endif %}
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
 
-                <!-- 국기원부 (4부와 5부 사이) -->
-                <div class="border rounded-lg overflow-hidden border-purple-200">
-                    <div class="bg-purple-100 px-3 py-1 border-b border-purple-200 flex items-center justify-between">
-                        <h3 class="font-semibold text-purple-800 text-sm">🇰🇷 국기원부</h3>
-                        <button onclick="addStudentToNationalTraining({{ day_num }}, '도장')" 
-                                class="text-xs text-purple-600 hover:text-purple-800">
-                            + 학생
-                        </button>
-                    </div>
-                    <div class="p-2 space-y-2 min-h-[30px] bg-white">
-                        {% if day_num in schedule_data and 'national' in schedule_data[day_num] and 'students' in schedule_data[day_num]['national'] %}
-                            {% for location, students in schedule_data[day_num]['national']['students'].items() %}
-                            <div class="flex flex-wrap gap-1">
-                                {% for student_data in students %}
-                                <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                    <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, '{{ location }}')" 
-                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                    <!-- 국기원부 (4부와 5부 사이) -->
+                    <div class="border rounded-lg overflow-hidden border-purple-200">
+                        <div class="bg-purple-100 px-3 py-1 border-b border-purple-200 flex items-center justify-between">
+                            <h3 class="font-semibold text-purple-800 text-sm">🇰🇷 국기원부</h3>
+                            <button onclick="addStudentToNationalTraining({{ day_num }}, '도장')" 
+                                    class="text-xs text-purple-600 hover:text-purple-800">
+                                + 학생
+                            </button>
+                        </div>
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
+                            {% if day_num in schedule_data and 'national' in schedule_data[day_num] and 'students' in schedule_data[day_num]['national'] %}
+                                {% for location, students in schedule_data[day_num]['national']['students'].items() %}
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
+                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, '{{ location }}')" 
+                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                    </div>
+                                    {% endfor %}
                                 </div>
                                 {% endfor %}
-                            </div>
-                            {% endfor %}
-                        {% endif %}
-                    </div>
-                </div>
-
-                <!-- 5부 (7:00-7:50) -->
-                <div class="border rounded-lg overflow-hidden">
-                    <div class="bg-white px-3 py-1 border-b">
-                        <h3 class="font-semibold text-gray-800 text-sm">5부 (7:00-7:50)</h3>
-                    </div>
-                    <div class="grid grid-cols-2 gap-0">
-                        <!-- 승차 -->
-                        <div class="border-r">
-                            <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 5 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][5] %}
-                                    {% for location, students in schedule_data[day_num][5]['pickup'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'pickup')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'pickup')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                            </div>
-                                            {% endfor %}
-                                        </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                <button onclick="addNewLocation({{ day_num }}, 5, 'pickup')" 
-                                        class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
-                                    + 새 장소 추가
-                                </button>
-                            </div>
+                            {% endif %}
                         </div>
-                        <!-- 하차 -->
-                        <div>
-                            <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
-                            <div class="p-2 space-y-2 min-h-[60px]">
-                                {% if day_num in schedule_data and 5 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][5] %}
-                                    {% for location, students in schedule_data[day_num][5]['dropoff'].items() %}
-                                    <div class="border border-gray-200 rounded p-1 bg-white">
-                                        <div class="flex items-center justify-between mb-1">
-                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                            <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'dropoff')" 
-                                                    class="text-xs text-blue-600 hover:text-blue-800">
-                                                + 학생
-                                            </button>
-                                        </div>
-                                        <div class="flex flex-wrap gap-1">
-                                            {% for student_data in students %}
-                                            <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                                <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'dropoff')" 
-                                                        class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                    </div>
+
+                    <!-- 5부 (7:00-7:50) -->
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-white px-3 py-1 border-b">
+                            <h3 class="font-semibold text-gray-800 text-sm">5부 (7:00-7:50)</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-0">
+                            <!-- 승차 -->
+                            <div class="border-r">
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 5 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][5] %}
+                                        {% for location, students in schedule_data[day_num][5]['pickup'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
                                             </div>
-                                            {% endfor %}
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
                                         </div>
-                                    </div>
-                                    {% endfor %}
-                                {% endif %}
-                                <button onclick="addNewLocation({{ day_num }}, 5, 'dropoff')" 
-                                        class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
-                                    + 새 장소 추가
-                                </button>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 5, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 하차 -->
+                            <div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 5 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][5] %}
+                                        {% for location, students in schedule_data[day_num][5]['dropoff'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
+                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 5, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-    {% endfor %}
+        {% endfor %}
 </div>
 
 <!-- 학생 추가 모달 -->
@@ -505,8 +505,8 @@ function showDayPage(dayNum) {
     }
     
     // 네비게이션 버튼 활성화 (즉시 변경)
-    document.querySelectorAll('[id^="day-nav-"]').forEach(btn => {
-        btn.classList.remove('bg-blue-500', 'text-white');
+        document.querySelectorAll('[id^="day-nav-"]').forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white');
         btn.classList.add('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
     });
     
@@ -514,9 +514,9 @@ function showDayPage(dayNum) {
     if (activeBtn) {
         activeBtn.classList.remove('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
         activeBtn.classList.add('bg-blue-500', 'text-white');
-    }
-    
-    currentDayIndex = dayNum;
+        }
+        
+        currentDayIndex = dayNum;
     
     // 현재 요일을 URL에 저장 (새로고침 시 유지용)
     const url = new URL(window.location);
@@ -880,7 +880,7 @@ function confirmAddStudents() {
         
         if (data.success) {
             console.log('✅ 모든 학생 추가 완료:', data.added_students);
-            showNotification(`${data.added_students.length}명의 학생이 추가되었습니다`, 'success');
+            // 성공 알림 제거 - 학생이 화면에 나타나는 것으로 충분
             closeModal();
             // DOM 직접 업데이트로 즉시 반영
             addStudentsToDOM(data.added_students);
@@ -977,10 +977,10 @@ function modalKeyHandler(e) {
         
         // 검색창에 포커스가 없고 학생이 선택되어 있을 때만 추가 버튼 실행
         if (document.activeElement !== searchInput) {
-            const addBtn = document.getElementById('addStudentBtn');
+        const addBtn = document.getElementById('addStudentBtn');
             if (selectedStudents.length > 0 && addBtn && !addBtn.disabled) {
                 console.log('🚀 엔터키로 학생 추가 실행');
-                confirmAddStudents();
+            confirmAddStudents();
             } else {
                 console.log('⚠️ 학생이 선택되지 않았거나 버튼이 비활성화됨');
             }
@@ -1038,9 +1038,9 @@ function addStudentsToDOM(addedStudents) {
             });
         } else if (type === 'national_training') {
             // 국기원부 컨테이너 찾기
-            const nationalContainers = dayPage.querySelectorAll('.border-green-200');
+            const nationalContainers = dayPage.querySelectorAll('.border-purple-200');
             nationalContainers.forEach(container => {
-                const nationalTitle = container.querySelector('.text-green-800');
+                const nationalTitle = container.querySelector('.text-purple-800');
                 if (nationalTitle && nationalTitle.textContent.includes('국기원부')) {
                     targetContainer = container.querySelector('.space-y-2');
                 }
@@ -1123,8 +1123,8 @@ function createStudentElementHTML(student, dayNum, sessionPart, type, location) 
         borderColor = 'border-gray-200';
         removeFunction = `removeStudentFromCareSystem(${student.id}, ${dayNum}, '${location}', '${sessionPart}')`;
     } else if (type === 'national_training') {
-        bgColor = 'bg-green-50';
-        borderColor = 'border-green-200';
+        bgColor = 'bg-purple-50';
+        borderColor = 'border-purple-200';
         removeFunction = `removeStudentFromNationalTraining(${student.id}, ${dayNum}, '${location}')`;
     } else if (type === 'pickup') {
         bgColor = 'bg-pink-50';
@@ -1207,11 +1207,14 @@ function addEmptyLocationToUI(dayNum, sessionPart, locationName, type) {
 
 // 돌봄시스템 관련 함수들
 function addStudentToCareSystem(dayNum, locationName, careType) {
+    // careType을 숫자로 변환 (care1->6, care2->6, care3->6)
+    let sessionPartNum = 6; // 돌봄시스템은 모두 6번으로 통일
+    
     currentModalConfig = {
         dayNum: dayNum,
-        sessionPart: careType,  // 'care1', 'care2', 'care3'
+        sessionPart: sessionPartNum,
         type: 'care_system',
-        location: locationName
+        location: `${locationName}_${careType}` // 장소명에 타입 포함
     };
     
     document.getElementById('modalTitle').textContent = `${locationName}에 학생 추가 (돌봄시스템)`;
@@ -1224,30 +1227,30 @@ function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
     const studentButton = event.target;
     const studentElement = studentButton.closest('.flex.items-center.justify-between');
     
-    fetch('/api/remove_student_from_schedule', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            student_id: studentId,
-            day_of_week: dayNum,
-            location: location,
-            session_part: careType,
-            type: 'care_system',
-            keep_location: true
+        fetch('/api/remove_student_from_schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                day_of_week: dayNum,
+                location: location,
+                session_part: 6, // 돌봄시스템은 숫자 6으로 통일
+                type: 'care_system',
+                keep_location: true
+            })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
             // 즉시 DOM에서 제거 (새로고침 없음)
             removeCareSystemStudentFromDOM(studentElement);
-        } else {
-            alert('제거 실패: ' + data.error);
-        }
-    });
-}
+            } else {
+                alert('제거 실패: ' + data.error);
+            }
+        });
+    }
 
 // 돌봄시스템 학생 DOM 제거
 function removeCareSystemStudentFromDOM(studentElement) {
@@ -1265,7 +1268,7 @@ function removeCareSystemStudentFromDOM(studentElement) {
 function addStudentToNationalTraining(dayNum, locationName) {
     currentModalConfig = {
         dayNum: dayNum,
-        sessionPart: 'national',  // 국기원부 구분자
+        sessionPart: 7,  // 국기원부는 숫자 7로 통일
         type: 'national_training',
         location: locationName
     };
@@ -1280,30 +1283,30 @@ function removeStudentFromNationalTraining(studentId, dayNum, location) {
     const studentButton = event.target;
     const studentElement = studentButton.closest('.flex.items-center.justify-between');
     
-    fetch('/api/remove_student_from_schedule', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            student_id: studentId,
-            day_of_week: dayNum,
-            location: location,
-            session_part: 'national',
-            type: 'national_training',
-            keep_location: true
+        fetch('/api/remove_student_from_schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                day_of_week: dayNum,
+                location: location,
+                session_part: 7, // 국기원부는 숫자 7로 통일
+                type: 'national_training',
+                keep_location: true
+            })
         })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
             // 즉시 DOM에서 제거 (새로고침 없음)
             removeNationalStudentFromDOM(studentElement);
-        } else {
-            alert('제거 실패: ' + data.error);
-        }
-    });
-}
+            } else {
+                alert('제거 실패: ' + data.error);
+            }
+        });
+    }
 
 // 국기원부 학생 DOM 제거
 function removeNationalStudentFromDOM(studentElement) {
