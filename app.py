@@ -929,9 +929,11 @@ def add_multiple_students_to_schedule():
             student_id = student_data.get('id')
             student_name = student_data.get('name', f'학생{student_id}')
             
+            # 학생 정보 가져오기
+            student = Student.query.get(student_id)
+            
             # 학생의 부 정보 업데이트 (돌봄시스템/국기원부 제외)
             if schedule_type not in ['care_system', 'national_training']:
-                student = Student.query.get(student_id)
                 student.session_part = session_part
             
             # 새 스케줄 추가
@@ -944,7 +946,19 @@ def add_multiple_students_to_schedule():
             )
             
             db.session.add(new_schedule)
-            added_students.append(student_name)
+            
+            # 🚀 프론트엔드 DOM 업데이트용 상세 정보 추가
+            added_students.append({
+                'student': {
+                    'id': student.id,
+                    'name': student.name
+                },
+                'day_of_week': day_of_week,
+                'session_part': session_part,
+                'type': schedule_type,
+                'location': target_location,
+                'time': schedule_time.strftime('%H:%M')
+            })
         
         # 💾 모든 변경사항을 한 번에 커밋
         db.session.commit()
@@ -952,7 +966,7 @@ def add_multiple_students_to_schedule():
         return jsonify({
             'success': True,
             'message': f'{len(added_students)}명의 학생이 {target_location}에 추가되었습니다.',
-            'added_students': added_students
+            'added_students': added_students  # 이제 상세 정보 포함
         })
     
     except Exception as e:

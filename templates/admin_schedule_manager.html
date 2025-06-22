@@ -1011,12 +1011,20 @@ function refreshScheduleDisplay() {
 function addStudentsToDOM(addedStudents) {
     console.log('🎯 DOM에 학생 직접 추가:', addedStudents);
     
+    let successCount = 0;
+    let failedCount = 0;
+    
     addedStudents.forEach(studentData => {
         const { student, day_of_week, session_part, type, location } = studentData;
+        console.log('📍 학생 추가 시도:', {student: student.name, day_of_week, session_part, type, location});
         
         // 해당 위치의 컨테이너 찾기
         const dayPage = document.getElementById(`day-page-${day_of_week}`);
-        if (!dayPage) return;
+        if (!dayPage) {
+            console.error('요일 페이지를 찾을 수 없음:', day_of_week);
+            failedCount++;
+            return;
+        }
         
         let targetContainer = null;
         
@@ -1026,7 +1034,6 @@ function addStudentsToDOM(addedStudents) {
             careContainers.forEach(container => {
                 const careTitle = container.querySelector('.text-orange-800');
                 if (careTitle && careTitle.textContent.includes('돌봄시스템')) {
-                    // care1, care2, care3 구분 필요시 추가 로직
                     targetContainer = container.querySelector('.space-y-2');
                 }
             });
@@ -1040,29 +1047,50 @@ function addStudentsToDOM(addedStudents) {
                 }
             });
         } else {
-            // 일반 승차/하차 컨테이너 찾기
+            // 일반 승차/하차 컨테이너 찾기 (개선된 로직)
             const typeText = type === 'dropoff' ? '하차' : '승차';
-            const sessionContainers = dayPage.querySelectorAll('.border.rounded-lg');
+            console.log('🔍 찾는 조건:', {부: `${session_part}부`, 타입: typeText, 장소: location});
             
-            sessionContainers.forEach(container => {
+            // 모든 시간대 컨테이너 검색
+            const sessionContainers = dayPage.querySelectorAll('.border.rounded-lg.overflow-hidden');
+            
+            for (let container of sessionContainers) {
                 const sessionTitle = container.querySelector('h3');
                 if (sessionTitle && sessionTitle.textContent.includes(`${session_part}부`)) {
-                    const typeContainers = container.querySelectorAll('.p-2.space-y-2');
-                    typeContainers.forEach(typeContainer => {
-                        const typeHeader = typeContainer.previousElementSibling;
-                        if (typeHeader && typeHeader.textContent.includes(typeText)) {
-                            // 해당 장소의 컨테이너 찾기
-                            const locationContainers = typeContainer.querySelectorAll('.border.border-gray-200.rounded');
-                            locationContainers.forEach(locContainer => {
-                                const locTitle = locContainer.querySelector('.text-gray-700');
-                                if (locTitle && locTitle.textContent.includes(location)) {
-                                    targetContainer = locContainer.querySelector('.flex.flex-wrap.gap-1');
+                    console.log('✅ 해당 부 찾음:', sessionTitle.textContent);
+                    
+                    // 승차/하차 구분
+                    const typeHeaders = container.querySelectorAll('.text-sm.font-medium.text-center.border-b');
+                    for (let header of typeHeaders) {
+                        if (header.textContent.includes(typeText)) {
+                            console.log('✅ 해당 타입 찾음:', header.textContent);
+                            
+                            // 해당 타입의 컨테이너 (p-2 space-y-2)
+                            const typeContainer = header.nextElementSibling;
+                            if (typeContainer) {
+                                // 해당 장소의 컨테이너 찾기
+                                const locationContainers = typeContainer.querySelectorAll('.border.border-gray-200.rounded');
+                                for (let locContainer of locationContainers) {
+                                    const locTitle = locContainer.querySelector('.text-gray-700');
+                                    if (locTitle && locTitle.textContent.includes(location)) {
+                                        console.log('✅ 해당 장소 찾음:', locTitle.textContent);
+                                        targetContainer = locContainer.querySelector('.flex.flex-wrap.gap-1');
+                                        
+                                        // "빈 장소" 텍스트가 있으면 제거
+                                        const emptyText = targetContainer.querySelector('.text-gray-500.italic');
+                                        if (emptyText && emptyText.textContent.includes('빈 장소')) {
+                                            emptyText.remove();
+                                        }
+                                        break;
+                                    }
                                 }
-                            });
+                                if (targetContainer) break;
+                            }
                         }
-                    });
+                    }
+                    if (targetContainer) break;
                 }
-            });
+            }
         }
         
         // 학생 요소 추가
@@ -1070,11 +1098,21 @@ function addStudentsToDOM(addedStudents) {
             const studentHTML = createStudentElementHTML(student, day_of_week, session_part, type, location);
             targetContainer.insertAdjacentHTML('beforeend', studentHTML);
             console.log('✅ DOM에 학생 추가 완료:', student.name);
+            successCount++;
         } else {
-            console.log('⚠️ 적절한 컨테이너를 찾을 수 없어 새로고침으로 대체');
-            refreshScheduleDisplay();
+            console.error('⚠️ 적절한 컨테이너를 찾을 수 없음. 조건:', {session_part, type, location});
+            failedCount++;
         }
     });
+    
+    // 결과 요약
+    console.log(`📊 DOM 업데이트 결과: 성공 ${successCount}명, 실패 ${failedCount}명`);
+    
+    // 실패한 경우에만 새로고침
+    if (failedCount > 0) {
+        console.log('⚠️ 일부 학생 추가 실패로 새로고침 실행');
+        setTimeout(() => refreshScheduleDisplay(), 1000);
+    }
 }
 
 // 학생 요소 HTML 생성
