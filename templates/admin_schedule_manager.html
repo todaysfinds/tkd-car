@@ -29,6 +29,7 @@
                         class="px-6 py-2 text-sm font-medium rounded-md transition-all duration-200
                                {% if loop.first %}bg-blue-500 text-white{% else %}text-gray-700 hover:text-gray-900 hover:bg-white{% endif %}"
                         data-day="{{ day_num }}">
+                    {{ day_name }}
                 </button>
                 {% endfor %}
             </div>
@@ -879,10 +880,10 @@ function confirmAddStudents() {
         
         if (data.success) {
             console.log('✅ 모든 학생 추가 완료:', data.added_students);
-            // alert 제거 - 성공 시 바로 닫고 새로고침
+            // alert 제거 - 성공 시 바로 닫고 DOM 업데이트 (스크롤 위치 유지)
             closeModal();
-            // 새로고침으로 즉시 반영
-            refreshScheduleDisplay();
+            // 새로고침 대신 DOM 직접 업데이트로 스크롤 위치 유지
+            addStudentsToDOM(data.added_students);
         } else {
             console.error('❌ 학생 추가 실패:', data);
             // 🚨 중복이나 오류 발생 시 명확한 메시지
@@ -959,7 +960,7 @@ function modalKeyHandler(e) {
     if (e.key === 'Enter') {
         e.preventDefault();
         
-        // 검색창에 포커스가 있고 드롭다운이 보이면 첫 번째 학생 선택
+        // 검색창에 포커스가 있고 드롭다운이 보이면 첫 번째 학생 선택만
         const searchInput = document.getElementById('studentSearch');
         const dropdown = document.getElementById('studentDropdown');
         
@@ -969,17 +970,21 @@ function modalKeyHandler(e) {
                 const studentId = parseInt(firstStudentItem.getAttribute('data-student-id'));
                 const studentName = firstStudentItem.getAttribute('data-student-name');
                 selectStudentSafely(studentId, studentName);
-                return;
+                // 학생 선택 후 검색창에서 포커스 제거 (두 번째 엔터를 위해)
+                searchInput.blur();
+                return; // 여기서 완전히 종료 - 추가 버튼 실행 안함
             }
         }
         
-        // 그렇지 않으면 추가 버튼 클릭 (학생이 선택되어 있을 때만)
-        const addBtn = document.getElementById('addStudentBtn');
-        if (selectedStudents.length > 0 && addBtn && !addBtn.disabled) {
-            console.log('🚀 엔터키로 학생 추가 실행');
-            confirmAddStudents();
-        } else {
-            console.log('⚠️ 학생이 선택되지 않았거나 버튼이 비활성화됨');
+        // 검색창에 포커스가 없고 학생이 선택되어 있을 때만 추가 버튼 실행
+        if (document.activeElement !== searchInput) {
+            const addBtn = document.getElementById('addStudentBtn');
+            if (selectedStudents.length > 0 && addBtn && !addBtn.disabled) {
+                console.log('🚀 엔터키로 학생 추가 실행');
+                confirmAddStudents();
+            } else {
+                console.log('⚠️ 학생이 선택되지 않았거나 버튼이 비활성화됨');
+            }
         }
     }
     
@@ -1000,6 +1005,107 @@ function refreshScheduleDisplay() {
     
     // 새로고침 (애니메이션 없이 즉시 해당 요일 표시)
     window.location.href = url.toString();
+}
+
+// DOM에 학생 직접 추가 (스크롤 위치 유지)
+function addStudentsToDOM(addedStudents) {
+    console.log('🎯 DOM에 학생 직접 추가:', addedStudents);
+    
+    addedStudents.forEach(studentData => {
+        const { student, day_of_week, session_part, type, location } = studentData;
+        
+        // 해당 위치의 컨테이너 찾기
+        const dayPage = document.getElementById(`day-page-${day_of_week}`);
+        if (!dayPage) return;
+        
+        let targetContainer = null;
+        
+        if (type === 'care_system') {
+            // 돌봄시스템 컨테이너 찾기
+            const careContainers = dayPage.querySelectorAll('.border-orange-200');
+            careContainers.forEach(container => {
+                const careTitle = container.querySelector('.text-orange-800');
+                if (careTitle && careTitle.textContent.includes('돌봄시스템')) {
+                    // care1, care2, care3 구분 필요시 추가 로직
+                    targetContainer = container.querySelector('.space-y-2');
+                }
+            });
+        } else if (type === 'national_training') {
+            // 국기원부 컨테이너 찾기
+            const nationalContainers = dayPage.querySelectorAll('.border-green-200');
+            nationalContainers.forEach(container => {
+                const nationalTitle = container.querySelector('.text-green-800');
+                if (nationalTitle && nationalTitle.textContent.includes('국기원부')) {
+                    targetContainer = container.querySelector('.space-y-2');
+                }
+            });
+        } else {
+            // 일반 승차/하차 컨테이너 찾기
+            const typeText = type === 'dropoff' ? '하차' : '승차';
+            const sessionContainers = dayPage.querySelectorAll('.border.rounded-lg');
+            
+            sessionContainers.forEach(container => {
+                const sessionTitle = container.querySelector('h3');
+                if (sessionTitle && sessionTitle.textContent.includes(`${session_part}부`)) {
+                    const typeContainers = container.querySelectorAll('.p-2.space-y-2');
+                    typeContainers.forEach(typeContainer => {
+                        const typeHeader = typeContainer.previousElementSibling;
+                        if (typeHeader && typeHeader.textContent.includes(typeText)) {
+                            // 해당 장소의 컨테이너 찾기
+                            const locationContainers = typeContainer.querySelectorAll('.border.border-gray-200.rounded');
+                            locationContainers.forEach(locContainer => {
+                                const locTitle = locContainer.querySelector('.text-gray-700');
+                                if (locTitle && locTitle.textContent.includes(location)) {
+                                    targetContainer = locContainer.querySelector('.flex.flex-wrap.gap-1');
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+        }
+        
+        // 학생 요소 추가
+        if (targetContainer) {
+            const studentHTML = createStudentElementHTML(student, day_of_week, session_part, type, location);
+            targetContainer.insertAdjacentHTML('beforeend', studentHTML);
+            console.log('✅ DOM에 학생 추가 완료:', student.name);
+        } else {
+            console.log('⚠️ 적절한 컨테이너를 찾을 수 없어 새로고침으로 대체');
+            refreshScheduleDisplay();
+        }
+    });
+}
+
+// 학생 요소 HTML 생성
+function createStudentElementHTML(student, dayNum, sessionPart, type, location) {
+    let bgColor, borderColor, removeFunction;
+    
+    if (type === 'care_system') {
+        bgColor = 'bg-gray-50';
+        borderColor = 'border-gray-200';
+        removeFunction = `removeStudentFromCareSystem(${student.id}, ${dayNum}, '${location}', '${sessionPart}')`;
+    } else if (type === 'national_training') {
+        bgColor = 'bg-green-50';
+        borderColor = 'border-green-200';
+        removeFunction = `removeStudentFromNationalTraining(${student.id}, ${dayNum}, '${location}')`;
+    } else if (type === 'pickup') {
+        bgColor = 'bg-pink-50';
+        borderColor = 'border-pink-200';
+        removeFunction = `removeStudentFromLocation(${student.id}, ${dayNum}, '${location}', ${sessionPart}, '${type}')`;
+    } else {
+        bgColor = 'bg-sky-50';
+        borderColor = 'border-sky-200';
+        removeFunction = `removeStudentFromLocation(${student.id}, ${dayNum}, '${location}', ${sessionPart}, '${type}')`;
+    }
+    
+    return `
+        <div class="flex items-center justify-between text-xs ${bgColor} px-1 py-0.5 rounded ${borderColor} min-w-[50px] max-w-[100px]">
+            <span class="text-gray-800 truncate text-xs">${student.name}</span>
+            <button onclick="${removeFunction}" 
+                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+        </div>
+    `;
 }
 
 // 빈 장소를 UI에 임시 추가
