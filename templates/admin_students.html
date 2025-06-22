@@ -306,10 +306,11 @@ document.getElementById('editStudentForm').addEventListener('submit', function(e
 });
 
 // 학생 삭제 (개선된 버전)
-function deleteStudent(id, name) {
-    var confirmMessage = '⚠️ ' + name + ' 학생을 삭제하시겠습니까?\n\n삭제되는 데이터:\n• 학생 기본 정보\n• 모든 스케줄 정보\n• 출석 기록\n• 결석 요청\n\n이 작업은 되돌릴 수 없습니다.';
+async function deleteStudent(id, name) {
+    const confirmMessage = `${name} 학생을 삭제하시겠습니까?\n\n삭제되는 데이터:\n• 학생 기본 정보\n• 모든 스케줄 정보\n• 출석 기록\n• 결석 요청\n\n이 작업은 되돌릴 수 없습니다.`;
     
-    if (!confirm(confirmMessage)) {
+    const confirmed = await showConfirm(confirmMessage, 'danger');
+    if (!confirmed) {
         return;
     }
     
@@ -348,8 +349,8 @@ function deleteStudent(id, name) {
     })
     .then(function(data) {
             if (data.success) {
-            var successMessage = '✅ ' + data.message + '\n\n삭제된 정보:\n• 출석 기록: ' + data.deleted_counts.attendance + '건\n• 요청 기록: ' + data.deleted_counts.requests + '건\n• 스케줄: ' + data.deleted_counts.schedules + '건';
-            alert(successMessage);
+            const successMessage = `${data.message}\n\n삭제된 정보:\n• 출석 기록: ${data.data.deleted_counts.attendance}건\n• 요청 기록: ${data.data.deleted_counts.requests}건\n• 스케줄: ${data.data.deleted_counts.schedules}건`;
+            showNotification(successMessage, 'success');
             
             // 해당 학생 행을 즉시 DOM에서 제거
             var studentRow = document.querySelector('[data-student-id="' + id + '"]');
@@ -362,7 +363,7 @@ function deleteStudent(id, name) {
                 location.href = location.pathname + '?t=' + Date.now();
             }, 1000);
             } else {
-            alert('❌ 삭제 실패: ' + data.error);
+            showNotification(`삭제 실패: ${data.error}`, 'error');
             // 버튼 복원
             if (deleteButton) {
                 deleteButton.innerHTML = originalText;
