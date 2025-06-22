@@ -29,7 +29,6 @@
                         class="px-6 py-2 text-sm font-medium rounded-md transition-all duration-200
                                {% if loop.first %}bg-blue-500 text-white{% else %}text-gray-700 hover:text-gray-900 hover:bg-white{% endif %}"
                         data-day="{{ day_num }}">
-                    {{ day_name }}요일
                 </button>
                 {% endfor %}
             </div>
@@ -588,6 +587,11 @@ function createEmptyLocation(dayNum, sessionPart, locationName, type) {
 function removeStudentFromLocation(studentId, dayNum, location, sessionPart, type) {
     console.log('🗑️ 학생 삭제:', {studentId, dayNum, location, sessionPart, type});
     
+    // 학생 요소를 미리 찾아두기 (제거 전)
+    const studentButton = event.target;
+    const studentElement = studentButton.closest('.flex.items-center.justify-between');
+    const locationContainer = studentElement.closest('.border.border-gray-200.rounded');
+    
     fetch('/api/remove_student_from_schedule', {
         method: 'POST',
         headers: {
@@ -606,8 +610,8 @@ function removeStudentFromLocation(studentId, dayNum, location, sessionPart, typ
     .then(data => {
         console.log('📥 삭제 응답:', data);
         if (data.success) {
-            // 매끄럽게 새로고침
-            refreshScheduleDisplay();
+            // 🚀 새로고침 대신 동적 제거 (제자리 유지)
+            removeStudentFromDOM(studentElement, locationContainer, data.remaining_students, location);
         } else {
             alert('오류가 발생했습니다: ' + data.error);
         }
@@ -616,6 +620,30 @@ function removeStudentFromLocation(studentId, dayNum, location, sessionPart, typ
         console.error('❌ 삭제 오류:', error);
         alert('삭제 중 오류가 발생했습니다.');
     });
+}
+
+// DOM에서 학생 제거 및 장소 상태 업데이트
+function removeStudentFromDOM(studentElement, locationContainer, remainingStudents, location) {
+    console.log('🎯 DOM에서 학생 제거:', {remainingStudents, location});
+    
+    // 부드러운 애니메이션으로 학생 제거
+    studentElement.style.transition = 'all 0.3s ease';
+    studentElement.style.opacity = '0';
+    studentElement.style.transform = 'scale(0.8)';
+    
+    setTimeout(() => {
+        studentElement.remove();
+        
+        // 남은 학생이 0명이면 "빈 장소" 표시로 변경
+        if (remainingStudents === 0) {
+            const studentsContainer = locationContainer.querySelector('.flex.flex-wrap.gap-1');
+            if (studentsContainer) {
+                studentsContainer.innerHTML = '<div class="text-xs text-gray-500 italic">빈 장소</div>';
+            }
+        }
+        
+        console.log('✅ 학생 제거 완료 - 제자리 유지');
+    }, 300);
 }
 
 // 학생 검색 초기화 (완전히 새로 작성)
@@ -1039,29 +1067,45 @@ function addStudentToCareSystem(dayNum, locationName, careType) {
 }
 
 function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
-    if (confirm('돌봄시스템에서 이 학생을 제거하시겠습니까?')) {
-        fetch('/api/remove_student_from_schedule', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                student_id: studentId,
-                day_of_week: dayNum,
-                location: location,
-                session_part: careType,
-                type: 'care_system'
-            })
+    // 학생 요소를 미리 찾아두기 (제거 전)
+    const studentButton = event.target;
+    const studentElement = studentButton.closest('.flex.items-center.justify-between');
+    
+    fetch('/api/remove_student_from_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            day_of_week: dayNum,
+            location: location,
+            session_part: careType,
+            type: 'care_system',
+            keep_location: true
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                refreshScheduleDisplay();
-            } else {
-                alert('제거 실패: ' + data.error);
-            }
-        });
-    }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 즉시 DOM에서 제거 (새로고침 없음)
+            removeCareSystemStudentFromDOM(studentElement);
+        } else {
+            alert('제거 실패: ' + data.error);
+        }
+    });
+}
+
+// 돌봄시스템 학생 DOM 제거
+function removeCareSystemStudentFromDOM(studentElement) {
+    studentElement.style.transition = 'all 0.3s ease';
+    studentElement.style.opacity = '0';
+    studentElement.style.transform = 'scale(0.8)';
+    
+    setTimeout(() => {
+        studentElement.remove();
+        console.log('✅ 돌봄시스템 학생 제거 완료 - 제자리 유지');
+    }, 300);
 }
 
 // 국기원부 관련 함수들
@@ -1079,29 +1123,45 @@ function addStudentToNationalTraining(dayNum, locationName) {
 }
 
 function removeStudentFromNationalTraining(studentId, dayNum, location) {
-    if (confirm('국기원부에서 이 학생을 제거하시겠습니까?')) {
-        fetch('/api/remove_student_from_schedule', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                student_id: studentId,
-                day_of_week: dayNum,
-                location: location,
-                session_part: 'national',
-                type: 'national_training'
-            })
+    // 학생 요소를 미리 찾아두기 (제거 전)
+    const studentButton = event.target;
+    const studentElement = studentButton.closest('.flex.items-center.justify-between');
+    
+    fetch('/api/remove_student_from_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            day_of_week: dayNum,
+            location: location,
+            session_part: 'national',
+            type: 'national_training',
+            keep_location: true
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                refreshScheduleDisplay();
-            } else {
-                alert('제거 실패: ' + data.error);
-            }
-        });
-    }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 즉시 DOM에서 제거 (새로고침 없음)
+            removeNationalStudentFromDOM(studentElement);
+        } else {
+            alert('제거 실패: ' + data.error);
+        }
+    });
+}
+
+// 국기원부 학생 DOM 제거
+function removeNationalStudentFromDOM(studentElement) {
+    studentElement.style.transition = 'all 0.3s ease';
+    studentElement.style.opacity = '0';
+    studentElement.style.transform = 'scale(0.8)';
+    
+    setTimeout(() => {
+        studentElement.remove();
+        console.log('✅ 국기원부 학생 제거 완료 - 제자리 유지');
+    }, 300);
 }
 
 // 초기 설정  
