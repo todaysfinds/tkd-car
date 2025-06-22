@@ -34,7 +34,7 @@
                 {% for day_name, day_num in [('월', 0), ('화', 1), ('수', 2), ('목', 3), ('금', 4)] %}
                 <button id="day-nav-{{ day_num }}" 
                         onclick="scrollToDaySlot({{ day_num }})"
-                        class="px-4 py-2 border-r border-gray-300 whitespace-nowrap flex-shrink-0 {% if day_num == 0 %}bg-blue-500 text-white{% else %}bg-white{% endif %}"
+                        class="px-4 py-2 border-r border-gray-300 whitespace-nowrap flex-shrink-0 bg-white"
                         style="scroll-snap-align: center;">
                     {{ day_name }}요일
                 </button>
