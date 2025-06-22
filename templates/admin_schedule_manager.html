@@ -576,7 +576,7 @@
 </div>
 
 <script>
-let currentDayIndex = 0;
+let currentDayIndex = 0; // 월요일부터 시작 (0=월요일)
 const totalDays = 5;
 let selectedStudents = [];
 let currentModalConfig = null;
@@ -619,18 +619,23 @@ function scrollToDaySlot(dayNum) {
         }
         
         currentDayIndex = dayNum;
+        
+        // 현재 요일을 URL에 저장 (새로고침 시 유지용)
+        const url = new URL(window.location);
+        url.searchParams.set('day', dayNum);
+        window.history.replaceState({}, '', url);
     }
 }
 
 function nextDay() {
-    if (currentDayIndex < totalDays - 1) {
+    if (currentDayIndex < 4) { // 4 = 금요일
         currentDayIndex++;
         scrollToDaySlot(currentDayIndex);
     }
 }
 
 function previousDay() {
-    if (currentDayIndex > 0) {
+    if (currentDayIndex > 0) { // 0 = 월요일
         currentDayIndex--;
         scrollToDaySlot(currentDayIndex);
     }
@@ -1076,10 +1081,14 @@ function modalKeyHandler(e) {
 
 // 새로고침 없이 스케줄 디스플레이 업데이트
 function refreshScheduleDisplay() {
-    console.log('🔄 스케줄 화면 새로고침');
-    // 🚨 사용자 요청: 새로고침 시 아예 이동하지 않게 함
-    // 현재 스크롤 위치와 활성 탭 상태 유지
-    window.location.reload();
+    console.log('🔄 스케줄 화면 새로고침 - 현재 요일 유지:', currentDayIndex);
+    
+    // 현재 요일을 URL에 저장
+    const url = new URL(window.location);
+    url.searchParams.set('day', currentDayIndex);
+    
+    // 새로고침
+    window.location.href = url.toString();
 }
 
 // 빈 장소를 UI에 임시 추가
@@ -1214,9 +1223,33 @@ function removeStudentFromNationalTraining(studentId, dayNum, location) {
 
 // 초기 설정  
 document.addEventListener('DOMContentLoaded', function() {
-    // 🚨 사용자 요청: 페이지 로드 시 아무 이동도 하지 않음
-    // scrollToDaySlot(0) 호출 제거로 월요일 강제 이동 방지
-    console.log('📄 페이지 로드 완료 - 현재 위치 유지');
+    console.log('📄 페이지 로드 완료');
+    
+    // URL에서 현재 요일 확인
+    const urlParams = new URLSearchParams(window.location.search);
+    const savedDay = urlParams.get('day');
+    
+    if (savedDay && savedDay >= 0 && savedDay <= 4) {
+        // URL에 저장된 요일로 이동
+        currentDayIndex = parseInt(savedDay);
+        console.log('🔄 저장된 요일로 이동:', currentDayIndex);
+        scrollToDaySlot(currentDayIndex);
+    } else {
+        // 오늘 요일로 초기화
+        const today = new Date();
+        const dayOfWeek = today.getDay(); // 0=일요일, 1=월요일, ..., 6=토요일
+        
+        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+            // 월~금요일이면 해당 요일로 (JavaScript getDay() 1=월요일을 0으로 변환)
+            currentDayIndex = dayOfWeek - 1;
+        } else {
+            // 주말이면 월요일로
+            currentDayIndex = 0;
+        }
+        
+        console.log('🗓️ 오늘 요일로 초기화:', currentDayIndex);
+        scrollToDaySlot(currentDayIndex);
+    }
 });
 </script>
 {% endblock %} 
