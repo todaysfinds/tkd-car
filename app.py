@@ -1833,3 +1833,23 @@ def debug_force_init():
         <h1>❌ 강제 초기화 실패</h1>
         <pre>{str(e)}</pre>
         """
+
+@app.route('/debug/fix-schema')
+def debug_fix_schema():
+    """데이터베이스 스키마 문제 해결 - location 컬럼 확장"""
+    try:
+        # PostgreSQL에서 직접 ALTER TABLE 실행
+        with db.engine.connect() as conn:
+            # Schedule 테이블의 location 컬럼을 VARCHAR(100)으로 확장
+            conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
+            conn.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '✅ Schedule 테이블의 location 컬럼이 VARCHAR(100)으로 확장되었습니다.'
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'스키마 수정 실패: {str(e)}'
+        })

@@ -1077,25 +1077,8 @@ function modalKeyHandler(e) {
 // 새로고침 없이 스케줄 디스플레이 업데이트
 function refreshScheduleDisplay() {
     console.log('🔄 스케줄 화면 새로고침');
-    
-    // 🚨 현재 활성화된 요일 탭 저장
-    const activeTab = document.querySelector('button[onclick*="scrollToDaySlot"].bg-blue-500');
-    let currentDay = 0; // 기본값: 월요일
-    
-    if (activeTab) {
-        const onclickAttr = activeTab.getAttribute('onclick');
-        const dayMatch = onclickAttr.match(/scrollToDaySlot\((\d+)\)/);
-        if (dayMatch) {
-            currentDay = parseInt(dayMatch[1]);
-        }
-    }
-    
-    // 현재 요일 정보를 URL 파라미터로 저장
-    const url = new URL(window.location);
-    url.searchParams.set('day', currentDay);
-    window.history.replaceState({}, '', url);
-    
-    // 페이지 새로고침
+    // 🚨 사용자 요청: 새로고침 시 아예 이동하지 않게 함
+    // 현재 스크롤 위치와 활성 탭 상태 유지
     window.location.reload();
 }
 
@@ -1229,24 +1212,11 @@ function removeStudentFromNationalTraining(studentId, dayNum, location) {
     }
 }
 
-// 초기 설정
+// 초기 설정  
 document.addEventListener('DOMContentLoaded', function() {
-    // 🚨 URL 파라미터에서 현재 요일 복원
-    const urlParams = new URLSearchParams(window.location.search);
-    const savedDay = urlParams.get('day');
-    
-    let startDay = 0; // 기본값: 월요일
-    
-    if (savedDay !== null && !isNaN(parseInt(savedDay))) {
-        startDay = parseInt(savedDay);
-        // 0-6 범위 내 유효한 값인지 확인
-        if (startDay >= 0 && startDay <= 6) {
-            startDay = parseInt(savedDay);
-        }
-    }
-    
-    console.log('🗓️ 페이지 로드 시 요일 복원:', startDay);
-    scrollToDaySlot(startDay);
+    // 🚨 사용자 요청: 페이지 로드 시 아무 이동도 하지 않음
+    // scrollToDaySlot(0) 호출 제거로 월요일 강제 이동 방지
+    console.log('📄 페이지 로드 완료 - 현재 위치 유지');
 });
 </script>
 {% endblock %} 
