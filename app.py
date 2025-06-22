@@ -1587,51 +1587,36 @@ def update_kakao_settings():
 
 # 🎯 단순하고 안전한 데이터베이스 초기화 (환경 통합)
 def initialize_database():
-    """
-    환경에 관계없이 동일한 로직으로 데이터베이스 초기화
-    - PostgreSQL 전용 (로컬/프로덕션 동일)
-    - 기존 데이터 절대 삭제하지 않음
-    - 필요시에만 샘플 데이터 추가
-    """
+    """데이터베이스 테이블을 생성하고 초기화"""
     try:
         with app.app_context():
-            print("🔧 데이터베이스 초기화 시작...")
-            print(f"📍 DB URL: {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...")
-            
-            # 1. 데이터베이스 연결 테스트
-            try:
-                # SQLAlchemy 2.0 호환 방식
-                from sqlalchemy import text
-                with db.engine.connect() as conn:
-                    conn.execute(text('SELECT 1'))
-                print("✅ 데이터베이스 연결 성공")
-            except Exception as e:
-                print(f"❌ 데이터베이스 연결 실패: {e}")
-                print(f"   DB URL: {app.config['SQLALCHEMY_DATABASE_URI']}")
-                return False
-            
-            # 2. 테이블 생성 (없는 경우에만)
+            # 데이터베이스 테이블 생성
             db.create_all()
-            print("✅ 테이블 생성/확인 완료")
+            print("✅ 데이터베이스 테이블 생성 완료")
             
-            # 3. 현재 데이터 확인
+            # 🚨 스키마 호환성 문제 자동 해결
+            try:
+                with db.engine.connect() as conn:
+                    # Schedule 테이블의 location 컬럼을 VARCHAR(100)으로 확장
+                    conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
+                    conn.commit()
+                    print("✅ Schedule.location 컬럼 VARCHAR(100)으로 확장 완료")
+            except Exception as schema_error:
+                print(f"⚠️ 스키마 업데이트 스킵 (이미 적용됨 또는 불필요): {schema_error}")
+            
+            # 빈 데이터베이스인지 확인
             student_count = Student.query.count()
-            print(f"📊 현재 학생 수: {student_count}명")
-            
-            # 4. 빈 데이터베이스인 경우에만 샘플 데이터 추가
             if student_count == 0:
-                print("🎯 빈 데이터베이스 감지 - 기본 학생 데이터 추가 중...")
+                print("🔍 빈 데이터베이스 감지 - 샘플 데이터 추가 중...")
                 add_initial_data()
-                final_count = Student.query.count()
-                print(f"✅ 기본 데이터 추가 완료 - 총 {final_count}명")
-                return True
+                add_initial_schedules()
+                print("✅ 초기 데이터 설정 완료")
             else:
-                print(f"✅ 기존 데이터 보존 - {student_count}명 유지")
-                return True
-                
+                print(f"📊 기존 학생 {student_count}명 확인됨")
     except Exception as e:
-        print(f"❌ 데이터베이스 초기화 오류: {e}")
-        return False
+        print(f"❌ 데이터베이스 초기화 실패: {e}")
+        import traceback
+        traceback.print_exc()
 
 def add_initial_data():
     """기본 학생 데이터 추가 (빈 데이터베이스에만)"""

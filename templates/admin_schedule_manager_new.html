@@ -610,7 +610,9 @@ function closeModal() {
 
 // 초기 설정
 document.addEventListener('DOMContentLoaded', function() {
-    scrollToDaySlot(0); // 월요일부터 시작
+    // 🚨 사용자 요청: 페이지 로드 시 아무 이동도 하지 않음
+    // scrollToDaySlot(0) 호출 제거로 월요일 강제 이동 방지
+    console.log('📄 페이지 로드 완료 - 현재 위치 유지');
 });
 </script>
 {% endblock %} 
