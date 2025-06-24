@@ -131,7 +131,7 @@ class Schedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 0=월요일, 6=일요일
-    schedule_type = db.Column(db.String(20), nullable=False)  # 'pickup', 'dropoff', 'care_system', 'national_training'
+    schedule_type = db.Column(db.String(30), nullable=False)  # 'pickup', 'dropoff', 'care_system', 'national_training'
     time = db.Column(db.Time, nullable=False)  # 픽업 또는 드롭오프 시간
     location = db.Column(db.String(100))  # 각 스케줄별 장소 (Student의 pickup_location과 다를 수 있음)
     
@@ -1113,10 +1113,16 @@ def add_multiple_students_to_schedule():
         import traceback
         traceback.print_exc()
         
-        # 사용자 친화적 에러 메시지
-        if 'StringDataRightTruncation' in str(e) or 'value too long' in str(e):
-            error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
-        elif 'duplicate' in str(e).lower():
+        # 🔥 정확한 에러 진단
+        error_str = str(e).lower()
+        if 'value too long' in error_str or 'stringdatatruncation' in error_str:
+            if 'schedule_type' in error_str:
+                error_msg = f'⚠️ 데이터베이스 스키마 문제: schedule_type 필드가 너무 작습니다. 관리자에게 문의하세요.'
+            elif 'location' in error_str:
+                error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
+            else:
+                error_msg = f'데이터가 너무 깁니다: {str(e)}'
+        elif 'duplicate' in error_str:
             error_msg = '이미 동일한 스케줄이 존재합니다.'
         else:
             error_msg = f'서버 오류: {str(e)}'
@@ -1769,17 +1775,24 @@ def initialize_database():
             # 🚨 스키마 호환성 문제 자동 해결
             try:
                 with db.engine.connect() as conn:
-                    # Schedule 테이블의 location 컬럼을 VARCHAR(100)으로 확장
-                    conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
+                    # 🔥 Schedule 테이블의 schedule_type 컬럼을 VARCHAR(30)으로 확장 (국기원부/돌봄시스템 지원)
+                    try:
+                        conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN schedule_type TYPE VARCHAR(30);"))
+                        print("✅ Schedule.schedule_type 컬럼 VARCHAR(30)으로 확장 완료")
+                    except Exception as e1:
+                        print(f"⚠️ schedule_type 업데이트 스킵: {e1}")
                     
-                    # 🔥 중요: schedule_type 컬럼을 VARCHAR(20)으로 확장 (국기원부 지원)
-                    conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN schedule_type TYPE VARCHAR(20);"))
+                    # Schedule 테이블의 location 컬럼을 VARCHAR(100)으로 확장
+                    try:
+                        conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
+                        print("✅ Schedule.location 컬럼 VARCHAR(100)으로 확장 완료")
+                    except Exception as e2:
+                        print(f"⚠️ location 업데이트 스킵: {e2}")
                     
                     conn.commit()
-                    print("✅ Schedule.location 컬럼 VARCHAR(100)으로 확장 완료")
-                    print("✅ Schedule.schedule_type 컬럼 VARCHAR(20)으로 확장 완료 (국기원부 지원)")
+                    print("🎯 데이터베이스 스키마 업데이트 완료!")
             except Exception as schema_error:
-                print(f"⚠️ 스키마 업데이트 스킵 (이미 적용됨 또는 불필요): {schema_error}")
+                print(f"⚠️ 전체 스키마 업데이트 실패: {schema_error}")
             
             # 빈 데이터베이스 확인 (샘플 데이터 자동 생성 제거)
             student_count = Student.query.count()
@@ -1993,7 +2006,65 @@ def debug_force_init():
 
 @app.route('/debug/fix-schema')
 def debug_fix_schema():
-    """데이터베이스 스키마 문제 해결 - location 컬럼 확장"""
+    """스키마 문제 강제 수정"""
+    try:
+        with db.engine.connect() as conn:
+            # 강제로 schedule_type을 VARCHAR(30)으로 변경
+            conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN schedule_type TYPE VARCHAR(30);"))
+            conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
+            conn.commit()
+            
+        return """
+        <h1>✅ 스키마 강제 수정 완료!</h1>
+        <p>schedule_type: VARCHAR(30)</p>
+        <p>location: VARCHAR(100)</p>
+        <p><a href="/admin/schedule-manager">스케줄 관리로 이동</a></p>
+        """
+    except Exception as e:
+        return f"""
+        <h1>❌ 스키마 수정 실패</h1>
+        <pre>{str(e)}</pre>
+        """
+
+@app.route('/debug/test-national')
+def debug_test_national():
+    """국기원부 추가 테스트"""
+    try:
+        # 첫 번째 학생을 가져와서 테스트
+        student = Student.query.first()
+        if not student:
+            return "학생이 없습니다. 먼저 학생을 추가하세요."
+        
+        # 국기원부 스케줄 추가 테스트
+        test_schedule = Schedule(
+            student_id=student.id,
+            day_of_week=4,  # 금요일
+            schedule_type='national_training',  # 17자 - 테스트
+            time=time(18, 30),
+            location='NATIONAL_4'  # 10자
+        )
+        
+        db.session.add(test_schedule)
+        db.session.commit()
+        
+        return f"""
+        <h1>✅ 국기원부 테스트 성공!</h1>
+        <p>학생: {student.name}</p>
+        <p>schedule_type: 'national_training' (17자)</p>
+        <p>location: 'NATIONAL_4' (10자)</p>
+        <p><a href="/admin/schedule-manager">스케줄 관리로 이동</a></p>
+        """
+        
+    except Exception as e:
+        db.session.rollback()
+        return f"""
+        <h1>❌ 국기원부 테스트 실패</h1>
+        <pre>{str(e)}</pre>
+        <p><a href="/debug/fix-schema">스키마 수정하기</a></p>
+        """
+
+@app.route('/debug/old-fix-schema')
+def debug_old_fix_schema():
     try:
         # PostgreSQL에서 직접 ALTER TABLE 실행
         with db.engine.connect() as conn:
