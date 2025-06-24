@@ -131,7 +131,7 @@ class Schedule(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 0=월요일, 6=일요일
-    schedule_type = db.Column(db.String(10), nullable=False)  # 'pickup', 'dropoff', 'care_system', 'national_training'
+    schedule_type = db.Column(db.String(20), nullable=False)  # 'pickup', 'dropoff', 'care_system', 'national_training'
     time = db.Column(db.Time, nullable=False)  # 픽업 또는 드롭오프 시간
     location = db.Column(db.String(100))  # 각 스케줄별 장소 (Student의 pickup_location과 다를 수 있음)
     
@@ -1771,8 +1771,13 @@ def initialize_database():
                 with db.engine.connect() as conn:
                     # Schedule 테이블의 location 컬럼을 VARCHAR(100)으로 확장
                     conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
+                    
+                    # 🔥 중요: schedule_type 컬럼을 VARCHAR(20)으로 확장 (국기원부 지원)
+                    conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN schedule_type TYPE VARCHAR(20);"))
+                    
                     conn.commit()
                     print("✅ Schedule.location 컬럼 VARCHAR(100)으로 확장 완료")
+                    print("✅ Schedule.schedule_type 컬럼 VARCHAR(20)으로 확장 완료 (국기원부 지원)")
             except Exception as schema_error:
                 print(f"⚠️ 스키마 업데이트 스킵 (이미 적용됨 또는 불필요): {schema_error}")
             
