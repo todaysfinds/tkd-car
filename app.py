@@ -842,15 +842,19 @@ def get_all_students():
 
 @app.route('/api/add_student_to_schedule', methods=['POST'])
 def add_student_to_schedule():
+    """개별 학생을 특정 스케줄에 추가"""
     try:
         data = request.get_json()
         student_id = data.get('student_id')
         day_of_week = data.get('day_of_week')
-        session_part = data.get('session_part')
         schedule_type = data.get('type')  # 'pickup' or 'dropoff'
         target_location = data.get('location')  # 장소 정보
+        session_part = data.get('session_part')
         
-        # 학생 정보 확인
+        if not all([student_id, day_of_week is not None, schedule_type, target_location, session_part]):
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
+        
+        # 학생 확인
         student = Student.query.get(student_id)
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
@@ -871,36 +875,13 @@ def add_student_to_schedule():
         elif session_part == 5:  # 5부
             pickup_time = time(19, 0)  # 7:00 PM
             dropoff_time = time(19, 50)  # 7:50 PM
-        elif session_part == 6:  # 돌봄시스템
-            pickup_time = time(12, 0)  # 12:00 PM (임시 시간)
-            dropoff_time = time(12, 0)  # 돌봄시스템은 시간 구분 없음
-        elif session_part == 7:  # 국기원부
-            pickup_time = time(18, 30)  # 6:30 PM (임시 시간)
-            dropoff_time = time(18, 30)  # 국기원부는 시간 구분 없음
         else:  # 기본값 (5부)
             pickup_time = time(19, 0)  # 7:00 PM
             dropoff_time = time(19, 50)  # 7:50 PM
         
-        # 학생의 부 정보 업데이트
-        if schedule_type not in ['care_system', 'national_training']:
-            student.session_part = session_part
-        
-        # 스케줄 타입에 따른 시간 설정
-        # 돌봄시스템과 국기원부는 특별 처리
-        if schedule_type in ['care_system', 'national_training']:
-            schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
-            
-            # 특수 시간대용 고유 식별자 생성
-            if schedule_type == 'national_training':
-                target_location = f"NATIONAL_{day_of_week}"  # 국기원부: NATIONAL_요일
-                print(f"🔍 국기원부 처리: {target_location}")
-            elif schedule_type == 'care_system':
-                # 돌봄시스템: 기존 location_careType 유지
-                if target_location and len(target_location) > 90:
-                    print(f"⚠️ 장소명이 너무 길어서 자름: {target_location[:90]}")
-                    target_location = target_location[:90]
-            
-            print(f"🔍 특수 시간대 처리: {schedule_type}, 부={session_part}, 장소={target_location}")
+        # 돌봄시스템과 국기원부는 도장에서 시간 구분 없이 처리
+        if target_location in ['도장']:
+            schedule_time = pickup_time  # 시간 구분 없음
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
@@ -915,15 +896,7 @@ def add_student_to_schedule():
         if existing_schedule:
             return jsonify({'success': False, 'error': '이미 해당 스케줄이 존재합니다.'})
         
-        # 새 스케줄 추가 전 최종 검증
-        print(f"✅ 스케줄 생성 데이터:")
-        print(f"   - 학생ID: {student_id}")
-        print(f"   - 요일: {day_of_week}")
-        print(f"   - 타입: {schedule_type}")
-        print(f"   - 시간: {schedule_time}")
-        print(f"   - 장소: {target_location} (길이: {len(target_location)})")
-        
-        # 새 스케줄 추가 (승차/하차 별도)
+        # 새 스케줄 추가
         new_schedule = Schedule(
             student_id=student_id,
             day_of_week=day_of_week,
@@ -935,13 +908,12 @@ def add_student_to_schedule():
         db.session.add(new_schedule)
         db.session.commit()
         
-        print(f"✅ 스케줄 추가 완료: ID={new_schedule.id}")
+        print(f"✅ 스케줄 추가 완료: {student.name} → {target_location}")
         return jsonify({'success': True})
     
     except Exception as e:
         db.session.rollback()
         print(f"❌ 단일 스케줄 추가 에러: {str(e)}")
-        print(f"   - 에러 타입: {type(e).__name__}")
         import traceback
         traceback.print_exc()
         
@@ -957,7 +929,7 @@ def add_student_to_schedule():
 
 @app.route('/api/add_multiple_students_to_schedule', methods=['POST'])
 def add_multiple_students_to_schedule():
-    """여러 학생을 한 번에 추가 (트랜잭션 처리)"""
+    """여러 학생을 한 번에 추가 (깔끔한 버전)"""
     try:
         data = request.get_json()
         students = data.get('students', [])  # [{'student_id': 1, 'name': '홍길동'}, ...]
@@ -966,13 +938,8 @@ def add_multiple_students_to_schedule():
         schedule_type = data.get('type')  # 'pickup' or 'dropoff'
         target_location = data.get('location')  # 장소 정보
         
-        # 국기원부와 돌봄시스템은 location이 특별하므로 별도 검증
-        if not students or day_of_week is None or not session_part or not schedule_type:
+        if not students or day_of_week is None or not session_part or not schedule_type or not target_location:
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
-        
-        # location 검증 (특수 시간대 제외)
-        if schedule_type not in ['care_system', 'national_training'] and not target_location:
-            return jsonify({'success': False, 'error': '장소 정보가 필요합니다.'})
         
         # 부별 시간 설정
         if session_part == 1:  # 1부
@@ -990,34 +957,19 @@ def add_multiple_students_to_schedule():
         elif session_part == 5:  # 5부
             pickup_time = time(19, 0)  # 7:00 PM
             dropoff_time = time(19, 50)  # 7:50 PM
-        elif session_part == 6:  # 돌봄시스템
-            pickup_time = time(12, 0)  # 12:00 PM (임시 시간)
-            dropoff_time = time(12, 0)  # 돌봄시스템은 시간 구분 없음
-        elif session_part == 7:  # 국기원부
-            pickup_time = time(18, 30)  # 6:30 PM (임시 시간)
-            dropoff_time = time(18, 30)  # 국기원부는 시간 구분 없음
         else:  # 기본값 (5부)
             pickup_time = time(19, 0)  # 7:00 PM
             dropoff_time = time(19, 50)  # 7:50 PM
         
-        # 돌봄시스템과 국기원부는 특별 처리
-        if schedule_type in ['care_system', 'national_training']:
-            schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
-            
-            # 특수 시간대용 고유 식별자 생성
-            if schedule_type == 'national_training':
-                target_location = f"NATIONAL_{day_of_week}"  # 국기원부: NATIONAL_요일
-                print(f"🔍 [국기원부] target_location 설정: {target_location} (길이: {len(target_location)})")
-            elif schedule_type == 'care_system':
-                # 돌봄시스템: 기존 location_careType 유지
-                if target_location and len(target_location) > 90:
-                    target_location = target_location[:90]
+        # 돌봄시스템과 국기원부는 도장에서 시간 구분 없이 처리
+        if target_location in ['도장']:
+            schedule_time = pickup_time  # 시간 구분 없음
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
-        print(f"🔍 [디버그] 최종 데이터: type={schedule_type}, location={target_location}, students={len(students)}명")
+        print(f"🔍 학생 {len(students)}명을 {target_location}에 추가 (시간: {schedule_time})")
         
-        # 🔥 모든 학생에 대해 먼저 중복 체크 (하나라도 중복이면 전체 취소)
+        # 먼저 중복 체크 (하나라도 중복이면 전체 취소)
         duplicates = []
         invalid_students = []
         
@@ -1031,7 +983,7 @@ def add_multiple_students_to_schedule():
                 invalid_students.append(student_name)
                 continue
             
-            # 중복 체크 (일반화된 방식)
+            # 중복 체크
             existing_schedule = Schedule.query.filter_by(
                 student_id=student_id,
                 day_of_week=day_of_week,
@@ -1042,7 +994,7 @@ def add_multiple_students_to_schedule():
             if existing_schedule:
                 duplicates.append(student_name)
         
-        # 🚨 중복이나 잘못된 학생이 있으면 전체 취소
+        # 중복이나 잘못된 학생이 있으면 전체 취소
         if duplicates or invalid_students:
             error_msg = []
             if duplicates:
@@ -1057,18 +1009,11 @@ def add_multiple_students_to_schedule():
                 'invalid_students': invalid_students
             })
         
-        # ✅ 모든 검증 통과 시에만 실제 추가
+        # 모든 검증 통과 시에만 실제 추가
         added_students = []
         for student_data in students:
             student_id = student_data.get('id')
             student_name = student_data.get('name', f'학생{student_id}')
-            
-            # 학생 정보 가져오기
-            student = Student.query.get(student_id)
-            
-            # 학생의 부 정보 업데이트 (돌봄시스템/국기원부 제외)
-            if schedule_type not in ['care_system', 'national_training']:
-                student.session_part = session_part
             
             # 새 스케줄 추가
             new_schedule = Schedule(
@@ -1081,11 +1026,11 @@ def add_multiple_students_to_schedule():
             
             db.session.add(new_schedule)
             
-            # 🚀 프론트엔드 DOM 업데이트용 상세 정보 추가
+            # 프론트엔드 DOM 업데이트용 상세 정보 추가
             added_students.append({
                 'student': {
-                    'id': student.id,
-                    'name': student.name
+                    'id': student_id,
+                    'name': student_name
                 },
                 'day_of_week': day_of_week,
                 'session_part': session_part,
@@ -1094,7 +1039,7 @@ def add_multiple_students_to_schedule():
                 'time': schedule_time.strftime('%H:%M')
             })
         
-        # 💾 모든 변경사항을 한 번에 커밋
+        # 모든 변경사항을 한 번에 커밋
         db.session.commit()
         
         print(f"✅ [성공] {len(added_students)}명의 학생이 {target_location}에 추가됨")
@@ -1102,26 +1047,20 @@ def add_multiple_students_to_schedule():
         return jsonify({
             'success': True,
             'message': f'{len(added_students)}명의 학생이 {target_location}에 추가되었습니다.',
-            'added_students': added_students  # 이제 상세 정보 포함
+            'added_students': added_students
         })
     
     except Exception as e:
-        # 🔄 오류 발생 시 모든 변경사항 롤백
+        # 오류 발생 시 모든 변경사항 롤백
         db.session.rollback()
         print(f"❌ 다중 스케줄 추가 에러: {str(e)}")
-        print(f"   - 에러 타입: {type(e).__name__}")
         import traceback
         traceback.print_exc()
         
-        # 🔥 정확한 에러 진단
+        # 정확한 에러 진단
         error_str = str(e).lower()
         if 'value too long' in error_str or 'stringdatatruncation' in error_str:
-            if 'schedule_type' in error_str:
-                error_msg = f'⚠️ 데이터베이스 스키마 문제: schedule_type 필드가 너무 작습니다. 관리자에게 문의하세요.'
-            elif 'location' in error_str:
-                error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
-            else:
-                error_msg = f'데이터가 너무 깁니다: {str(e)}'
+            error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
         elif 'duplicate' in error_str:
             error_msg = '이미 동일한 스케줄이 존재합니다.'
         else:
@@ -1151,62 +1090,38 @@ def update_location_name():
 
 @app.route('/api/remove_student_from_schedule', methods=['POST'])
 def remove_student_from_schedule():
+    """학생을 스케줄에서 제거 (깔끔한 버전)"""
     try:
         data = request.get_json()
         student_id = data.get('student_id')
         day_of_week = data.get('day_of_week')
-        location = data.get('location')  # 특정 장소에서만 삭제
-        session_part = data.get('session_part')  # 특정 시간대
-        schedule_type = data.get('type', 'pickup')  # pickup 또는 dropoff
-        keep_location = data.get('keep_location', False)  # 장소 유지 플래그
+        location = data.get('location')
+        schedule_type = data.get('type', 'pickup')
         
-        # 학생 정보 먼저 확인
+        # 학생 정보 확인
         student = Student.query.get(student_id)
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
         
-        # 정확한 스케줄 찾기 (특수 시간대 처리)
-        if schedule_type == 'national_training':
-            # 국기원부는 NATIONAL_요일 형태
-            target_location = f"NATIONAL_{day_of_week}"
-            schedule = Schedule.query.filter_by(
-                student_id=student_id,
-                day_of_week=day_of_week,
-                schedule_type=schedule_type,
-                location=target_location
-            ).first()
-        elif schedule_type == 'care_system':
-            # 돌봄시스템의 경우 location에 part 정보가 포함됨
-            target_location = f"{location}_{session_part}"
-            schedule = Schedule.query.filter_by(
-                student_id=student_id,
-                day_of_week=day_of_week,
-                schedule_type=schedule_type,
-                location=target_location
-            ).first()
-        else:
-            # 기존 승차/하차 방식
-            schedule = Schedule.query.filter_by(
-                student_id=student_id,
-                day_of_week=day_of_week,
-                schedule_type=schedule_type,
-                location=location
-            ).first()
+        # 스케줄 찾기
+        schedule = Schedule.query.filter_by(
+            student_id=student_id,
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=location
+        ).first()
         
         if schedule:
             student_name = student.name
             db.session.delete(schedule)
             db.session.commit()
             
-            # 🚨 해당 장소에 다른 학생이 있는지 확인
+            # 해당 장소에 다른 학생이 있는지 확인
             remaining_students = Schedule.query.filter_by(
                 day_of_week=day_of_week,
                 location=location,
                 schedule_type=schedule_type
             ).count()
-            
-            # 학생이 0명이어도 장소는 유지 (사용자 요청)
-            keep_location = True
             
             message = f'{student_name} 학생이 {location}에서 제거되었습니다.'
             if remaining_students == 0:
@@ -1215,7 +1130,7 @@ def remove_student_from_schedule():
             return jsonify({
                 'success': True, 
                 'message': message,
-                'keep_location': keep_location,
+                'keep_location': True,
                 'location': location,
                 'remaining_students': remaining_students
             })
@@ -1803,153 +1718,24 @@ def initialize_database():
         import traceback
         traceback.print_exc()
 
-def add_initial_data():
-    """기본 학생 데이터 추가 (빈 데이터베이스에만)"""
-    try:
-        print("📝 학생 데이터 추가 시작...")
-        
-        # 실제 시간표 기반 학생 데이터
-        students_data = [
-            # 1부 (2:00~2:50)
-            {'name': '홍길동', 'grade': '초등 3학년', 'phone': '010-1234-5678', 'pickup_location': '동부시스템', 'estimated_pickup_time': '2:40', 'session_part': 1, 'memo': ''},
-            {'name': '김철수', 'grade': '초등 4학년', 'phone': '010-2345-6789', 'pickup_location': '승차', 'estimated_pickup_time': '2:30', 'session_part': 1, 'memo': ''},
-            
-            # 2부 (3:00~3:50)  
-            {'name': '이영희', 'grade': '초등 2학년', 'phone': '010-1111-2222', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '3:30', 'session_part': 2, 'memo': ''},
-            {'name': '박민수', 'grade': '초등 5학년', 'phone': '010-3333-4444', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '3:40', 'session_part': 2, 'memo': ''},
-            {'name': '최수진', 'grade': '초등 3학년', 'phone': '010-4444-5555', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '3:42', 'session_part': 2, 'memo': ''},
-            
-            # 3부 (4:30~5:20)
-            {'name': '정우성', 'grade': '초등 1학년', 'phone': '010-5555-6666', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '4:15', 'session_part': 3, 'memo': ''},
-            {'name': '강호동', 'grade': '초등 4학년', 'phone': '010-6666-7777', 'pickup_location': '이화빌라', 'estimated_pickup_time': '4:10', 'session_part': 3, 'memo': ''},
-            {'name': '유재석', 'grade': '초등 6학년', 'phone': '010-7777-8888', 'pickup_location': '영은유치원', 'estimated_pickup_time': '4:14', 'session_part': 3, 'memo': ''},
-            
-            # 4부 (5:30~6:20)
-            {'name': '송중기', 'grade': '초등 2학년', 'phone': '010-8888-9999', 'pickup_location': '현대홈타운', 'estimated_pickup_time': '6:30', 'session_part': 4, 'memo': ''},
-            {'name': '전지현', 'grade': '초등 5학년', 'phone': '010-9999-0000', 'pickup_location': '이디야', 'estimated_pickup_time': '6:35', 'session_part': 4, 'memo': ''},
-            
-            # 5부 (7:00~7:50)
-            {'name': '김수현', 'grade': '초등 3학년', 'phone': '010-0000-1111', 'pickup_location': '승차', 'estimated_pickup_time': '6:35', 'session_part': 5, 'memo': ''},
-            {'name': '아이유', 'grade': '초등 4학년', 'phone': '010-1111-2222', 'pickup_location': '삼성래미안', 'estimated_pickup_time': '6:40', 'session_part': 5, 'memo': ''},
-        ]
-        
-        for i, student_data in enumerate(students_data):
-            print(f"  📝 {i+1}/12: {student_data['name']} 추가 중...")
-            student = Student(**student_data)
-            db.session.add(student)
-        
-        db.session.commit()
-        print("✅ 학생 데이터 추가 완료")
-        
-        # 스케줄 데이터도 추가
-        print("📅 스케줄 데이터 추가 시작...")
-        add_initial_schedules()
-        print("✅ 스케줄 데이터 추가 완료")
-        
-    except Exception as e:
-        print(f"❌ 기본 데이터 추가 실패: {e}")
-        db.session.rollback()
-        raise e
+# 자동 초기 데이터 추가 함수 제거됨 (안전성 확보)
 
-def add_initial_schedules():
-    """기본 스케줄 데이터 추가"""
-    try:
-        students = Student.query.all()
-        schedule_count = 0
-        
-        for student in students:
-            for day in [0, 2, 4]:  # 월, 수, 금
-                # 부별 시간 설정
-                if student.session_part == 1:  # 1부
-                    pickup_time_obj = time(14, 0)  # 2:00 PM
-                    dropoff_time_obj = time(14, 50)  # 2:50 PM
-                elif student.session_part == 2:  # 2부
-                    pickup_time_obj = time(15, 0)  # 3:00 PM
-                    dropoff_time_obj = time(15, 50)  # 3:50 PM
-                elif student.session_part == 3:  # 3부
-                    pickup_time_obj = time(16, 30)  # 4:30 PM
-                    dropoff_time_obj = time(17, 20)  # 5:20 PM
-                elif student.session_part == 4:  # 4부
-                    pickup_time_obj = time(17, 30)  # 5:30 PM
-                    dropoff_time_obj = time(18, 20)  # 6:20 PM
-                else:  # 5부
-                    pickup_time_obj = time(19, 0)  # 7:00 PM
-                    dropoff_time_obj = time(19, 50)  # 7:50 PM
-                
-                # 픽업 스케줄 추가
-                pickup_schedule = Schedule(
-                    student_id=student.id,
-                    day_of_week=day,
-                    schedule_type='pickup',
-                    time=pickup_time_obj,
-                    location=student.pickup_location
-                )
-                db.session.add(pickup_schedule)
-                schedule_count += 1
-                
-                # 드롭오프 스케줄 추가
-                dropoff_schedule = Schedule(
-                    student_id=student.id,
-                    day_of_week=day,
-                    schedule_type='dropoff',
-                    time=dropoff_time_obj,
-                    location=student.pickup_location
-                )
-                db.session.add(dropoff_schedule)
-                schedule_count += 1
-        
-        db.session.commit()
-        print(f"  📅 총 {schedule_count}개 스케줄 추가 완료")
-        
-    except Exception as e:
-        print(f"❌ 기본 스케줄 추가 실패: {e}")
-        db.session.rollback()
-        raise e
+# 자동 스케줄 추가 함수 제거됨 (안전성 확보)
 
-# 🚀 앱 시작시 즉시 초기화 실행
-print("🚀 애플리케이션 시작 - 데이터베이스 초기화 중...")
+# 앱 시작시 테이블만 생성 (자동 데이터 추가 없음)
+print("🚀 애플리케이션 시작 - 데이터베이스 테이블 생성...")
 try:
-    initialization_success = initialize_database()
-    if initialization_success:
-        print("✅ 데이터베이스 초기화 성공!")
-    else:
-        print("⚠️ 데이터베이스 초기화 실패 - 앱은 계속 실행됩니다")
+    with app.app_context():
+        db.create_all()
+        print("✅ 데이터베이스 테이블 생성 완료!")
 except Exception as e:
-    print(f"❌ 초기화 중 예외 발생: {e}")
+    print(f"❌ 테이블 생성 중 예외 발생: {e}")
 
-# 🎯 애플리케이션 실행 부분 (깔끔하고 안전)
+# 애플리케이션 실행
 if __name__ == '__main__':
-    # 개발 환경에서만 실행
     app.run(debug=True)
 
-# 🔧 임시 디버그 엔드포인트 (문제 해결용)
-@app.route('/debug/init-db')
-def debug_init_db():
-    """수동으로 데이터베이스 초기화 트리거 (임시용)"""
-    try:
-        student_count = Student.query.count()
-        
-        if student_count == 0:
-            print("🎯 수동 초기화 시작...")
-            add_initial_data()
-            final_count = Student.query.count()
-            return f"""
-            <h1>✅ 초기화 완료!</h1>
-            <p>학생 수: {final_count}명 추가됨</p>
-            <a href="/admin/students">학생 명단 보기</a>
-            """
-        else:
-            return f"""
-            <h1>ℹ️ 이미 데이터가 있습니다</h1>
-            <p>현재 학생 수: {student_count}명</p>
-            <a href="/admin/students">학생 명단 보기</a>
-            """
-            
-    except Exception as e:
-        return f"""
-        <h1>❌ 오류 발생</h1>
-        <pre>{str(e)}</pre>
-        """
+# 위험한 디버그 엔드포인트 제거됨
 
 @app.route('/debug/db-status')
 def debug_db_status():
@@ -1982,27 +1768,7 @@ def debug_db_status():
         <pre>{str(e)}</pre>
         """
 
-# 🔧 강제 초기화 엔드포인트 (긴급용)
-@app.route('/debug/force-init')
-def debug_force_init():
-    """강제로 샘플 데이터 추가 (긴급용)"""
-    try:
-        print("🚨 강제 초기화 시작...")
-        add_initial_data()
-        final_count = Student.query.count()
-        
-        return f"""
-        <h1>🚨 강제 초기화 완료!</h1>
-        <p>학생 수: {final_count}명</p>
-        <p><strong>주의:</strong> 기존 데이터와 중복될 수 있습니다.</p>
-        <a href="/admin/students">학생 명단 보기</a>
-        """
-        
-    except Exception as e:
-        return f"""
-        <h1>❌ 강제 초기화 실패</h1>
-        <pre>{str(e)}</pre>
-        """
+# 위험한 강제 초기화 엔드포인트 제거됨
 
 @app.route('/debug/fix-schema')
 def debug_fix_schema():
@@ -2299,3 +2065,42 @@ def success_response(message, data=None):
     if data:
         response['data'] = data
     return jsonify(response)
+
+@app.route('/api/create_dojo_location', methods=['POST'])
+def create_dojo_location():
+    """도장 장소 생성 (돌봄시스템/국기원부용)"""
+    try:
+        # "도장" 장소가 없으면 생성
+        existing_location = Location.query.filter_by(name='도장').first()
+        if not existing_location:
+            dojo_location = Location(
+                name='도장',
+                description='돌봄시스템 및 국기원부 학생용',
+                is_active=True
+            )
+            db.session.add(dojo_location)
+            db.session.commit()
+            
+            return jsonify({
+                'success': True,
+                'message': '"도장" 장소가 생성되었습니다. 이제 돌봄시스템과 국기원부 학생들을 추가할 수 있습니다.',
+                'location': {
+                    'id': dojo_location.id,
+                    'name': dojo_location.name,
+                    'description': dojo_location.description
+                }
+            })
+        else:
+            return jsonify({
+                'success': True,
+                'message': '"도장" 장소가 이미 존재합니다.',
+                'location': {
+                    'id': existing_location.id,
+                    'name': existing_location.name,
+                    'description': existing_location.description
+                }
+            })
+            
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': f'도장 장소 생성 실패: {str(e)}'})
