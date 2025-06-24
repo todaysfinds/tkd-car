@@ -1336,34 +1336,41 @@ function addStudentToCareSystem(dayNum, locationName, careType) {
 }
 
 function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
+    console.log('🗑️ 돌봄시스템 학생 제거 시도:', {studentId, dayNum, location, careType});
+    
     // 학생 요소를 미리 찾아두기 (제거 전)
     const studentButton = event.target;
     const studentElement = studentButton.closest('.flex.items-center.justify-between');
     
-        fetch('/api/remove_student_from_schedule', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                student_id: studentId,
-                day_of_week: dayNum,
-                location: location,
-                session_part: 6, // 돌봄시스템은 숫자 6으로 통일
-                type: 'care_system',
-                keep_location: true
-            })
+    fetch('/api/remove_student_from_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            day_of_week: dayNum,
+            location: location,
+            session_part: 6, // 돌봄시스템은 숫자 6으로 통일
+            type: 'care_system',
+            keep_location: true
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('📡 돌봄시스템 삭제 응답:', data);
+        if (data.success) {
             // 즉시 DOM에서 제거 (새로고침 없음)
             removeCareSystemStudentFromDOM(studentElement);
-            } else {
-                alert('제거 실패: ' + data.error);
-            }
-        });
-    }
+        } else {
+            alert('제거 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 돌봄시스템 삭제 에러:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+    });
+}
 
 // 돌봄시스템 학생 DOM 제거
 function removeCareSystemStudentFromDOM(studentElement) {
@@ -1420,6 +1427,8 @@ function addNewLocationToNationalTraining(dayNum, nationalType) {
 }
 
 function removeStudentFromNationalTraining(studentId, dayNum, location) {
+    console.log('🗑️ 국기원부 학생 제거 시도:', {studentId, dayNum, location});
+    
     // 학생 요소를 미리 찾아두기 (제거 전)
     const studentButton = event.target;
     const studentElement = studentButton.closest('.flex.items-center.justify-between');
@@ -1440,12 +1449,17 @@ function removeStudentFromNationalTraining(studentId, dayNum, location) {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('📡 국기원부 삭제 응답:', data);
         if (data.success) {
             // 즉시 DOM에서 제거 (새로고침 없음)
             removeNationalStudentFromDOM(studentElement);
         } else {
-            alert('제거 실패: ' + data.error);
+            alert('제거 실패: ' + (data.error || data.message));
         }
+    })
+    .catch(error => {
+        console.error('❌ 국기원부 삭제 에러:', error);
+        alert('삭제 중 오류가 발생했습니다.');
     });
 }
 
