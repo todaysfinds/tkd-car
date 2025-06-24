@@ -1722,27 +1722,12 @@ def initialize_database():
 
 # 자동 스케줄 추가 함수 제거됨 (안전성 확보)
 
-# 앱 시작시 테이블만 생성 (자동 데이터 추가 없음)
+# 앱 시작시 테이블만 생성 (깔끔한 버전)
 print("🚀 애플리케이션 시작 - 데이터베이스 테이블 생성...")
 try:
     with app.app_context():
         db.create_all()
         print("✅ 데이터베이스 테이블 생성 완료!")
-        
-        # "도장" 장소 자동 생성 (돌봄시스템/국기원부용)
-        existing_dojo = Location.query.filter_by(name='도장').first()
-        if not existing_dojo:
-            dojo_location = Location(
-                name='도장',
-                description='돌봄시스템 및 국기원부 학생용',
-                is_active=True
-            )
-            db.session.add(dojo_location)
-            db.session.commit()
-            print("🏛️ '도장' 장소 자동 생성 완료!")
-        else:
-            print("ℹ️ '도장' 장소 이미 존재함")
-            
 except Exception as e:
     print(f"❌ 테이블 생성 중 예외 발생: {e}")
 
@@ -1752,370 +1737,78 @@ if __name__ == '__main__':
 
 # 위험한 디버그 엔드포인트 제거됨
 
-@app.route('/debug/db-status')
-def debug_db_status():
-    """데이터베이스 상태 확인"""
-    try:
-        student_count = Student.query.count()
-        schedule_count = Schedule.query.count()
-        
-        # 최근 학생 3명
-        recent_students = Student.query.limit(3).all()
-        student_list = [f"{s.name} ({s.grade})" for s in recent_students]
-        
-        return f"""
-        <h1>📊 데이터베이스 상태</h1>
-        <p><strong>학생 수:</strong> {student_count}명</p>
-        <p><strong>스케줄 수:</strong> {schedule_count}개</p>
-        <p><strong>데이터베이스 URL:</strong> {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...</p>
-        
-        <h3>최근 학생:</h3>
-        <ul>
-        {''.join([f'<li>{student}</li>' for student in student_list])}
-        </ul>
-        
-        <p><a href="/debug/init-db">수동 초기화</a> | <a href="/admin/students">학생 명단</a></p>
-        """
-        
-    except Exception as e:
-        return f"""
-        <h1>❌ 데이터베이스 연결 오류</h1>
-        <pre>{str(e)}</pre>
-        """
-
 # 위험한 강제 초기화 엔드포인트 제거됨
 
-@app.route('/debug/fix-schema')
-def debug_fix_schema():
-    """스키마 문제 강제 수정"""
-    try:
-        with db.engine.connect() as conn:
-            # 강제로 schedule_type을 VARCHAR(30)으로 변경
-            conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN schedule_type TYPE VARCHAR(30);"))
-            conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
-            conn.commit()
-            
-        return """
-        <h1>✅ 스키마 강제 수정 완료!</h1>
-        <p>schedule_type: VARCHAR(30)</p>
-        <p>location: VARCHAR(100)</p>
-        <p><a href="/admin/schedule-manager">스케줄 관리로 이동</a></p>
-        """
-    except Exception as e:
-        return f"""
-        <h1>❌ 스키마 수정 실패</h1>
-        <pre>{str(e)}</pre>
-        """
+# 제거: 모든 일회성 코드들 정리 완료
 
-@app.route('/debug/test-national')
-def debug_test_national():
-    """국기원부 추가 테스트"""
-    try:
-        # 첫 번째 학생을 가져와서 테스트
-        student = Student.query.first()
-        if not student:
-            return "학생이 없습니다. 먼저 학생을 추가하세요."
-        
-        # 국기원부 스케줄 추가 테스트
-        test_schedule = Schedule(
-            student_id=student.id,
-            day_of_week=4,  # 금요일
-            schedule_type='national_training',  # 17자 - 테스트
-            time=time(18, 30),
-            location='NATIONAL_4'  # 10자
-        )
-        
-        db.session.add(test_schedule)
-        db.session.commit()
-        
-        return f"""
-        <h1>✅ 국기원부 테스트 성공!</h1>
-        <p>학생: {student.name}</p>
-        <p>schedule_type: 'national_training' (17자)</p>
-        <p>location: 'NATIONAL_4' (10자)</p>
-        <p><a href="/admin/schedule-manager">스케줄 관리로 이동</a></p>
-        """
-        
-    except Exception as e:
-        db.session.rollback()
-        return f"""
-        <h1>❌ 국기원부 테스트 실패</h1>
-        <pre>{str(e)}</pre>
-        <p><a href="/debug/fix-schema">스키마 수정하기</a></p>
-        """
-
-@app.route('/debug/old-fix-schema')
-def debug_old_fix_schema():
-    try:
-        # PostgreSQL에서 직접 ALTER TABLE 실행
-        with db.engine.connect() as conn:
-            # Schedule 테이블의 location 컬럼을 VARCHAR(100)으로 확장
-            conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
-            conn.commit()
-        
-        return jsonify({
-            'success': True,
-            'message': '✅ Schedule 테이블의 location 컬럼이 VARCHAR(100)으로 확장되었습니다.'
-        })
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': f'스키마 수정 실패: {str(e)}'
-        })
-
-@app.route('/debug/clean-start', methods=['POST'])
-def debug_clean_start():
-    """🧹 완전 초기화 - 모든 데이터 삭제 후 깔끔하게 시작"""
-    try:
-        with app.app_context():
-            # 모든 테이블 데이터 삭제 (순서 중요 - 외래키 관계 고려)
-            print("🧹 데이터베이스 완전 정리 시작...")
-            
-            # 1. 스케줄 데이터 삭제
-            Schedule.query.delete()
-            print("✅ Schedule 데이터 삭제 완료")
-            
-            # 2. 출석 데이터 삭제
-            TkdAttendance.query.delete()
-            print("✅ TkdAttendance 데이터 삭제 완료")
-            
-            # 3. 요청 데이터 삭제
-            Request.query.delete()
-            print("✅ Request 데이터 삭제 완료")
-            
-            # 4. 학생 데이터 삭제
-            Student.query.delete()
-            print("✅ Student 데이터 삭제 완료")
-            
-            # 5. 장소 데이터 삭제
-            Location.query.delete()
-            print("✅ Location 데이터 삭제 완료")
-            
-            # 6. 빠른 전화 데이터 삭제
-            QuickCallNumber.query.delete()
-            print("✅ QuickCallNumber 데이터 삭제 완료")
-            
-            # 커밋
-            db.session.commit()
-            print("💾 모든 데이터 삭제 완료")
-            
-            return jsonify({
-                'success': True,
-                'message': '데이터베이스가 완전히 정리되었습니다. 이제 깔끔하게 시작할 수 있습니다!',
-                'next_step': '학생 관리에서 실제 학생들을 추가해주세요.'
-            })
-            
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ 데이터 정리 실패: {e}")
-        return jsonify({
-            'success': False,
-            'error': f'데이터 정리 중 오류 발생: {str(e)}'
-        })
-
-@app.route('/debug/clean-start')
-def debug_clean_start_page():
-    """🧹 데이터베이스 완전 정리 페이지"""
-    return '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>데이터베이스 완전 정리</title>
-        <meta charset="UTF-8">
-        <style>
-            body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-            .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
-            .button { background: #dc3545; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 5px; cursor: pointer; }
-            .button:hover { background: #c82333; }
-            .success { background: #d4edda; border: 1px solid #c3e6cb; padding: 15px; border-radius: 5px; margin: 20px 0; }
-            .error { background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 5px; margin: 20px 0; }
-        </style>
-    </head>
-    <body>
-        <h1>🧹 데이터베이스 완전 정리</h1>
-        
-        <div class="warning">
-            <h3>⚠️ 주의사항</h3>
-            <ul>
-                <li>모든 학생 데이터가 삭제됩니다</li>
-                <li>모든 스케줄 데이터가 삭제됩니다</li>
-                <li>모든 출석 기록이 삭제됩니다</li>
-                <li>이 작업은 되돌릴 수 없습니다</li>
-            </ul>
-        </div>
-        
-        <p>샘플 데이터와 테스트 데이터를 모두 삭제하고 깔끔하게 시작하시겠습니까?</p>
-        
-        <button class="button" onclick="cleanStart()">🧹 완전 정리 실행</button>
-        
-        <div id="result"></div>
-        
-        <script>
-        function cleanStart() {
-            if (confirm('정말로 모든 데이터를 삭제하시겠습니까?\\n이 작업은 되돌릴 수 없습니다!')) {
-                fetch('/debug/clean-start', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'}
-                })
-                .then(response => response.json())
-                .then(data => {
-                    const resultDiv = document.getElementById('result');
-                    if (data.success) {
-                        resultDiv.innerHTML = `
-                            <div class="success">
-                                <h3>✅ 완료!</h3>
-                                <p>${data.message}</p>
-                                <p><strong>다음 단계:</strong> ${data.next_step}</p>
-                                <p><a href="/admin/students">학생 관리로 이동</a></p>
-                            </div>
-                        `;
-                    } else {
-                        resultDiv.innerHTML = `
-                            <div class="error">
-                                <h3>❌ 오류 발생</h3>
-                                <p>${data.error}</p>
-                            </div>
-                        `;
-                    }
-                })
-                .catch(error => {
-                    document.getElementById('result').innerHTML = `
-                        <div class="error">
-                            <h3>❌ 네트워크 오류</h3>
-                            <p>서버 연결에 실패했습니다: ${error}</p>
-                        </div>
-                    `;
-                });
-            }
-        }
-        </script>
-    </body>
-    </html>
-    '''
-
-# 🎯 데이터 검증 유틸리티 함수들
+# 유지해야 할 유일한 유틸리티 함수들
 def validate_student_name(name):
-    """학생 이름 검증"""
+    """학생 이름 유효성 검사"""
     if not name or not name.strip():
-        return False, "이름을 입력해주세요."
+        return False, "이름이 입력되지 않았습니다."
     
     name = name.strip()
-    if len(name) > 50:
-        return False, "이름은 50자를 초과할 수 없습니다."
+    if len(name) < 2:
+        return False, "이름은 2글자 이상이어야 합니다."
+    if len(name) > 10:
+        return False, "이름은 10글자 이하여야 합니다."
     
-    # 특수문자 검증 (한글, 영문, 숫자, 일부 특수문자만 허용)
-    import re
-    if not re.match(r'^[가-힣a-zA-Z0-9\s\-_()]+$', name):
-        return False, "이름에 허용되지 않는 문자가 포함되어 있습니다."
-    
-    return True, name
+    return True, ""
 
 def validate_phone_number(phone):
-    """전화번호 검증"""
+    """전화번호 유효성 검사"""
     if not phone:
-        return True, None  # 선택사항
+        return True, ""  # 전화번호는 선택사항
     
-    phone = phone.strip()
-    if len(phone) > 20:
-        return False, "전화번호가 너무 깁니다."
-    
-    # 기본적인 전화번호 형식 검증
     import re
-    if not re.match(r'^[0-9\-+\s()]+$', phone):
+    # 기본적인 전화번호 패턴 (010-1234-5678, 010 1234 5678, 01012345678 등)
+    pattern = r'^[0-9\-\s]+$'
+    if not re.match(pattern, phone):
         return False, "올바른 전화번호 형식이 아닙니다."
     
-    return True, phone
+    return True, ""
 
 def validate_location_name(location):
-    """장소명 검증"""
+    """장소명 유효성 검사"""
     if not location or not location.strip():
-        return False, "장소명을 입력해주세요."
+        return False, "장소명이 입력되지 않았습니다."
     
     location = location.strip()
-    if len(location) > 100:
-        return False, "장소명은 100자를 초과할 수 없습니다."
+    if len(location) > 50:
+        return False, "장소명은 50글자 이하여야 합니다."
     
-    return True, location
+    return True, ""
 
 def validate_session_part(session_part):
-    """부 검증"""
-    if session_part is None:
-        return True, None  # 선택사항
-    
+    """부(session_part) 유효성 검사"""
     try:
         session_part = int(session_part)
-        if session_part < 1 or session_part > 7:
-            return False, "올바른 부를 선택해주세요. (1-7)"
-        return True, session_part
+        if session_part not in [1, 2, 3, 4, 5]:
+            return False, "부는 1부~5부 중에서 선택해야 합니다."
+        return True, ""
     except (ValueError, TypeError):
         return False, "올바른 부를 선택해주세요."
 
 def sanitize_input(text, max_length=None):
-    """입력 데이터 정리"""
+    """입력값 정제"""
     if not text:
-        return None
+        return ""
     
-    text = text.strip()
+    text = str(text).strip()
     if max_length and len(text) > max_length:
         text = text[:max_length]
     
-    return text if text else None
+    return text
 
-# 🎯 에러 응답 통일화
 def error_response(message, status_code=400):
-    """통일된 에러 응답"""
-    return jsonify({
-        'success': False,
-        'error': message,
-        'timestamp': datetime.utcnow().isoformat()
-    }), status_code
+    """표준 에러 응답"""
+    return jsonify({'success': False, 'error': message}), status_code
 
 def success_response(message, data=None):
-    """통일된 성공 응답"""
-    response = {
-        'success': True,
-        'message': message,
-        'timestamp': datetime.utcnow().isoformat()
-    }
+    """표준 성공 응답"""
+    response = {'success': True, 'message': message}
     if data:
         response['data'] = data
     return jsonify(response)
 
-@app.route('/api/create_dojo_location', methods=['POST'])
-def create_dojo_location():
-    """도장 장소 생성 (돌봄시스템/국기원부용)"""
-    try:
-        # "도장" 장소가 없으면 생성
-        existing_location = Location.query.filter_by(name='도장').first()
-        if not existing_location:
-            dojo_location = Location(
-                name='도장',
-                description='돌봄시스템 및 국기원부 학생용',
-                is_active=True
-            )
-            db.session.add(dojo_location)
-            db.session.commit()
-            
-            return jsonify({
-                'success': True,
-                'message': '"도장" 장소가 생성되었습니다. 이제 돌봄시스템과 국기원부 학생들을 추가할 수 있습니다.',
-                'location': {
-                    'id': dojo_location.id,
-                    'name': dojo_location.name,
-                    'description': dojo_location.description
-                }
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'message': '"도장" 장소가 이미 존재합니다.',
-                'location': {
-                    'id': existing_location.id,
-                    'name': existing_location.name,
-                    'description': existing_location.description
-                }
-            })
-            
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'error': f'도장 장소 생성 실패: {str(e)}'})
+# 불필요한 일회성 API 제거됨
