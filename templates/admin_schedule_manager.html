@@ -1055,7 +1055,49 @@ function addStudentsToDOM(addedStudents) {
             careContainers.forEach(container => {
                 const careTitle = container.querySelector('.text-orange-800');
                 if (careTitle && careTitle.textContent.includes('돌봄시스템')) {
-                    targetContainer = container.querySelector('.space-y-2');
+                    const spaceContainer = container.querySelector('.space-y-2');
+                    if (spaceContainer) {
+                        // 해당 장소의 위치 찾기 또는 생성
+                        let locationContainer = null;
+                        const existingLocations = spaceContainer.querySelectorAll('.border.border-gray-200.rounded');
+                        
+                        // 기존 장소 검색 (location에서 _care3 부분 제거해서 비교)
+                        const cleanLocation = location.replace(/_care\d+$/, '');
+                        for (let locDiv of existingLocations) {
+                            const locTitle = locDiv.querySelector('.text-gray-700');
+                            if (locTitle && locTitle.textContent.includes(cleanLocation)) {
+                                locationContainer = locDiv.querySelector('.flex.flex-wrap.gap-1');
+                                break;
+                            }
+                        }
+                        
+                        // 장소가 없으면 새로 생성
+                        if (!locationContainer) {
+                            const newLocationHTML = `
+                                <div class="border border-gray-200 rounded p-1 bg-white">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-gray-700">📍 ${cleanLocation}</span>
+                                        <button onclick="addStudentToCareSystem(${day_of_week}, '${cleanLocation}', 'care3')" 
+                                                class="text-xs text-blue-600 hover:text-blue-800">+ 학생</button>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1"></div>
+                                </div>
+                            `;
+                            
+                            // + 새 장소 추가 버튼 위에 삽입
+                            const addButton = spaceContainer.querySelector('button[onclick*="addNewLocationToCareSystem"]');
+                            if (addButton) {
+                                addButton.insertAdjacentHTML('beforebegin', newLocationHTML);
+                                // 방금 생성한 container 찾기
+                                const newLocDiv = addButton.previousElementSibling;
+                                locationContainer = newLocDiv.querySelector('.flex.flex-wrap.gap-1');
+                                // + 새 장소 추가 버튼 숨기기
+                                addButton.style.display = 'none';
+                            }
+                        }
+                        
+                        targetContainer = locationContainer;
+                    }
                 }
             });
         } else if (type === 'national_training') {
@@ -1064,7 +1106,49 @@ function addStudentsToDOM(addedStudents) {
             nationalContainers.forEach(container => {
                 const nationalTitle = container.querySelector('.text-purple-800');
                 if (nationalTitle && nationalTitle.textContent.includes('국기원부')) {
-                    targetContainer = container.querySelector('.space-y-2');
+                    const spaceContainer = container.querySelector('.space-y-2');
+                    if (spaceContainer) {
+                        // 해당 장소의 위치 찾기 또는 생성
+                        let locationContainer = null;
+                        const existingLocations = spaceContainer.querySelectorAll('.border.border-gray-200.rounded');
+                        
+                        // 기존 장소 검색 (location에서 _national 부분 제거해서 비교)
+                        const cleanLocation = location.replace(/_national$/, '');
+                        for (let locDiv of existingLocations) {
+                            const locTitle = locDiv.querySelector('.text-gray-700');
+                            if (locTitle && locTitle.textContent.includes(cleanLocation)) {
+                                locationContainer = locDiv.querySelector('.flex.flex-wrap.gap-1');
+                                break;
+                            }
+                        }
+                        
+                        // 장소가 없으면 새로 생성
+                        if (!locationContainer) {
+                            const newLocationHTML = `
+                                <div class="border border-gray-200 rounded p-1 bg-white">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-gray-700">📍 ${cleanLocation}</span>
+                                        <button onclick="addStudentToNationalTraining(${day_of_week}, '${cleanLocation}')" 
+                                                class="text-xs text-blue-600 hover:text-blue-800">+ 학생</button>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1"></div>
+                                </div>
+                            `;
+                            
+                            // + 새 장소 추가 버튼 위에 삽입
+                            const addButton = spaceContainer.querySelector('button[onclick*="addNewLocationToNationalTraining"]');
+                            if (addButton) {
+                                addButton.insertAdjacentHTML('beforebegin', newLocationHTML);
+                                // 방금 생성한 container 찾기
+                                const newLocDiv = addButton.previousElementSibling;
+                                locationContainer = newLocDiv.querySelector('.flex.flex-wrap.gap-1');
+                                // + 새 장소 추가 버튼 숨기기
+                                addButton.style.display = 'none';
+                            }
+                        }
+                        
+                        targetContainer = locationContainer;
+                    }
                 }
             });
         } else {
@@ -1141,13 +1225,13 @@ function createStudentElementHTML(student, dayNum, sessionPart, type, location) 
     let bgColor, borderColor, removeFunction;
     
     if (type === 'care_system') {
-        bgColor = 'bg-gray-50';
-        borderColor = 'border-gray-200';
+        bgColor = 'bg-orange-50';
+        borderColor = 'border-orange-200';
         removeFunction = `removeStudentFromCareSystem(${student.id}, ${dayNum}, '${location}', '${sessionPart}')`;
     } else if (type === 'national_training') {
         bgColor = 'bg-purple-50';
         borderColor = 'border-purple-200';
-        removeFunction = `removeStudentFromNationalTraining(${student.id}, ${dayNum})`;
+        removeFunction = `removeStudentFromNationalTraining(${student.id}, ${dayNum}, '${location}')`;
     } else if (type === 'pickup') {
         bgColor = 'bg-pink-50';
         borderColor = 'border-pink-200';
