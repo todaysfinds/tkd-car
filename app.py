@@ -11,6 +11,10 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, date, time
 import os
 import traceback
+from dotenv import load_dotenv
+
+# .env 파일 로드
+load_dotenv()
 # PostgreSQL 드라이버 설정 (Python 3.13 호환)
 import sys
 try:
@@ -886,33 +890,27 @@ def add_student_to_schedule():
         if schedule_type in ['care_system', 'national_training']:
             schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
             
-            # 국기원부는 장소 개념 없음 (null 허용)
-            if schedule_type == 'national_training' and target_location is None:
-                target_location = None  # 국기원부는 location null로 저장
-                print(f"🔍 국기원부 처리: 장소 없음")
-            elif target_location and len(target_location) > 100:
-                print(f"⚠️ 장소명이 너무 길어서 자름: {target_location[:100]}")
-                target_location = target_location[:100]
+            # 특수 시간대용 고유 식별자 생성
+            if schedule_type == 'national_training':
+                target_location = f"NATIONAL_{day_of_week}"  # 국기원부: NATIONAL_요일
+                print(f"🔍 국기원부 처리: {target_location}")
+            elif schedule_type == 'care_system':
+                # 돌봄시스템: 기존 location_careType 유지
+                if target_location and len(target_location) > 90:
+                    print(f"⚠️ 장소명이 너무 길어서 자름: {target_location[:90]}")
+                    target_location = target_location[:90]
             
             print(f"🔍 특수 시간대 처리: {schedule_type}, 부={session_part}, 장소={target_location}")
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
         # 중복 체크 (같은 학생, 같은 날, 같은 타입, 같은 장소)
-        # 국기원부는 location이 null일 수 있으므로 특별 처리
-        if schedule_type == 'national_training' and target_location is None:
-            existing_schedule = Schedule.query.filter_by(
-                student_id=student_id,
-                day_of_week=day_of_week,
-                schedule_type=schedule_type
-            ).filter(Schedule.location.is_(None)).first()
-        else:
-            existing_schedule = Schedule.query.filter_by(
-                student_id=student_id,
-                day_of_week=day_of_week,
-                schedule_type=schedule_type,
-                location=target_location
-            ).first()
+        existing_schedule = Schedule.query.filter_by(
+            student_id=student_id,
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=target_location
+        ).first()
         
         if existing_schedule:
             return jsonify({'success': False, 'error': '이미 해당 스케줄이 존재합니다.'})
@@ -968,8 +966,13 @@ def add_multiple_students_to_schedule():
         schedule_type = data.get('type')  # 'pickup' or 'dropoff'
         target_location = data.get('location')  # 장소 정보
         
-        if not students or not all([day_of_week is not None, session_part, schedule_type, target_location]):
+        # 국기원부와 돌봄시스템은 location이 특별하므로 별도 검증
+        if not students or day_of_week is None or not session_part or not schedule_type:
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
+        
+        # location 검증 (특수 시간대 제외)
+        if schedule_type not in ['care_system', 'national_training'] and not target_location:
+            return jsonify({'success': False, 'error': '장소 정보가 필요합니다.'})
         
         # 부별 시간 설정
         if session_part == 1:  # 1부
@@ -1001,11 +1004,13 @@ def add_multiple_students_to_schedule():
         if schedule_type in ['care_system', 'national_training']:
             schedule_time = pickup_time  # 시간 구분 없이 동일 시간 사용
             
-            # 국기원부는 장소 개념 없음 (null 허용)
-            if schedule_type == 'national_training' and target_location is None:
-                target_location = None  # 국기원부는 location null로 저장
-            elif target_location and len(target_location) > 100:
-                target_location = target_location[:100]
+            # 특수 시간대용 고유 식별자 생성
+            if schedule_type == 'national_training':
+                target_location = f"NATIONAL_{day_of_week}"  # 국기원부: NATIONAL_요일
+            elif schedule_type == 'care_system':
+                # 돌봄시스템: 기존 location_careType 유지
+                if target_location and len(target_location) > 90:
+                    target_location = target_location[:90]
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
@@ -1023,20 +1028,13 @@ def add_multiple_students_to_schedule():
                 invalid_students.append(student_name)
                 continue
             
-            # 중복 체크 (국기원부는 location null 특별 처리)
-            if schedule_type == 'national_training' and target_location is None:
-                existing_schedule = Schedule.query.filter_by(
-                    student_id=student_id,
-                    day_of_week=day_of_week,
-                    schedule_type=schedule_type
-                ).filter(Schedule.location.is_(None)).first()
-            else:
-                existing_schedule = Schedule.query.filter_by(
-                    student_id=student_id,
-                    day_of_week=day_of_week,
-                    schedule_type=schedule_type,
-                    location=target_location
-                ).first()
+            # 중복 체크 (일반화된 방식)
+            existing_schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=target_location
+            ).first()
             
             if existing_schedule:
                 duplicates.append(student_name)
@@ -1156,14 +1154,16 @@ def remove_student_from_schedule():
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
         
-        # 정확한 스케줄 찾기 (돌봄시스템/국기원부 특별 처리)
+        # 정확한 스케줄 찾기 (특수 시간대 처리)
         if schedule_type == 'national_training':
-            # 국기원부는 location이 null
+            # 국기원부는 NATIONAL_요일 형태
+            target_location = f"NATIONAL_{day_of_week}"
             schedule = Schedule.query.filter_by(
                 student_id=student_id,
                 day_of_week=day_of_week,
-                schedule_type=schedule_type
-            ).filter(Schedule.location.is_(None)).first()
+                schedule_type=schedule_type,
+                location=target_location
+            ).first()
         elif schedule_type == 'care_system':
             # 돌봄시스템의 경우 location에 part 정보가 포함됨
             target_location = f"{location}_{session_part}"

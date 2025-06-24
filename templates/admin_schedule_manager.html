@@ -955,29 +955,32 @@ function modalKeyHandler(e) {
         return;
     }
     
-    // 엔터키 처리 (2단계)
+    // 엔터키 처리 (검색과 추가 완전 분리)
     if (e.key === 'Enter') {
         e.preventDefault();
         
         const searchInput = document.getElementById('studentSearch');
         const dropdown = document.getElementById('studentDropdown');
-        const addBtn = document.getElementById('addStudentBtn');
         
-        // 1단계: 검색창에 포커스가 있고 드롭다운이 보이면 첫 번째 학생 선택
-        if (document.activeElement === searchInput && !dropdown.classList.contains('hidden')) {
-            const firstStudentItem = dropdown.querySelector('.student-item');
-            if (firstStudentItem) {
-                const studentId = parseInt(firstStudentItem.getAttribute('data-student-id'));
-                const studentName = firstStudentItem.getAttribute('data-student-name');
-                selectStudentSafely(studentId, studentName);
-                console.log('✅ 1단계: 학생 선택 완료, 다시 엔터를 누르면 추가됩니다');
-                return; // 1단계 완료 - 추가 버튼 실행 안함
+        // 검색창에 포커스가 있을 때: 학생 선택만 (추가 안함)
+        if (document.activeElement === searchInput) {
+            if (!dropdown.classList.contains('hidden')) {
+                const firstStudentItem = dropdown.querySelector('.student-item');
+                if (firstStudentItem) {
+                    const studentId = parseInt(firstStudentItem.getAttribute('data-student-id'));
+                    const studentName = firstStudentItem.getAttribute('data-student-name');
+                    selectStudentSafely(studentId, studentName);
+                    console.log('✅ 학생 선택 완료 (검색창에서 엔터)');
+                    return; // 학생 선택만 하고 끝
+                }
             }
+            return; // 검색창에 있을 때는 추가 버튼 실행 안함
         }
         
-        // 2단계: 학생이 선택된 상태에서 다시 엔터 누르면 추가 실행
+        // 검색창에 포커스가 없을 때: 추가 버튼으로 처리
+        const addBtn = document.getElementById('addStudentBtn');
         if (selectedStudents.length > 0 && addBtn && !addBtn.disabled) {
-            console.log('🚀 2단계: 엔터키로 학생 추가 실행');
+            console.log('🚀 추가 버튼 실행 (검색창 외부에서 엔터)');
             confirmAddStudents();
         } else if (selectedStudents.length === 0) {
             console.log('⚠️ 먼저 학생을 선택해주세요');
@@ -1276,7 +1279,7 @@ function addStudentToNationalTraining(dayNum) {
         dayNum: dayNum,
         sessionPart: 7,  // 국기원부는 숫자 7로 통일
         type: 'national_training',
-        location: null   // 국기원부는 장소 개념 없음
+        location: `NATIONAL_${dayNum}`   // 고유 식별자로 변경
     };
     
     document.getElementById('modalTitle').textContent = `국기원부에 학생 추가`;
@@ -1300,7 +1303,7 @@ function removeStudentFromNationalTraining(studentId, dayNum) {
             body: JSON.stringify({
                 student_id: studentId,
                 day_of_week: dayNum,
-                location: null, // 국기원부는 장소 없음
+                location: `NATIONAL_${dayNum}`, // 고유 식별자로 변경
                 session_part: 7, // 국기원부는 숫자 7로 통일
                 type: 'national_training',
                 keep_location: true
