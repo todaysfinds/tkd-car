@@ -1109,20 +1109,26 @@ def update_location_name():
 
 @app.route('/api/remove_student_from_schedule', methods=['POST'])
 def remove_student_from_schedule():
-    """학생을 스케줄에서 제거 (깔끔한 버전)"""
+    """학생을 스케줄에서 제거 (개선된 버전)"""
     try:
         data = request.get_json()
         student_id = data.get('student_id')
         day_of_week = data.get('day_of_week')
         location = data.get('location')
         schedule_type = data.get('type', 'pickup')
+        session_part = data.get('session_part')
+        
+        print(f"🔍 삭제 요청: student_id={student_id}, day={day_of_week}, location='{location}', type='{schedule_type}', session_part={session_part}")
         
         # 학생 정보 확인
         student = Student.query.get(student_id)
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
         
-        # 스케줄 찾기
+        # 스케줄 찾기 (여러 조건으로 시도)
+        schedule = None
+        
+        # 1차 시도: 정확한 location으로 찾기
         schedule = Schedule.query.filter_by(
             student_id=student_id,
             day_of_week=day_of_week,
@@ -1130,34 +1136,71 @@ def remove_student_from_schedule():
             location=location
         ).first()
         
+        # 2차 시도: session_part로 찾기 (돌봄시스템/국기원부)
+        if not schedule and session_part:
+            schedule = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type
+            ).join(Student).filter(Student.session_part == session_part).first()
+        
+        # 3차 시도: location이 포함된 것 찾기 (부분 일치)
+        if not schedule:
+            schedules = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week,
+                schedule_type=schedule_type
+            ).all()
+            
+            for s in schedules:
+                if s.location and (location in s.location or s.location in location):
+                    schedule = s
+                    break
+        
+        # 디버그 정보
+        all_schedules = Schedule.query.filter_by(
+            student_id=student_id,
+            day_of_week=day_of_week,
+            schedule_type=schedule_type
+        ).all()
+        
+        print(f"📋 학생의 모든 스케줄:")
+        for s in all_schedules:
+            print(f"   - location: '{s.location}', type: '{s.schedule_type}'")
+        
         if schedule:
             student_name = student.name
+            actual_location = schedule.location
+            print(f"✅ 스케줄 찾음: location='{actual_location}'")
+            
             db.session.delete(schedule)
             db.session.commit()
             
             # 해당 장소에 다른 학생이 있는지 확인
             remaining_students = Schedule.query.filter_by(
                 day_of_week=day_of_week,
-                location=location,
+                location=actual_location,
                 schedule_type=schedule_type
             ).count()
             
-            message = f'{student_name} 학생이 {location}에서 제거되었습니다.'
+            message = f'{student_name} 학생이 {actual_location}에서 제거되었습니다.'
             if remaining_students == 0:
-                message += f' "{location}" 장소는 빈 상태로 유지됩니다.'
+                message += f' "{actual_location}" 장소는 빈 상태로 유지됩니다.'
             
             return jsonify({
                 'success': True, 
                 'message': message,
                 'keep_location': True,
-                'location': location,
+                'location': actual_location,
                 'remaining_students': remaining_students
             })
         else:
-            return jsonify({'success': False, 'error': '해당 스케줄을 찾을 수 없습니다.'})
+            print(f"❌ 스케줄을 찾을 수 없음")
+            return jsonify({'success': False, 'error': f'해당 스케줄을 찾을 수 없습니다. (student_id={student_id}, day={day_of_week}, location="{location}", type="{schedule_type}")'})
     
     except Exception as e:
         db.session.rollback()
+        print(f"❌ 삭제 중 오류: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 # 연락 기능 관련 API (정석 구현)
