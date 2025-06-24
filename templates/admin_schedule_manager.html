@@ -320,52 +320,72 @@
 
                     <!-- 돌봄시스템 3 (4부와 5부 사이) -->
                     <div class="border rounded-lg overflow-hidden border-orange-200">
-                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
                             <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
-                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care3')" 
-                                    class="text-xs text-orange-600 hover:text-orange-800">
-                                + 학생
-                            </button>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care3' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care3'] %}
                                 {% for location, students in schedule_data[day_num]['care3']['students'].items() %}
-                                <div class="flex flex-wrap gap-1">
-                                    {% for student_data in students %}
-                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care3')" 
-                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                <div class="border border-gray-200 rounded p-1 bg-white">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                        <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care3')" 
+                                                class="text-xs text-blue-600 hover:text-blue-800">
+                                            + 학생
+                                        </button>
                                     </div>
-                                    {% endfor %}
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for student_data in students %}
+                                        <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[50px] max-w-[100px]">
+                                            <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care3')" 
+                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                                 {% endfor %}
+                            {% else %}
+                                <button onclick="addNewLocationToCareSystem({{ day_num }}, 'care3')" 
+                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50">
+                                    + 새 장소 추가
+                                </button>
                             {% endif %}
                         </div>
                     </div>
 
                     <!-- 국기원부 (4부와 5부 사이) -->
                     <div class="border rounded-lg overflow-hidden border-purple-200">
-                        <div class="bg-purple-100 px-3 py-1 border-b border-purple-200 flex items-center justify-between">
+                        <div class="bg-purple-100 px-3 py-1 border-b border-purple-200">
                             <h3 class="font-semibold text-purple-800 text-sm">🇰🇷 국기원부</h3>
-                            <button onclick="addStudentToNationalTraining({{ day_num }})" 
-                                    class="text-xs text-purple-600 hover:text-purple-800">
-                                + 학생
-                            </button>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'national' in schedule_data[day_num] and 'students' in schedule_data[day_num]['national'] %}
                                 {% for location, students in schedule_data[day_num]['national']['students'].items() %}
-                                <div class="flex flex-wrap gap-1">
-                                    {% for student_data in students %}
-                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
-                                        <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }})" 
-                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                <div class="border border-gray-200 rounded p-1 bg-white">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                        <button onclick="addStudentToNationalTraining({{ day_num }}, '{{ location }}')" 
+                                                class="text-xs text-blue-600 hover:text-blue-800">
+                                            + 학생
+                                        </button>
                                     </div>
-                                    {% endfor %}
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for student_data in students %}
+                                        <div class="flex items-center justify-between text-xs bg-purple-50 px-1 py-0.5 rounded border border-purple-200 min-w-[50px] max-w-[100px]">
+                                            <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                            <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, '{{ location }}')" 
+                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                                 {% endfor %}
+                            {% else %}
+                                <button onclick="addNewLocationToNationalTraining({{ day_num }}, 'national')" 
+                                        class="w-full text-xs text-purple-600 border border-dashed border-purple-300 rounded p-1 hover:bg-purple-50">
+                                    + 새 장소 추가
+                                </button>
                             {% endif %}
                         </div>
                     </div>
@@ -1273,16 +1293,30 @@ function removeCareSystemStudentFromDOM(studentElement) {
     }, 300);
 }
 
+// 돌봄시스템 새 장소 추가
+function addNewLocationToCareSystem(dayNum, careType) {
+    const locationName = prompt('새 장소명을 입력하세요:');
+    if (!locationName || locationName.trim() === '') {
+        return;
+    }
+    
+    const cleanLocation = locationName.trim();
+    addStudentToCareSystem(dayNum, cleanLocation, careType);
+}
+
 // 국기원부 관련 함수들
-function addStudentToNationalTraining(dayNum) {
+function addStudentToNationalTraining(dayNum, locationName) {
+    // 기존 location이 있으면 그대로 사용, 없으면 기본값
+    const finalLocation = locationName || '도장';
+    
     currentModalConfig = {
         dayNum: dayNum,
         sessionPart: 7,  // 국기원부는 숫자 7로 통일
         type: 'national_training',
-        location: `NATIONAL_${dayNum}`   // 고유 식별자로 변경
+        location: `${finalLocation}_national`
     };
     
-    document.getElementById('modalTitle').textContent = `국기원부에 학생 추가`;
+    document.getElementById('modalTitle').textContent = `${finalLocation}에 학생 추가 (국기원부)`;
     document.getElementById('studentModal').classList.remove('hidden');
     initStudentSearch();
     
@@ -1290,35 +1324,46 @@ function addStudentToNationalTraining(dayNum) {
     setupModalKeyboardEvents();
 }
 
-function removeStudentFromNationalTraining(studentId, dayNum) {
+// 국기원부 새 장소 추가
+function addNewLocationToNationalTraining(dayNum, nationalType) {
+    const locationName = prompt('새 장소명을 입력하세요:');
+    if (!locationName || locationName.trim() === '') {
+        return;
+    }
+    
+    const cleanLocation = locationName.trim();
+    addStudentToNationalTraining(dayNum, cleanLocation);
+}
+
+function removeStudentFromNationalTraining(studentId, dayNum, location) {
     // 학생 요소를 미리 찾아두기 (제거 전)
     const studentButton = event.target;
     const studentElement = studentButton.closest('.flex.items-center.justify-between');
     
-        fetch('/api/remove_student_from_schedule', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                student_id: studentId,
-                day_of_week: dayNum,
-                location: `NATIONAL_${dayNum}`, // 고유 식별자로 변경
-                session_part: 7, // 국기원부는 숫자 7로 통일
-                type: 'national_training',
-                keep_location: true
-            })
+    fetch('/api/remove_student_from_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            day_of_week: dayNum,
+            location: location,
+            session_part: 7, // 국기원부는 숫자 7로 통일
+            type: 'national_training',
+            keep_location: true
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
             // 즉시 DOM에서 제거 (새로고침 없음)
             removeNationalStudentFromDOM(studentElement);
-            } else {
-                alert('제거 실패: ' + data.error);
-            }
-        });
-    }
+        } else {
+            alert('제거 실패: ' + data.error);
+        }
+    });
+}
 
 // 국기원부 학생 DOM 제거
 function removeNationalStudentFromDOM(studentElement) {
