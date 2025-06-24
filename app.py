@@ -582,12 +582,31 @@ def update_student_location():
 @app.route('/api/get_locations')
 def get_locations():
     try:
-        # 현재 사용 중인 모든 장소 목록 반환
-        locations = db.session.query(Student.pickup_location).filter(
+        # Location 테이블과 사용 중인 장소를 모두 포함
+        location_set = set()
+        
+        # 1. Location 테이블의 모든 활성 장소
+        db_locations = Location.query.filter_by(is_active=True).all()
+        for loc in db_locations:
+            location_set.add(loc.name)
+        
+        # 2. 현재 사용 중인 장소들 (Student.pickup_location)
+        student_locations = db.session.query(Student.pickup_location).filter(
             Student.pickup_location.isnot(None)
         ).distinct().all()
+        for loc in student_locations:
+            if loc[0]:
+                location_set.add(loc[0])
         
-        location_list = [loc[0] for loc in locations if loc[0]]
+        # 3. 스케줄에서 사용 중인 장소들
+        schedule_locations = db.session.query(Schedule.location).filter(
+            Schedule.location.isnot(None)
+        ).distinct().all()
+        for loc in schedule_locations:
+            if loc[0]:
+                location_set.add(loc[0])
+        
+        location_list = sorted(list(location_set))
         return jsonify({'success': True, 'locations': location_list})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
@@ -1735,55 +1754,7 @@ except Exception as e:
 if __name__ == '__main__':
     app.run(debug=True)
 
-# ⚠️ 임시 엔드포인트 - 사용 후 즉시 삭제 필요!
-@app.route('/setup-dojo')
-def setup_dojo():
-    """⚠️ 일회용 - 도장 장소 생성 후 이 엔드포인트 삭제 필요!"""
-    try:
-        # "도장" 장소가 없으면 생성
-        existing_dojo = Location.query.filter_by(name='도장').first()
-        if not existing_dojo:
-            dojo_location = Location(
-                name='도장',
-                description='돌봄시스템 및 국기원부 학생용',
-                is_active=True
-            )
-            db.session.add(dojo_location)
-            db.session.commit()
-            
-            return f"""
-            <h1>✅ 도장 장소 생성 완료!</h1>
-            <p>ID: {dojo_location.id}</p>
-            <p>이름: {dojo_location.name}</p>
-            <p>설명: {dojo_location.description}</p>
-            <hr>
-            <h2>⚠️ 중요!</h2>
-            <p><strong>이제 이 엔드포인트를 즉시 삭제해야 합니다!</strong></p>
-            <p>app.py에서 /setup-dojo 관련 코드를 모두 제거하세요.</p>
-            <hr>
-            <p><a href="/admin/schedule-manager">스케줄 관리로 이동</a></p>
-            """
-        else:
-            return f"""
-            <h1>ℹ️ 도장 장소 이미 존재함</h1>
-            <p>ID: {existing_dojo.id}</p>
-            <p>이름: {existing_dojo.name}</p>
-            <p>설명: {existing_dojo.description}</p>
-            <hr>
-            <h2>⚠️ 중요!</h2>
-            <p><strong>이제 이 엔드포인트를 즉시 삭제해야 합니다!</strong></p>
-            <p>app.py에서 /setup-dojo 관련 코드를 모두 제거하세요.</p>
-            <hr>
-            <p><a href="/admin/schedule-manager">스케줄 관리로 이동</a></p>
-            """
-            
-    except Exception as e:
-        db.session.rollback()
-        return f"""
-        <h1>❌ 도장 장소 생성 실패</h1>
-        <p>오류: {str(e)}</p>
-        <p><a href="/admin/schedule-manager">돌아가기</a></p>
-        """
+# 임시 엔드포인트 제거 완료
 
 # 위험한 디버그 엔드포인트 제거됨
 
