@@ -1728,6 +1728,21 @@ try:
     with app.app_context():
         db.create_all()
         print("✅ 데이터베이스 테이블 생성 완료!")
+        
+        # "도장" 장소 자동 생성 (돌봄시스템/국기원부용)
+        existing_dojo = Location.query.filter_by(name='도장').first()
+        if not existing_dojo:
+            dojo_location = Location(
+                name='도장',
+                description='돌봄시스템 및 국기원부 학생용',
+                is_active=True
+            )
+            db.session.add(dojo_location)
+            db.session.commit()
+            print("🏛️ '도장' 장소 자동 생성 완료!")
+        else:
+            print("ℹ️ '도장' 장소 이미 존재함")
+            
 except Exception as e:
     print(f"❌ 테이블 생성 중 예외 발생: {e}")
 
