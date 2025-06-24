@@ -1007,12 +1007,15 @@ def add_multiple_students_to_schedule():
             # 특수 시간대용 고유 식별자 생성
             if schedule_type == 'national_training':
                 target_location = f"NATIONAL_{day_of_week}"  # 국기원부: NATIONAL_요일
+                print(f"🔍 [국기원부] target_location 설정: {target_location} (길이: {len(target_location)})")
             elif schedule_type == 'care_system':
                 # 돌봄시스템: 기존 location_careType 유지
                 if target_location and len(target_location) > 90:
                     target_location = target_location[:90]
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
+        
+        print(f"🔍 [디버그] 최종 데이터: type={schedule_type}, location={target_location}, students={len(students)}명")
         
         # 🔥 모든 학생에 대해 먼저 중복 체크 (하나라도 중복이면 전체 취소)
         duplicates = []
@@ -1093,6 +1096,8 @@ def add_multiple_students_to_schedule():
         
         # 💾 모든 변경사항을 한 번에 커밋
         db.session.commit()
+        
+        print(f"✅ [성공] {len(added_students)}명의 학생이 {target_location}에 추가됨")
         
         return jsonify({
             'success': True,
