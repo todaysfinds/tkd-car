@@ -202,11 +202,11 @@ class Location(db.Model):
 # 라우트
 @app.route('/')
 def index():
-    return redirect(url_for('today'))
+    return redirect(url_for('schedule'))
 
 @app.route('/today')
 def today():
-    # 새로운 차량 운행 페이지로 리다이렉트
+    # 기존 today 경로는 schedule로 리다이렉트
     return redirect(url_for('schedule'))
 
 

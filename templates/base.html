@@ -98,14 +98,14 @@
                     {% block page_title %}태권도장 차량 운행{% endblock %}
                 </h1>
                 <div class="flex space-x-3">
-                    {% if request.endpoint != 'today' %}
-                    <a href="{{ url_for('today') }}" class="text-blue-600 text-sm font-medium">
-                        오늘 운행
+                    {% if request.endpoint != 'schedule' %}
+                    <a href="{{ url_for('schedule') }}" class="text-blue-600 text-sm font-medium">
+                        차량 운행
                     </a>
                     {% endif %}
-                    {% if request.endpoint != 'admin_schedule_manager' %}
-                    <a href="{{ url_for('admin_schedule_manager') }}" class="text-blue-600 text-sm font-medium">
-                        관리
+                    {% if request.endpoint != 'schedule' %}
+                    <a href="{{ url_for('schedule') }}" class="text-blue-600 text-sm font-medium">
+                        차량 운행
                     </a>
                     {% endif %}
                     {% if request.endpoint != 'parent_absence' %}
