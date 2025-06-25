@@ -206,72 +206,10 @@ def index():
 
 @app.route('/today')
 def today():
-    today_date = date.today()
-    day_of_week = today_date.weekday()
-    
-    # 오늘 픽업 스케줄이 있는 학생들 조회 (1부~5부만, 돌봄시스템/국기원부 제외)
-    students_with_schedule = db.session.query(Student, Schedule).join(Schedule).filter(
-        Schedule.day_of_week == day_of_week,
-        Schedule.schedule_type == 'pickup',
-        Student.session_part.between(1, 5)  # 1부~5부만 표시
-    ).order_by(Schedule.time, Schedule.location, Student.estimated_pickup_time).all()
-    
-    # 시간 순서대로 그룹화 (승차/하차 구분)
-    time_groups = {}
-    
-    for student, schedule in students_with_schedule:
-        # 시간 키 생성 (24시간제 → 12시간제 변환)
-        pickup_hour = schedule.time.hour
-        pickup_minute = schedule.time.minute
-        
-        # 12시간제로 변환 (PM 제거)
-        if pickup_hour == 0:
-            time_display = f"12:{pickup_minute:02d}"
-        elif pickup_hour < 12:
-            time_display = f"{pickup_hour}:{pickup_minute:02d}"
-        elif pickup_hour == 12:
-            time_display = f"12:{pickup_minute:02d}"
-        else:
-            time_display = f"{pickup_hour-12}:{pickup_minute:02d}"
-        
-        # 부 정보 추가
-        part_names = {1: '1부', 2: '2부', 3: '3부', 4: '4부', 5: '5부'}
-        part_name = part_names.get(student.session_part, f'{student.session_part}부')
-        
-        time_key = f"{time_display} {part_name} 승차"
-        
-        if time_key not in time_groups:
-            time_groups[time_key] = {}
-        
-        # 장소별로 그룹화
-        location_key = schedule.location or student.pickup_location or '미정'
-        if location_key not in time_groups[time_key]:
-            time_groups[time_key][location_key] = []
-        
-        # 오늘 출석 정보 조회
-        attendance = TkdAttendance.query.filter_by(
-            student_id=student.id,
-            date=today_date
-        ).first()
-        
-        # 요청 확인 (승인된 것과 대기 중인 것 모두)
-        active_request = Request.query.filter_by(
-            student_id=student.id
-        ).filter(
-            Request.start_date <= today_date,
-            db.or_(Request.end_date.is_(None), Request.end_date >= today_date)
-        ).filter(
-            Request.status.in_(['approved', 'pending'])
-        ).first()
-        
-        time_groups[time_key][location_key].append({
-            'student': student,
-            'schedule': schedule,
-            'attendance': attendance,
-            'request': active_request
-        })
-    
-    return render_template('today.html', time_groups=time_groups, today=today_date)
+    # 새로운 차량 운행 페이지로 리다이렉트
+    return redirect(url_for('schedule'))
+
+
 
 @app.route('/parent/absence')
 def parent_absence():
