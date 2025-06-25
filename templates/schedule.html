@@ -91,10 +91,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'pickup')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -128,10 +134,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'dropoff')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -173,10 +185,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'pickup')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -209,10 +227,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'dropoff')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -284,10 +308,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'pickup')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -320,10 +350,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'dropoff')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 3, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -449,10 +485,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'pickup')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -485,10 +527,16 @@
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                                <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'dropoff')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
+                                                <div class="flex items-center gap-1">
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 5, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
@@ -1739,8 +1787,28 @@ function deleteLocation() {
     });
 }
 
+// 페이지 로드 후 모든 학생 버튼에 클릭 이벤트 추가
+document.addEventListener('DOMContentLoaded', function() {
+    // 모든 학생 버튼에 클릭 이벤트 추가
+    addStudentClickEvents();
+});
+
+function addStudentClickEvents() {
+    const studentButtons = document.querySelectorAll('button[data-student-id]');
+    console.log('🎯 학생 버튼 찾기:', studentButtons.length, '개');
+    
+    studentButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const studentId = this.getAttribute('data-student-id');
+            console.log('🎯 학생 버튼 클릭됨:', studentId);
+            toggleStudentAttendance(studentId);
+        });
+    });
+}
+
 // 학생 출석 체크 토글
 function toggleStudentAttendance(studentId) {
+    console.log('🎯 toggleStudentAttendance 호출됨:', studentId);
     // 현재 학생 버튼 찾기
     const studentButton = document.querySelector(`button[data-student-id="${studentId}"]`);
     if (!studentButton) return;
