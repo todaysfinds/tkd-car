@@ -1877,28 +1877,6 @@ def initialize_database():
             db.create_all()
             print("✅ 데이터베이스 테이블 생성 완료")
             
-            # 🚨 스키마 호환성 문제 자동 해결
-            try:
-                with db.engine.connect() as conn:
-                    # 🔥 Schedule 테이블의 schedule_type 컬럼을 VARCHAR(30)으로 확장 (국기원부/돌봄시스템 지원)
-                    try:
-                        conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN schedule_type TYPE VARCHAR(30);"))
-                        print("✅ Schedule.schedule_type 컬럼 VARCHAR(30)으로 확장 완료")
-                    except Exception as e1:
-                        print(f"⚠️ schedule_type 업데이트 스킵: {e1}")
-                    
-                                        # Schedule 테이블의 location 컬럼을 VARCHAR(100)으로 확장
-                    try:
-                        conn.execute(db.text("ALTER TABLE schedule ALTER COLUMN location TYPE VARCHAR(100);"))
-                        print("✅ Schedule.location 컬럼 VARCHAR(100)으로 확장 완료")
-                    except Exception as e2:
-                        print(f"⚠️ location 업데이트 스킵: {e2}")
-                    
-                    conn.commit()
-                    print("🎯 데이터베이스 스키마 업데이트 완료!")
-            except Exception as schema_error:
-                print(f"⚠️ 전체 스키마 업데이트 실패: {schema_error}")
-            
             # 빈 데이터베이스 확인 (샘플 데이터 자동 생성 제거)
             student_count = Student.query.count()
             print(f"📊 현재 학생 수: {student_count}명")
@@ -1923,7 +1901,9 @@ except Exception as e:
 
 # 애플리케이션 실행
 if __name__ == '__main__':
-    app.run(debug=True)
+    import os
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
 
 # 임시 엔드포인트 제거 완료
 
