@@ -641,6 +641,119 @@ let currentDayIndex = 0; // 월요일부터 시작 (0=월요일)
 let selectedStudents = [];
 let currentModalConfig = null;
 
+// 장소 설정 관련 변수
+let currentLocationSettings = null;
+
+// 장소 설정 모달 열기
+function showLocationSettings(dayNum, locationName, locationType) {
+    currentLocationSettings = {
+        dayNum: dayNum,
+        locationName: locationName,
+        locationType: locationType,
+        originalLocation: locationName
+    };
+    
+    document.getElementById('locationSettingsTitle').textContent = `"${locationName}" 장소 설정`;
+    document.getElementById('locationNameInput').value = locationName;
+    document.getElementById('locationSettingsModal').classList.remove('hidden');
+    
+    // 입력 필드에 포커스
+    document.getElementById('locationNameInput').focus();
+    document.getElementById('locationNameInput').select();
+}
+
+// 장소 설정 모달 닫기
+function closeLocationSettings() {
+    document.getElementById('locationSettingsModal').classList.add('hidden');
+    currentLocationSettings = null;
+}
+
+// 장소 설정 저장
+function saveLocationSettings() {
+    if (!currentLocationSettings) return;
+    
+    const newLocationName = document.getElementById('locationNameInput').value.trim();
+    
+    if (!newLocationName) {
+        alert('장소명을 입력해주세요.');
+        return;
+    }
+    
+    if (newLocationName === currentLocationSettings.originalLocation) {
+        // 변경사항 없음
+        closeLocationSettings();
+        return;
+    }
+    
+    // 스케줄에서 장소명 변경 API 호출
+    fetch('/api/update_location_in_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            day_of_week: currentLocationSettings.dayNum,
+            old_location: currentLocationSettings.originalLocation,
+            new_location: newLocationName,
+            location_type: currentLocationSettings.locationType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // DOM에서 장소명 업데이트
+            updateLocationNameInDOM(currentLocationSettings.dayNum, currentLocationSettings.originalLocation, newLocationName, currentLocationSettings.locationType);
+            closeLocationSettings();
+            alert(`장소명이 "${newLocationName}"으로 변경되었습니다.`);
+        } else {
+            alert('장소명 변경 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 장소명 변경 에러:', error);
+        alert('장소명 변경 중 오류가 발생했습니다.');
+    });
+}
+
+// 장소 삭제
+function deleteLocation() {
+    if (!currentLocationSettings) return;
+    
+    const locationName = currentLocationSettings.originalLocation;
+    
+    if (!confirm(`"${locationName}" 장소를 삭제하시겠습니까?\n이 장소의 모든 학생들도 함께 제거됩니다.`)) {
+        return;
+    }
+    
+    // 장소 삭제 API 호출
+    fetch('/api/delete_location_from_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            day_of_week: currentLocationSettings.dayNum,
+            location: locationName,
+            location_type: currentLocationSettings.locationType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // DOM에서 장소 제거
+            removeLocationFromDOM(currentLocationSettings.dayNum, locationName, currentLocationSettings.locationType);
+            closeLocationSettings();
+            alert(`"${locationName}" 장소가 삭제되었습니다.`);
+        } else {
+            alert('장소 삭제 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 장소 삭제 에러:', error);
+        alert('장소 삭제 중 오류가 발생했습니다.');
+    });
+}
+
 // 페이지 단위 요일 전환 (애니메이션 없음)
 function showDayPage(dayNum) {
     console.log('📅 요일 전환:', dayNum);
@@ -1637,6 +1750,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 🚀 페이지 로드 시 애니메이션 없이 바로 해당 요일만 표시
     initializeDayPageDirectly(currentDayIndex);
+    
+    // 모든 학생 버튼에 클릭 이벤트 추가
+    addStudentClickEvents();
 });
 
 // 페이지 로드 시 애니메이션 없이 직접 초기화
@@ -1670,128 +1786,6 @@ function initializeDayPageDirectly(dayNum) {
     
     console.log('✅ 직접 초기화 완료 - 이동 없음');
 }
-
-// 장소 설정 관련 변수
-let currentLocationSettings = null;
-
-// 장소 설정 모달 열기
-function showLocationSettings(dayNum, locationName, locationType) {
-    // 현재 설정 저장
-    currentLocationSettings = {
-        dayNum: dayNum,
-        originalLocation: locationName,
-        locationType: locationType // 'care_system' or 'national_training'
-    };
-    
-    // 모달 제목과 입력값 설정
-    document.getElementById('locationSettingsTitle').textContent = `"${locationName}" 장소 설정`;
-    document.getElementById('locationNameInput').value = locationName;
-    
-    // 모달 표시
-    document.getElementById('locationSettingsModal').classList.remove('hidden');
-    
-    // 입력 필드에 포커스
-    document.getElementById('locationNameInput').focus();
-    document.getElementById('locationNameInput').select();
-}
-
-// 장소 설정 모달 닫기
-function closeLocationSettings() {
-    document.getElementById('locationSettingsModal').classList.add('hidden');
-    currentLocationSettings = null;
-}
-
-// 장소 설정 저장
-function saveLocationSettings() {
-    if (!currentLocationSettings) return;
-    
-    const newLocationName = document.getElementById('locationNameInput').value.trim();
-    
-    if (!newLocationName) {
-        alert('장소명을 입력해주세요.');
-        return;
-    }
-    
-    if (newLocationName === currentLocationSettings.originalLocation) {
-        // 변경사항 없음
-        closeLocationSettings();
-        return;
-    }
-    
-    // 장소명 변경 API 호출
-    fetch('/api/update_location_in_schedule', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            day_of_week: currentLocationSettings.dayNum,
-            old_location: currentLocationSettings.originalLocation,
-            new_location: newLocationName,
-            location_type: currentLocationSettings.locationType
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // DOM에서 장소명 업데이트
-            updateLocationNameInDOM(currentLocationSettings.dayNum, currentLocationSettings.originalLocation, newLocationName, currentLocationSettings.locationType);
-            closeLocationSettings();
-            alert(`장소명이 "${newLocationName}"으로 변경되었습니다.`);
-        } else {
-            alert('장소명 변경 실패: ' + (data.error || data.message));
-        }
-    })
-    .catch(error => {
-        console.error('❌ 장소명 변경 에러:', error);
-        alert('장소명 변경 중 오류가 발생했습니다.');
-    });
-}
-
-// 장소 삭제
-function deleteLocation() {
-    if (!currentLocationSettings) return;
-    
-    const locationName = currentLocationSettings.originalLocation;
-    
-    if (!confirm(`"${locationName}" 장소를 삭제하시겠습니까?\n이 장소의 모든 학생들도 함께 제거됩니다.`)) {
-        return;
-    }
-    
-    // 장소 삭제 API 호출
-    fetch('/api/delete_location_from_schedule', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            day_of_week: currentLocationSettings.dayNum,
-            location: locationName,
-            location_type: currentLocationSettings.locationType
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // DOM에서 장소 제거
-            removeLocationFromDOM(currentLocationSettings.dayNum, locationName, currentLocationSettings.locationType);
-            closeLocationSettings();
-            alert(`"${locationName}" 장소가 삭제되었습니다.`);
-        } else {
-            alert('장소 삭제 실패: ' + (data.error || data.message));
-        }
-    })
-    .catch(error => {
-        console.error('❌ 장소 삭제 에러:', error);
-        alert('장소 삭제 중 오류가 발생했습니다.');
-    });
-}
-
-// 페이지 로드 후 모든 학생 버튼에 클릭 이벤트 추가
-document.addEventListener('DOMContentLoaded', function() {
-    // 모든 학생 버튼에 클릭 이벤트 추가
-    addStudentClickEvents();
-});
 
 function addStudentClickEvents() {
     const studentButtons = document.querySelectorAll('button[data-student-id]');

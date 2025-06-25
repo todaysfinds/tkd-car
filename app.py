@@ -1915,11 +1915,11 @@ def initialize_database():
 # 앱 시작시 테이블만 생성 (깔끔한 버전)
 print("🚀 애플리케이션 시작 - 데이터베이스 테이블 생성...")
 try:
-    with app.app_context():
+try:
         db.create_all()
         print("✅ 데이터베이스 테이블 생성 완료!")
 except Exception as e:
-    print(f"❌ 테이블 생성 중 예외 발생: {e}")
+except Exception as e:
 
 # 애플리케이션 실행
 if __name__ == '__main__':
