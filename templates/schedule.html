@@ -613,7 +613,8 @@
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">장소명</label>
                 <input type="text" id="locationNameInput" 
-                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                       onkeydown="handleLocationSettingsKeydown(event)">
             </div>
         </div>
         
@@ -646,15 +647,29 @@ let currentLocationSettings = null;
 
 // 장소 설정 모달 열기
 function showLocationSettings(dayNum, locationName, locationType) {
+    console.log('⚙️ 장소 설정 모달 열기:', {dayNum, locationName, locationType});
+    
+    // 돌봄시스템/국기원부의 경우 접미사 제거
+    let cleanLocationName = locationName;
+    if (locationType === 'care_system') {
+        // _care1, _care2, _care3 제거
+        cleanLocationName = locationName.replace(/_care[123]$/, '');
+    } else if (locationType === 'national_training') {
+        // _national 제거
+        cleanLocationName = locationName.replace(/_national$/, '');
+    }
+    
+    console.log(`📝 접미사 제거: "${locationName}" → "${cleanLocationName}"`);
+    
     currentLocationSettings = {
         dayNum: dayNum,
-        locationName: locationName,
+        locationName: cleanLocationName,
         locationType: locationType,
-        originalLocation: locationName
+        originalLocation: cleanLocationName
     };
     
-    document.getElementById('locationSettingsTitle').textContent = `"${locationName}" 장소 설정`;
-    document.getElementById('locationNameInput').value = locationName;
+    document.getElementById('locationSettingsTitle').textContent = `"${cleanLocationName}" 장소 설정`;
+    document.getElementById('locationNameInput').value = cleanLocationName;
     document.getElementById('locationSettingsModal').classList.remove('hidden');
     
     // 입력 필드에 포커스
@@ -668,9 +683,23 @@ function closeLocationSettings() {
     currentLocationSettings = null;
 }
 
+// 장소 설정 모달 키보드 이벤트
+function handleLocationSettingsKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        saveLocationSettings();
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        closeLocationSettings();
+    }
+}
+
 // 장소 설정 저장
 function saveLocationSettings() {
-    if (!currentLocationSettings) return;
+    if (!currentLocationSettings) {
+        console.error('❌ currentLocationSettings가 없습니다.');
+        return;
+    }
     
     const newLocationName = document.getElementById('locationNameInput').value.trim();
     
@@ -680,10 +709,16 @@ function saveLocationSettings() {
     }
     
     if (newLocationName === currentLocationSettings.originalLocation) {
-        // 변경사항 없음
+        console.log('📝 변경사항 없음');
         closeLocationSettings();
         return;
     }
+    
+    console.log('💾 장소명 저장 시작:', {
+        original: currentLocationSettings.originalLocation,
+        new: newLocationName,
+        type: currentLocationSettings.locationType
+    });
     
     // 1부~5부 승차/하차 vs 돌봄시스템/국기원부 구분
     const isPickupDropoff = currentLocationSettings.locationType === 'pickup' || currentLocationSettings.locationType === 'dropoff';
@@ -699,6 +734,8 @@ function saveLocationSettings() {
         location_type: currentLocationSettings.locationType
     };
     
+    console.log('📡 API 요청:', {apiUrl, requestBody});
+    
     // 적절한 API 호출
     fetch(apiUrl, {
         method: 'POST',
@@ -709,9 +746,15 @@ function saveLocationSettings() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('📥 API 응답:', data);
         if (data.success) {
             // DOM에서 장소명 업데이트
-            updateLocationNameInDOM(currentLocationSettings.dayNum, currentLocationSettings.originalLocation, newLocationName, currentLocationSettings.locationType);
+            updateLocationNameInDOM(
+                currentLocationSettings.dayNum, 
+                currentLocationSettings.originalLocation, 
+                newLocationName, 
+                currentLocationSettings.locationType
+            );
             closeLocationSettings();
             alert(`장소명이 "${newLocationName}"으로 변경되었습니다.`);
         } else {
@@ -726,13 +769,21 @@ function saveLocationSettings() {
 
 // 장소 삭제
 function deleteLocation() {
-    if (!currentLocationSettings) return;
+    if (!currentLocationSettings) {
+        console.error('❌ currentLocationSettings가 없습니다.');
+        return;
+    }
     
     const locationName = currentLocationSettings.originalLocation;
     
     if (!confirm(`"${locationName}" 장소를 삭제하시겠습니까?\n이 장소의 모든 학생들도 함께 제거됩니다.`)) {
         return;
     }
+    
+    console.log('🗑️ 장소 삭제 시작:', {
+        location: locationName,
+        type: currentLocationSettings.locationType
+    });
     
     // 1부~5부 승차/하차 vs 돌봄시스템/국기원부 구분
     const isPickupDropoff = currentLocationSettings.locationType === 'pickup' || currentLocationSettings.locationType === 'dropoff';
@@ -746,6 +797,8 @@ function deleteLocation() {
         location_type: currentLocationSettings.locationType
     };
     
+    console.log('📡 삭제 API 요청:', {apiUrl, requestBody});
+    
     // 적절한 API 호출
     fetch(apiUrl, {
         method: 'POST',
@@ -756,9 +809,14 @@ function deleteLocation() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('📥 삭제 API 응답:', data);
         if (data.success) {
             // DOM에서 장소 제거
-            removeLocationFromDOM(currentLocationSettings.dayNum, locationName, currentLocationSettings.locationType);
+            removeLocationFromDOM(
+                currentLocationSettings.dayNum, 
+                locationName, 
+                currentLocationSettings.locationType
+            );
             closeLocationSettings();
             alert(`"${locationName}" 장소가 삭제되었습니다.`);
         } else {
@@ -1879,68 +1937,125 @@ function toggleStudentAttendance(studentId) {
     });
 }
 
-// DOM에서 장소명 업데이트
+// DOM에서 장소명 업데이트 (모든 타입 지원)
 function updateLocationNameInDOM(dayNum, oldLocation, newLocation, locationType) {
+    console.log('🔄 DOM 장소명 업데이트:', {dayNum, oldLocation, newLocation, locationType});
+    
     const dayPage = document.getElementById(`day-page-${dayNum}`);
-    if (!dayPage) return;
+    if (!dayPage) {
+        console.error('❌ 요일 페이지를 찾을 수 없음:', dayNum);
+        return;
+    }
     
-    const borderClass = locationType === 'care_system' ? '.border-orange-200' : '.border-purple-200';
-    const containers = dayPage.querySelectorAll(borderClass);
+    // 모든 장소 스팬들을 찾아서 업데이트
+    const allLocationSpans = dayPage.querySelectorAll('.text-gray-700');
+    let updatedCount = 0;
     
-    containers.forEach(container => {
-        const locationSpans = container.querySelectorAll('.text-gray-700');
-        locationSpans.forEach(span => {
-            if (span.textContent.includes(oldLocation)) {
-                span.textContent = `📍 ${newLocation}`;
-            }
-        });
-        
-        // 버튼의 onclick 속성도 업데이트
-        const buttons = container.querySelectorAll('button[onclick*="' + oldLocation + '"]');
-        buttons.forEach(button => {
-            const onclick = button.getAttribute('onclick');
-            if (onclick) {
-                const newOnclick = onclick.replace(new RegExp(oldLocation, 'g'), newLocation);
-                button.setAttribute('onclick', newOnclick);
-            }
-        });
+    allLocationSpans.forEach(span => {
+        if (span.textContent.includes(`📍 ${oldLocation}`)) {
+            console.log('✅ 장소 스팬 찾음:', span.textContent);
+            span.textContent = `📍 ${newLocation}`;
+            updatedCount++;
+        }
     });
+    
+    // 모든 버튼의 onclick 속성 업데이트
+    const allButtons = dayPage.querySelectorAll('button[onclick]');
+    let buttonUpdatedCount = 0;
+    
+    allButtons.forEach(button => {
+        const onclick = button.getAttribute('onclick');
+        if (onclick && onclick.includes(`'${oldLocation}'`)) {
+            console.log('🔘 버튼 onclick 업데이트:', onclick);
+            const newOnclick = onclick.replace(new RegExp(`'${oldLocation}'`, 'g'), `'${newLocation}'`);
+            button.setAttribute('onclick', newOnclick);
+            buttonUpdatedCount++;
+        }
+    });
+    
+    console.log(`✅ DOM 업데이트 완료: 스팬 ${updatedCount}개, 버튼 ${buttonUpdatedCount}개`);
 }
 
-// DOM에서 장소 제거
+// DOM에서 장소 제거 (모든 타입 지원)
 function removeLocationFromDOM(dayNum, locationName, locationType) {
+    console.log('🗑️ DOM 장소 제거:', {dayNum, locationName, locationType});
+    
     const dayPage = document.getElementById(`day-page-${dayNum}`);
-    if (!dayPage) return;
+    if (!dayPage) {
+        console.error('❌ 요일 페이지를 찾을 수 없음:', dayNum);
+        return;
+    }
     
-    const borderClass = locationType === 'care_system' ? '.border-orange-200' : '.border-purple-200';
-    const containers = dayPage.querySelectorAll(borderClass);
+    // 모든 장소 컨테이너들을 찾아서 제거
+    const allLocationContainers = dayPage.querySelectorAll('.border.border-gray-200.rounded');
+    let removedCount = 0;
     
-    containers.forEach(container => {
-        const spaceContainer = container.querySelector('.space-y-2');
-        if (spaceContainer) {
-            const locationDivs = spaceContainer.querySelectorAll('.border.border-gray-200.rounded');
-            locationDivs.forEach(div => {
-                const locationSpan = div.querySelector('.text-gray-700');
-                if (locationSpan && locationSpan.textContent.includes(locationName)) {
-                    // 애니메이션으로 제거
-                    div.style.transition = 'all 0.3s ease';
-                    div.style.opacity = '0';
-                    div.style.transform = 'scale(0.8)';
-                    
-                    setTimeout(() => {
-                        div.remove();
-                        
-                        // 장소가 모두 없어지면 + 새 장소 추가 버튼 다시 표시
-                        const remainingLocations = spaceContainer.querySelectorAll('.border.border-gray-200.rounded');
-                        if (remainingLocations.length === 0) {
-                            const addButton = spaceContainer.querySelector('button[onclick*="addNewLocation"]');
-                            if (addButton) {
-                                addButton.style.display = 'block';
+    allLocationContainers.forEach(container => {
+        const locationSpan = container.querySelector('.text-gray-700');
+        if (locationSpan && locationSpan.textContent.includes(`📍 ${locationName}`)) {
+            console.log('✅ 삭제할 장소 컨테이너 찾음:', locationSpan.textContent);
+            
+            // 애니메이션으로 제거
+            container.style.transition = 'all 0.3s ease';
+            container.style.opacity = '0';
+            container.style.transform = 'scale(0.8)';
+            
+            setTimeout(() => {
+                const parentContainer = container.parentElement;
+                container.remove();
+                removedCount++;
+                
+                console.log(`🗑️ 장소 컨테이너 제거 완료: ${locationName}`);
+                
+                // 해당 섹션에 장소가 모두 없어지면 + 새 장소 추가 버튼 다시 표시
+                if (parentContainer) {
+                    const remainingLocations = parentContainer.querySelectorAll('.border.border-gray-200.rounded');
+                    if (remainingLocations.length === 0) {
+                        const addButtons = parentContainer.querySelectorAll('button[onclick*="addNewLocation"]');
+                        addButtons.forEach(btn => {
+                            if (btn.style.display === 'none') {
+                                btn.style.display = 'block';
+                                console.log('🔘 + 새 장소 추가 버튼 다시 표시');
                             }
-                        }
-                    }, 300);
+                        });
+                    }
                 }
-            });
+            }, 300);
+        }
+    });
+    
+    // 즉시 피드백이 없으면 새로고침으로 대체
+    if (removedCount === 0) {
+        console.log('⚠️ DOM에서 장소를 찾을 수 없어 새로고침 실행');
+        setTimeout(() => {
+            window.location.reload();
+        }, 1000);
+    }
+}
+
+// 디버깅용 함수: 현재 페이지의 모든 장소 정보 출력
+function debugAllLocations() {
+    console.log('🔍 현재 요일의 모든 장소 정보:');
+    const dayPage = document.getElementById(`day-page-${currentDayIndex}`);
+    if (!dayPage) {
+        console.log('❌ 현재 요일 페이지 없음');
+        return;
+    }
+    
+    const allLocationSpans = dayPage.querySelectorAll('.text-gray-700');
+    console.log(`📍 총 ${allLocationSpans.length}개 장소 스팬 발견:`);
+    
+    allLocationSpans.forEach((span, index) => {
+        console.log(`${index + 1}. "${span.textContent}"`);
+    });
+    
+    const allButtons = dayPage.querySelectorAll('button[onclick]');
+    console.log(`🔘 총 ${allButtons.length}개 onclick 버튼 발견:`);
+    
+    allButtons.forEach((button, index) => {
+        const onclick = button.getAttribute('onclick');
+        if (onclick && onclick.includes('showLocationSettings')) {
+            console.log(`${index + 1}. 설정 버튼: ${onclick}`);
         }
     });
 }

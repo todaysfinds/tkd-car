@@ -1143,7 +1143,7 @@ def remove_student_from_schedule():
 
 @app.route('/api/update_location_in_schedule', methods=['POST'])
 def update_location_in_schedule():
-    """스케줄에서 장소명 변경"""
+    """스케줄에서 장소명 변경 (돌봄시스템/국기원부)"""
     try:
         data = request.get_json()
         day_of_week = data.get('day_of_week')
@@ -1156,19 +1156,32 @@ def update_location_in_schedule():
         # 스케줄 타입 결정
         schedule_type = 'care_system' if location_type == 'care_system' else 'national_training'
         
-        # 해당 장소의 모든 스케줄 찾기
-        schedules = Schedule.query.filter_by(
-            day_of_week=day_of_week,
-            schedule_type=schedule_type
-        ).filter(Schedule.location.like(f'%{old_location}%')).all()
+        # 접미사 패턴 정의
+        if location_type == 'care_system':
+            # 돌봄시스템: _care1, _care2, _care3
+            suffixes = ['_care1', '_care2', '_care3']
+        else:
+            # 국기원부: _national
+            suffixes = ['_national']
         
         updated_count = 0
-        for schedule in schedules:
-            # location에서 old_location 부분을 new_location으로 교체
-            if old_location in schedule.location:
-                new_full_location = schedule.location.replace(old_location, new_location)
+        
+        # 각 접미사별로 스케줄 찾기 및 업데이트
+        for suffix in suffixes:
+            old_full_location = f"{old_location}{suffix}"
+            new_full_location = f"{new_location}{suffix}"
+            
+            # 정확히 일치하는 location 찾기
+            schedules = Schedule.query.filter_by(
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=old_full_location
+            ).all()
+            
+            for schedule in schedules:
                 schedule.location = new_full_location
                 updated_count += 1
+                print(f"  ✅ 변경: {old_full_location} → {new_full_location}")
         
         db.session.commit()
         
@@ -1187,7 +1200,7 @@ def update_location_in_schedule():
 
 @app.route('/api/delete_location_from_schedule', methods=['POST'])
 def delete_location_from_schedule():
-    """스케줄에서 장소 삭제 (해당 장소의 모든 학생 제거)"""
+    """스케줄에서 장소 삭제 (돌봄시스템/국기원부)"""
     try:
         data = request.get_json()
         day_of_week = data.get('day_of_week')
@@ -1199,18 +1212,31 @@ def delete_location_from_schedule():
         # 스케줄 타입 결정
         schedule_type = 'care_system' if location_type == 'care_system' else 'national_training'
         
-        # 해당 장소의 모든 스케줄 찾기
-        schedules = Schedule.query.filter_by(
-            day_of_week=day_of_week,
-            schedule_type=schedule_type
-        ).filter(Schedule.location.like(f'%{location}%')).all()
+        # 접미사 패턴 정의
+        if location_type == 'care_system':
+            # 돌봄시스템: _care1, _care2, _care3
+            suffixes = ['_care1', '_care2', '_care3']
+        else:
+            # 국기원부: _national
+            suffixes = ['_national']
         
         deleted_count = 0
         student_names = []
         
-        for schedule in schedules:
-            if location in schedule.location:
+        # 각 접미사별로 스케줄 찾기 및 삭제
+        for suffix in suffixes:
+            full_location = f"{location}{suffix}"
+            
+            # 정확히 일치하는 location 찾기
+            schedules = Schedule.query.filter_by(
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=full_location
+            ).all()
+            
+            for schedule in schedules:
                 student_names.append(schedule.student.name)
+                print(f"  🗑️ 삭제: {full_location} - {schedule.student.name}")
                 db.session.delete(schedule)
                 deleted_count += 1
         
