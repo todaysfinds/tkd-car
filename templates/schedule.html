@@ -99,7 +99,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
@@ -132,7 +136,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
@@ -173,7 +181,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
@@ -205,7 +217,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
@@ -238,7 +254,11 @@
                                 <div class="flex flex-wrap gap-1">
                                     {% for student_data in students %}
                                     <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                data-student-id="{{ student_data.student.id }}">
+                                            {{ student_data.student.name }}
+                                        </button>
                                         <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care2')" 
                                                 class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                     </div>
@@ -272,7 +292,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
@@ -304,7 +328,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
@@ -429,7 +457,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
@@ -461,7 +493,11 @@
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
                                                     <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
