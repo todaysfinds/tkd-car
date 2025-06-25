@@ -329,17 +329,23 @@
                                 <div class="border border-gray-200 rounded p-1 bg-white">
                                     <div class="flex items-center justify-between mb-1">
                                         <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                        <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care3')" 
-                                                class="text-xs text-blue-600 hover:text-blue-800">
-                                            + 학생
-                                        </button>
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care3')" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
+                                            </button>
+                                            <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'care_system')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="flex flex-wrap gap-1">
                                         {% for student_data in students %}
-                                        <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[50px] max-w-[100px]">
-                                            <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
+                                            <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
                                             <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care3')" 
-                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
                                     </div>
@@ -365,17 +371,23 @@
                                 <div class="border border-gray-200 rounded p-1 bg-white">
                                     <div class="flex items-center justify-between mb-1">
                                         <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
-                                        <button onclick="addStudentToNationalTraining({{ day_num }}, '{{ location }}')" 
-                                                class="text-xs text-blue-600 hover:text-blue-800">
-                                            + 학생
-                                        </button>
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="addStudentToNationalTraining({{ day_num }}, '{{ location }}')" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
+                                            </button>
+                                            <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'national_training')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="flex flex-wrap gap-1">
                                         {% for student_data in students %}
-                                        <div class="flex items-center justify-between text-xs bg-purple-50 px-1 py-0.5 rounded border border-purple-200 min-w-[50px] max-w-[100px]">
-                                            <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <div class="flex items-center justify-between text-xs bg-purple-50 px-1 py-0.5 rounded border border-purple-200 min-w-[45px] max-w-[85px]">
+                                            <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
                                             <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, '{{ location }}')" 
-                                                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
                                     </div>
@@ -500,6 +512,38 @@
         <div class="flex justify-end space-x-2 mt-6">
             <button type="button" onclick="closeModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">취소</button>
             <button type="button" id="addStudentBtn" onclick="confirmAddStudents()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>추가</button>
+        </div>
+    </div>
+</div>
+
+<!-- 장소 설정 모달 -->
+<div id="locationSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold mb-4" id="locationSettingsTitle">장소 설정</h3>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">장소명</label>
+                <input type="text" id="locationNameInput" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+        </div>
+        
+        <div class="flex justify-between mt-6">
+            <button type="button" onclick="deleteLocation()" 
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                🗑️ 장소 삭제
+            </button>
+            <div class="flex space-x-2">
+                <button type="button" onclick="closeLocationSettings()" 
+                        class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    취소
+                </button>
+                <button type="button" onclick="saveLocationSettings()" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    저장
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1243,10 +1287,10 @@ function createStudentElementHTML(student, dayNum, sessionPart, type, location) 
     }
     
     return `
-        <div class="flex items-center justify-between text-xs ${bgColor} px-1 py-0.5 rounded border ${borderColor} min-w-[50px] max-w-[100px]">
-            <span class="text-gray-800 truncate text-xs">${student.name}</span>
+        <div class="flex items-center justify-between text-xs ${bgColor} px-1 py-0.5 rounded border ${borderColor} min-w-[45px] max-w-[85px]">
+            <span class="text-gray-800 truncate" style="font-size: 11px;">${student.name}</span>
             <button onclick="${removeFunction}" 
-                    class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
         </div>
     `;
 }
@@ -1537,6 +1581,188 @@ function initializeDayPageDirectly(dayNum) {
     window.history.replaceState({}, '', url);
     
     console.log('✅ 직접 초기화 완료 - 이동 없음');
+}
+
+// 장소 설정 관련 변수
+let currentLocationSettings = null;
+
+// 장소 설정 모달 열기
+function showLocationSettings(dayNum, locationName, locationType) {
+    // 현재 설정 저장
+    currentLocationSettings = {
+        dayNum: dayNum,
+        originalLocation: locationName,
+        locationType: locationType // 'care_system' or 'national_training'
+    };
+    
+    // 모달 제목과 입력값 설정
+    document.getElementById('locationSettingsTitle').textContent = `"${locationName}" 장소 설정`;
+    document.getElementById('locationNameInput').value = locationName;
+    
+    // 모달 표시
+    document.getElementById('locationSettingsModal').classList.remove('hidden');
+    
+    // 입력 필드에 포커스
+    document.getElementById('locationNameInput').focus();
+    document.getElementById('locationNameInput').select();
+}
+
+// 장소 설정 모달 닫기
+function closeLocationSettings() {
+    document.getElementById('locationSettingsModal').classList.add('hidden');
+    currentLocationSettings = null;
+}
+
+// 장소 설정 저장
+function saveLocationSettings() {
+    if (!currentLocationSettings) return;
+    
+    const newLocationName = document.getElementById('locationNameInput').value.trim();
+    
+    if (!newLocationName) {
+        alert('장소명을 입력해주세요.');
+        return;
+    }
+    
+    if (newLocationName === currentLocationSettings.originalLocation) {
+        // 변경사항 없음
+        closeLocationSettings();
+        return;
+    }
+    
+    // 장소명 변경 API 호출
+    fetch('/api/update_location_in_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            day_of_week: currentLocationSettings.dayNum,
+            old_location: currentLocationSettings.originalLocation,
+            new_location: newLocationName,
+            location_type: currentLocationSettings.locationType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // DOM에서 장소명 업데이트
+            updateLocationNameInDOM(currentLocationSettings.dayNum, currentLocationSettings.originalLocation, newLocationName, currentLocationSettings.locationType);
+            closeLocationSettings();
+            alert(`장소명이 "${newLocationName}"으로 변경되었습니다.`);
+        } else {
+            alert('장소명 변경 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 장소명 변경 에러:', error);
+        alert('장소명 변경 중 오류가 발생했습니다.');
+    });
+}
+
+// 장소 삭제
+function deleteLocation() {
+    if (!currentLocationSettings) return;
+    
+    const locationName = currentLocationSettings.originalLocation;
+    
+    if (!confirm(`"${locationName}" 장소를 삭제하시겠습니까?\n이 장소의 모든 학생들도 함께 제거됩니다.`)) {
+        return;
+    }
+    
+    // 장소 삭제 API 호출
+    fetch('/api/delete_location_from_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            day_of_week: currentLocationSettings.dayNum,
+            location: locationName,
+            location_type: currentLocationSettings.locationType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // DOM에서 장소 제거
+            removeLocationFromDOM(currentLocationSettings.dayNum, locationName, currentLocationSettings.locationType);
+            closeLocationSettings();
+            alert(`"${locationName}" 장소가 삭제되었습니다.`);
+        } else {
+            alert('장소 삭제 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 장소 삭제 에러:', error);
+        alert('장소 삭제 중 오류가 발생했습니다.');
+    });
+}
+
+// DOM에서 장소명 업데이트
+function updateLocationNameInDOM(dayNum, oldLocation, newLocation, locationType) {
+    const dayPage = document.getElementById(`day-page-${dayNum}`);
+    if (!dayPage) return;
+    
+    const borderClass = locationType === 'care_system' ? '.border-orange-200' : '.border-purple-200';
+    const containers = dayPage.querySelectorAll(borderClass);
+    
+    containers.forEach(container => {
+        const locationSpans = container.querySelectorAll('.text-gray-700');
+        locationSpans.forEach(span => {
+            if (span.textContent.includes(oldLocation)) {
+                span.textContent = `📍 ${newLocation}`;
+            }
+        });
+        
+        // 버튼의 onclick 속성도 업데이트
+        const buttons = container.querySelectorAll('button[onclick*="' + oldLocation + '"]');
+        buttons.forEach(button => {
+            const onclick = button.getAttribute('onclick');
+            if (onclick) {
+                const newOnclick = onclick.replace(new RegExp(oldLocation, 'g'), newLocation);
+                button.setAttribute('onclick', newOnclick);
+            }
+        });
+    });
+}
+
+// DOM에서 장소 제거
+function removeLocationFromDOM(dayNum, locationName, locationType) {
+    const dayPage = document.getElementById(`day-page-${dayNum}`);
+    if (!dayPage) return;
+    
+    const borderClass = locationType === 'care_system' ? '.border-orange-200' : '.border-purple-200';
+    const containers = dayPage.querySelectorAll(borderClass);
+    
+    containers.forEach(container => {
+        const spaceContainer = container.querySelector('.space-y-2');
+        if (spaceContainer) {
+            const locationDivs = spaceContainer.querySelectorAll('.border.border-gray-200.rounded');
+            locationDivs.forEach(div => {
+                const locationSpan = div.querySelector('.text-gray-700');
+                if (locationSpan && locationSpan.textContent.includes(locationName)) {
+                    // 애니메이션으로 제거
+                    div.style.transition = 'all 0.3s ease';
+                    div.style.opacity = '0';
+                    div.style.transform = 'scale(0.8)';
+                    
+                    setTimeout(() => {
+                        div.remove();
+                        
+                        // 장소가 모두 없어지면 + 새 장소 추가 버튼 다시 표시
+                        const remainingLocations = spaceContainer.querySelectorAll('.border.border-gray-200.rounded');
+                        if (remainingLocations.length === 0) {
+                            const addButton = spaceContainer.querySelector('button[onclick*="addNewLocation"]');
+                            if (addButton) {
+                                addButton.style.display = 'block';
+                            }
+                        }
+                    }, 300);
+                }
+            });
+        }
+    });
 }
 </script>
 {% endblock %} 

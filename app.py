@@ -1203,6 +1203,95 @@ def remove_student_from_schedule():
         print(f"❌ 삭제 중 오류: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/update_location_in_schedule', methods=['POST'])
+def update_location_in_schedule():
+    """스케줄에서 장소명 변경"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        old_location = data.get('old_location')
+        new_location = data.get('new_location')
+        location_type = data.get('location_type')
+        
+        print(f"🔄 장소명 변경: {old_location} → {new_location} (day={day_of_week}, type={location_type})")
+        
+        # 스케줄 타입 결정
+        schedule_type = 'care_system' if location_type == 'care_system' else 'national_training'
+        
+        # 해당 장소의 모든 스케줄 찾기
+        schedules = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type=schedule_type
+        ).filter(Schedule.location.like(f'%{old_location}%')).all()
+        
+        updated_count = 0
+        for schedule in schedules:
+            # location에서 old_location 부분을 new_location으로 교체
+            if old_location in schedule.location:
+                new_full_location = schedule.location.replace(old_location, new_location)
+                schedule.location = new_full_location
+                updated_count += 1
+        
+        db.session.commit()
+        
+        print(f"✅ {updated_count}개 스케줄의 장소명 변경 완료")
+        
+        return jsonify({
+            'success': True,
+            'message': f'장소명이 변경되었습니다. ({updated_count}개 스케줄 업데이트)',
+            'updated_count': updated_count
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 장소명 변경 오류: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete_location_from_schedule', methods=['POST'])
+def delete_location_from_schedule():
+    """스케줄에서 장소 삭제 (해당 장소의 모든 학생 제거)"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        location = data.get('location')
+        location_type = data.get('location_type')
+        
+        print(f"🗑️ 장소 삭제: {location} (day={day_of_week}, type={location_type})")
+        
+        # 스케줄 타입 결정
+        schedule_type = 'care_system' if location_type == 'care_system' else 'national_training'
+        
+        # 해당 장소의 모든 스케줄 찾기
+        schedules = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type=schedule_type
+        ).filter(Schedule.location.like(f'%{location}%')).all()
+        
+        deleted_count = 0
+        student_names = []
+        
+        for schedule in schedules:
+            if location in schedule.location:
+                student_names.append(schedule.student.name)
+                db.session.delete(schedule)
+                deleted_count += 1
+        
+        db.session.commit()
+        
+        print(f"✅ {deleted_count}개 스케줄 삭제 완료: {', '.join(student_names)}")
+        
+        return jsonify({
+            'success': True,
+            'message': f'"{location}" 장소가 삭제되었습니다. ({deleted_count}명의 학생 제거)',
+            'deleted_count': deleted_count,
+            'student_names': student_names
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 장소 삭제 오류: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
 # 연락 기능 관련 API (정석 구현)
 @app.route('/api/contact_parent', methods=['POST'])
 def contact_parent():
