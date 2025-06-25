@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block page_title %}차량 스케줄 관리{% endblock %}
+{% block page_title %}차량 운행{% endblock %}
 
 {% block content %}
 <!-- 관리자 네비게이션 -->
 <div class="bg-white border-b border-gray-200 mb-4">
     <div class="flex space-x-1 p-2">
-        <a href="{{ url_for('admin_schedule_manager') }}" 
+        <a href="{{ url_for('schedule') }}" 
            class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
-            스케줄 관리
+            차량 운행
         </a>
         <a href="{{ url_for('admin_students') }}" 
            class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg">
@@ -61,7 +61,11 @@
                                 <div class="flex flex-wrap gap-1">
                                     {% for student_data in students %}
                                     <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                        <span class="text-gray-800 truncate text-xs">{{ student_data.student.name }}</span>
+                                        <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                data-student-id="{{ student_data.student.id }}">
+                                            {{ student_data.student.name }}
+                                        </button>
                                         <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care1')" 
                                                 class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                     </div>
@@ -1696,6 +1700,59 @@ function deleteLocation() {
     .catch(error => {
         console.error('❌ 장소 삭제 에러:', error);
         alert('장소 삭제 중 오류가 발생했습니다.');
+    });
+}
+
+// 학생 출석 체크 토글
+function toggleStudentAttendance(studentId) {
+    // 현재 학생 버튼 찾기
+    const studentButton = document.querySelector(`button[data-student-id="${studentId}"]`);
+    if (!studentButton) return;
+    
+    // 현재 체크 상태 확인
+    const isChecked = studentButton.textContent.includes('✓');
+    
+    // 오늘 날짜 가져오기
+    const today = new Date().toISOString().split('T')[0];
+    
+    // 상태 토글
+    const newStatus = isChecked ? 'pending' : 'boarded';
+    
+    fetch('/api/update_attendance', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            date: today,
+            status: newStatus,
+            type: 'pickup'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 버튼 텍스트 즉시 업데이트 (새로고침 없이)
+            const currentText = studentButton.textContent.trim();
+            if (isChecked) {
+                // 체크 해제: ✓ 제거
+                studentButton.textContent = currentText.replace('✓ ', '');
+                studentButton.classList.remove('text-green-800', 'font-semibold');
+                studentButton.classList.add('text-gray-800');
+            } else {
+                // 체크: ✓ 추가
+                studentButton.textContent = '✓ ' + currentText;
+                studentButton.classList.remove('text-gray-800');
+                studentButton.classList.add('text-green-800', 'font-semibold');
+            }
+        } else {
+            alert('출석 상태 변경에 실패했습니다.');
+        }
+    })
+    .catch(error => {
+        console.error('출석 상태 변경 오류:', error);
+        alert('출석 상태 변경 중 오류가 발생했습니다.');
     });
 }
 

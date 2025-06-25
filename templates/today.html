@@ -121,12 +121,19 @@
                     {% for location, students in locations.items() %}
                     <div class="mb-8 last:mb-0">
                         <div class="flex items-center justify-between mb-4">
-                            <span class="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
-                                {{ location }}
-                                {% if students[0].student.estimated_pickup_time %}
-                                    <span class="ml-2 text-xs text-gray-600">{{ students[0].student.estimated_pickup_time }}</span>
-                                {% endif %}
-                            </span>
+                            <div class="flex items-center">
+                                <span class="text-sm font-semibold text-gray-700 bg-gray-100 px-3 py-1 rounded-lg">
+                                    {{ location }}
+                                    {% if students[0].student.estimated_pickup_time %}
+                                        <span class="ml-2 text-xs text-gray-600">{{ students[0].student.estimated_pickup_time }}</span>
+                                    {% endif %}
+                                </span>
+                                <button onclick="openLocationSettings('{{ location }}', '{{ time_key }}')" 
+                                        class="ml-2 p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                        title="장소 설정">
+                                    ⚙️
+                                </button>
+                            </div>
                             <button onclick="completeLocationGroup('{{ time_key }}', '{{ location }}')"
                                     class="text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded-lg transition-colors">
                                 장소 완료
@@ -154,54 +161,27 @@
                                         </span>
                                     </div>
                                 {% elif attendance and attendance.pickup_status == 'boarded' %}
-                                    <!-- 이미 탑승한 학생 (클릭하면 취소) -->
+                                    <!-- 체크된 학생 (클릭하면 체크 해제) -->
                                     <div class="inline-flex items-center bg-green-100 border-2 border-green-300 rounded-xl px-3 py-2 min-w-0">
-                                        <button onclick="boardStudent({{ student.id }}, '{{ today }}')"
+                                        <button onclick="toggleStudentCheck({{ student.id }}, '{{ today }}')"
                                                 class="text-sm font-semibold text-green-800 min-w-[50px] text-left"
                                                 data-student-id="{{ student.id }}">
-                                            {{ student.name }}
+                                            ✓ {{ student.name }}
                                             {% if student.memo %}
                                                 <span class="text-xs text-green-600 ml-1">({{ student.memo }})</span>
                                             {% endif %}
                                         </button>
-                                        <button onclick="markAbsent({{ student.id }}, '{{ today }}')"
-                                                class="text-red-500 hover:text-red-700 text-sm ml-2 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
-                                            ✕
-                                        </button>
-                                    </div>
-                                {% elif attendance and attendance.pickup_status == 'absent' %}
-                                    <!-- 결석 처리된 학생 (X 버튼으로 취소) -->
-                                    <div class="inline-flex items-center bg-red-100 border-2 border-red-300 rounded-xl px-3 py-2 min-w-0">
-                                        <span class="text-sm font-semibold text-red-700 min-w-[50px] text-left">
-                                            {{ student.name }}
-                                            {% if student.memo %}
-                                                <span class="text-xs text-red-600 ml-1">({{ student.memo }})</span>
-                                            {% endif %}
-                                        </span>
-                                        <button onclick="markAbsent({{ student.id }}, '{{ today }}')"
-                                                class="text-red-500 hover:text-red-700 text-sm ml-2 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
-                                            ✕
-                                        </button>
                                     </div>
                                 {% else %}
-                                    <!-- 대기 중인 학생 -->
+                                    <!-- 대기 중인 학생 (클릭하면 체크) -->
                                     <div class="inline-flex items-center bg-white border-2 border-gray-300 rounded-xl px-3 py-2 hover:border-blue-400 transition-colors min-w-0">
-                                        <button onclick="boardStudent({{ student.id }}, '{{ today }}')"
+                                        <button onclick="toggleStudentCheck({{ student.id }}, '{{ today }}')"
                                                 class="text-sm font-medium text-gray-900 min-w-[50px] text-left"
                                                 data-student-id="{{ student.id }}">
                                             {{ student.name }}
                                             {% if student.memo %}
                                                 <span class="text-xs text-gray-600 ml-1">({{ student.memo }})</span>
                                             {% endif %}
-                                        </button>
-                                        <button onclick="contactParent({{ student.id }}, '{{ student.name }}')"
-                                                class="text-blue-400 hover:text-blue-600 text-sm ml-1 w-5 h-5 flex items-center justify-center hover:bg-blue-100 rounded transition-colors"
-                                                title="부모님께 연락">
-                                            📞
-                                        </button>
-                                        <button onclick="markAbsent({{ student.id }}, '{{ today }}')"
-                                                class="text-red-400 hover:text-red-600 text-sm ml-1 w-5 h-5 flex items-center justify-center hover:bg-red-100 rounded transition-colors">
-                                            ✕
                                         </button>
                                     </div>
                                 {% endif %}
@@ -239,6 +219,38 @@
         <button onclick="closeRequestModal()" class="w-full btn-primary">
             확인
         </button>
+    </div>
+</div>
+
+<!-- 장소 설정 모달 -->
+<div id="locationSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold mb-4" id="locationSettingsTitle">장소 설정</h3>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">장소명</label>
+                <input type="text" id="locationNameInput" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+        </div>
+        
+        <div class="flex justify-between mt-6">
+            <button type="button" onclick="deleteCurrentLocation()" 
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                🗑️ 장소 삭제
+            </button>
+            <div class="flex space-x-2">
+                <button type="button" onclick="closeLocationSettings()" 
+                        class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    취소
+                </button>
+                <button type="button" onclick="saveLocationSettings()" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    저장
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -326,9 +338,16 @@ function updateArrowStates() {
     }
 }
 
-function boardStudent(studentId, date) {
+function toggleStudentCheck(studentId, date) {
     // 현재 시간대 저장
     const currentTimeKey = timeSlots[currentSlideIndex];
+    
+    // 현재 학생의 상태 확인 (체크 표시가 있는지 확인)
+    const studentButton = document.querySelector(`button[data-student-id="${studentId}"]`);
+    const isCurrentlyChecked = studentButton && studentButton.textContent.includes('✓');
+    
+    // 상태 토글
+    const newStatus = isCurrentlyChecked ? 'pending' : 'boarded';
     
     fetch('/api/update_attendance', {
         method: 'POST',
@@ -338,32 +357,7 @@ function boardStudent(studentId, date) {
         body: JSON.stringify({
             student_id: studentId,
             date: date,
-            status: 'boarded',
-            type: 'pickup'
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            // 현재 시간대를 유지하면서 새로고침
-            window.location.href = window.location.pathname + '?time=' + encodeURIComponent(currentTimeKey);
-        }
-    });
-}
-
-function markAbsent(studentId, date) {
-    // 현재 시간대 저장
-    const currentTimeKey = timeSlots[currentSlideIndex];
-    
-    fetch('/api/update_attendance', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            student_id: studentId,
-            date: date,
-            status: 'absent',
+            status: newStatus,
             type: 'pickup'
         })
     })
@@ -378,18 +372,23 @@ function markAbsent(studentId, date) {
 
 function completeAllInTimeSlot(timeKey) {
     const timeSlot = document.getElementById('slot-' + timeKey);
-    const pendingButtons = timeSlot.querySelectorAll('[data-student-id]');
+    const uncheckedButtons = timeSlot.querySelectorAll('[data-student-id]');
     
-    let completedCount = 0;
-    const totalCount = pendingButtons.length;
+    // 체크되지 않은 학생들만 필터링
+    const pendingButtons = Array.from(uncheckedButtons).filter(button => 
+        !button.textContent.includes('✓')
+    );
     
-    if (totalCount === 0) {
-        // 대기 중인 학생이 없으면 바로 다음 시간으로 이동
+    if (pendingButtons.length === 0) {
+        // 모든 학생이 이미 체크되었으면 다음 시간으로 이동
         if (currentSlideIndex < timeSlots.length - 1) {
             nextSlide();
         }
         return;
     }
+    
+    let completedCount = 0;
+    const totalCount = pendingButtons.length;
     
     pendingButtons.forEach(button => {
         const studentId = button.getAttribute('data-student-id');
@@ -846,6 +845,114 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+// 장소 설정 관련 변수
+let currentLocationSettings = null;
+
+// 장소 설정 모달 열기
+function openLocationSettings(locationName, timeKey) {
+    currentLocationSettings = {
+        locationName: locationName,
+        timeKey: timeKey,
+        originalLocation: locationName
+    };
+    
+    document.getElementById('locationSettingsTitle').textContent = `"${locationName}" 장소 설정`;
+    document.getElementById('locationNameInput').value = locationName;
+    document.getElementById('locationSettingsModal').classList.remove('hidden');
+    
+    // 입력 필드에 포커스
+    document.getElementById('locationNameInput').focus();
+    document.getElementById('locationNameInput').select();
+}
+
+// 장소 설정 모달 닫기
+function closeLocationSettings() {
+    document.getElementById('locationSettingsModal').classList.add('hidden');
+    currentLocationSettings = null;
+}
+
+// 장소 설정 저장
+function saveLocationSettings() {
+    if (!currentLocationSettings) return;
+    
+    const newLocationName = document.getElementById('locationNameInput').value.trim();
+    
+    if (!newLocationName) {
+        alert('장소명을 입력해주세요.');
+        return;
+    }
+    
+    if (newLocationName === currentLocationSettings.originalLocation) {
+        // 변경사항 없음
+        closeLocationSettings();
+        return;
+    }
+    
+    // 승차/하차 장소명 변경 API 호출
+    fetch('/api/update_pickup_location', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            old_location: currentLocationSettings.originalLocation,
+            new_location: newLocationName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeLocationSettings();
+            alert(`장소명이 "${newLocationName}"으로 변경되었습니다.`);
+            // 페이지 새로고침하여 변경사항 반영
+            window.location.reload();
+        } else {
+            alert('장소명 변경 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 장소명 변경 에러:', error);
+        alert('장소명 변경 중 오류가 발생했습니다.');
+    });
+}
+
+// 장소 삭제
+function deleteCurrentLocation() {
+    if (!currentLocationSettings) return;
+    
+    const locationName = currentLocationSettings.originalLocation;
+    
+    if (!confirm(`"${locationName}" 장소를 삭제하시겠습니까?\n이 장소의 모든 학생들의 장소 정보가 초기화됩니다.`)) {
+        return;
+    }
+    
+    // 승차/하차 장소 삭제 API 호출
+    fetch('/api/delete_pickup_location', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            location_name: locationName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            closeLocationSettings();
+            alert(`"${locationName}" 장소가 삭제되었습니다.`);
+            // 페이지 새로고침하여 변경사항 반영
+            window.location.reload();
+        } else {
+            alert('장소 삭제 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 장소 삭제 에러:', error);
+        alert('장소 삭제 중 오류가 발생했습니다.');
+    });
+}
 </script>
 
 {% endblock %} 

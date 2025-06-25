@@ -303,8 +303,8 @@ def submit_request():
     flash('요청이 제출되었습니다.')
     return redirect(url_for('parent_absence'))
 
-@app.route('/admin/schedule-manager')
-def admin_schedule_manager():
+@app.route('/schedule')
+def schedule():
     # 승차/하차 완전 분리 구조
     schedule_data = {}
     
@@ -371,7 +371,7 @@ def admin_schedule_manager():
                 'schedule': schedule
             })
     
-    return render_template('admin_schedule_manager.html', schedule_data=schedule_data)
+    return render_template('schedule.html', schedule_data=schedule_data)
 
 @app.route('/admin/students')
 def admin_students():
@@ -1290,6 +1290,107 @@ def delete_location_from_schedule():
     except Exception as e:
         db.session.rollback()
         print(f"❌ 장소 삭제 오류: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/update_pickup_location', methods=['POST'])
+def update_pickup_location():
+    """승차/하차 장소명 변경"""
+    try:
+        data = request.get_json()
+        old_location = data.get('old_location')
+        new_location = data.get('new_location')
+        
+        print(f"🔄 승차/하차 장소명 변경: {old_location} → {new_location}")
+        
+        # Location 테이블에서 장소명 변경
+        location_record = Location.query.filter_by(name=old_location).first()
+        if location_record:
+            location_record.name = new_location
+            location_record.updated_at = datetime.utcnow()
+        
+        # Student 테이블의 pickup_location 변경
+        students = Student.query.filter_by(pickup_location=old_location).all()
+        updated_student_count = 0
+        for student in students:
+            student.pickup_location = new_location
+            updated_student_count += 1
+        
+        # Schedule 테이블의 location 변경 (승차/하차 스케줄)
+        schedules = Schedule.query.filter(
+            Schedule.schedule_type.in_(['pickup', 'dropoff']),
+            Schedule.location == old_location
+        ).all()
+        updated_schedule_count = 0
+        for schedule in schedules:
+            schedule.location = new_location
+            updated_schedule_count += 1
+        
+        db.session.commit()
+        
+        total_updates = updated_student_count + updated_schedule_count
+        print(f"✅ 장소명 변경 완료: 학생 {updated_student_count}명, 스케줄 {updated_schedule_count}개")
+        
+        return jsonify({
+            'success': True,
+            'message': f'장소명이 "{new_location}"으로 변경되었습니다.',
+            'updated_students': updated_student_count,
+            'updated_schedules': updated_schedule_count
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 승차/하차 장소명 변경 오류: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/delete_pickup_location', methods=['POST'])
+def delete_pickup_location():
+    """승차/하차 장소 삭제"""
+    try:
+        data = request.get_json()
+        location_name = data.get('location_name')
+        
+        print(f"🗑️ 승차/하차 장소 삭제: {location_name}")
+        
+        # Location 테이블에서 장소 삭제
+        location_record = Location.query.filter_by(name=location_name).first()
+        if location_record:
+            db.session.delete(location_record)
+        
+        # Student 테이블의 pickup_location 초기화
+        students = Student.query.filter_by(pickup_location=location_name).all()
+        updated_student_count = 0
+        student_names = []
+        for student in students:
+            student.pickup_location = None
+            student.estimated_pickup_time = None
+            student_names.append(student.name)
+            updated_student_count += 1
+        
+        # Schedule 테이블의 해당 장소 스케줄 삭제
+        schedules = Schedule.query.filter(
+            Schedule.schedule_type.in_(['pickup', 'dropoff']),
+            Schedule.location == location_name
+        ).all()
+        deleted_schedule_count = 0
+        for schedule in schedules:
+            db.session.delete(schedule)
+            deleted_schedule_count += 1
+        
+        db.session.commit()
+        
+        print(f"✅ 장소 삭제 완료: 학생 {updated_student_count}명, 스케줄 {deleted_schedule_count}개")
+        
+        return jsonify({
+            'success': True,
+            'message': f'"{location_name}" 장소가 삭제되었습니다.',
+            'updated_students': updated_student_count,
+            'deleted_schedules': deleted_schedule_count,
+            'student_names': student_names
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 승차/하차 장소 삭제 오류: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 # 연락 기능 관련 API (정석 구현)
