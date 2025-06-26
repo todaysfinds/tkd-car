@@ -726,7 +726,8 @@ function saveLocationSettings() {
     
     const requestBody = isPickupDropoff ? {
         old_location: currentLocationSettings.originalLocation,
-        new_location: newLocationName
+        new_location: newLocationName,
+        day_of_week: currentLocationSettings.dayNum  // 요일별 독립적 처리 추가!
     } : {
         day_of_week: currentLocationSettings.dayNum,
         old_location: currentLocationSettings.originalLocation,
@@ -756,7 +757,7 @@ function saveLocationSettings() {
                 currentLocationSettings.locationType
             );
             closeLocationSettings();
-            alert(`장소명이 "${newLocationName}"으로 변경되었습니다.`);
+            alert(`${currentLocationSettings.dayNum}요일 장소명이 "${newLocationName}"으로 변경되었습니다.`);
         } else {
             alert('장소명 변경 실패: ' + (data.error || data.message));
         }
@@ -790,7 +791,8 @@ function deleteLocation() {
     const apiUrl = isPickupDropoff ? '/api/delete_pickup_location' : '/api/delete_location_from_schedule';
     
     const requestBody = isPickupDropoff ? {
-        location_name: locationName
+        location_name: locationName,
+        day_of_week: currentLocationSettings.dayNum  // 요일별 독립적 처리 추가!
     } : {
         day_of_week: currentLocationSettings.dayNum,
         location: locationName,
@@ -818,7 +820,7 @@ function deleteLocation() {
                 currentLocationSettings.locationType
             );
             closeLocationSettings();
-            alert(`"${locationName}" 장소가 삭제되었습니다.`);
+            alert(`${currentLocationSettings.dayNum}요일 "${locationName}" 장소가 삭제되었습니다.`);
         } else {
             alert('장소 삭제 실패: ' + (data.error || data.message));
         }

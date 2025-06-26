@@ -1258,32 +1258,31 @@ def delete_location_from_schedule():
 
 @app.route('/api/update_pickup_location', methods=['POST'])
 def update_pickup_location():
-    """승차/하차 장소명 변경"""
+    """승차/하차 장소명 변경 (요일별 독립적)"""
     try:
         data = request.get_json()
         old_location = data.get('old_location')
         new_location = data.get('new_location')
+        day_of_week = data.get('day_of_week')  # 요일 정보 추가 필수
         
-        print(f"🔄 승차/하차 장소명 변경: {old_location} → {new_location}")
+        if day_of_week is None:
+            return jsonify({'success': False, 'error': 'day_of_week 파라미터가 필요합니다.'})
         
-        # Location 테이블에서 장소명 변경
-        location_record = Location.query.filter_by(name=old_location).first()
-        if location_record:
-            location_record.name = new_location
-            location_record.updated_at = datetime.utcnow()
+        print(f"🔄 승차/하차 장소명 변경: {old_location} → {new_location} (요일: {day_of_week})")
         
-        # Student 테이블의 pickup_location 변경
-        students = Student.query.filter_by(pickup_location=old_location).all()
-        updated_student_count = 0
-        for student in students:
-            student.pickup_location = new_location
-            updated_student_count += 1
+        # ⚠️ Location 테이블은 건드리지 않음 (참조용만 유지)
+        # 전역 Location 테이블을 수정하면 모든 요일에 영향을 줌
         
-        # Schedule 테이블의 location 변경 (승차/하차 스케줄)
+        # ⚠️ Student 테이블도 건드리지 않음 (기본 장소 정보만 유지)
+        # pickup_location은 학생의 기본 장소 정보로만 사용
+        
+        # 🎯 Schedule 테이블의 해당 요일만 변경
         schedules = Schedule.query.filter(
             Schedule.schedule_type.in_(['pickup', 'dropoff']),
-            Schedule.location == old_location
+            Schedule.location == old_location,
+            Schedule.day_of_week == day_of_week  # 요일별 구분 추가!
         ).all()
+        
         updated_schedule_count = 0
         for schedule in schedules:
             schedule.location = new_location
@@ -1291,14 +1290,13 @@ def update_pickup_location():
         
         db.session.commit()
         
-        total_updates = updated_student_count + updated_schedule_count
-        print(f"✅ 장소명 변경 완료: 학생 {updated_student_count}명, 스케줄 {updated_schedule_count}개")
+        print(f"✅ 장소명 변경 완료: {day_of_week}요일 스케줄 {updated_schedule_count}개")
         
         return jsonify({
             'success': True,
-            'message': f'장소명이 "{new_location}"으로 변경되었습니다.',
-            'updated_students': updated_student_count,
-            'updated_schedules': updated_schedule_count
+            'message': f'{day_of_week}요일 "{old_location}" 장소가 "{new_location}"으로 변경되었습니다.',
+            'updated_schedules': updated_schedule_count,
+            'day_affected': day_of_week
         })
     
     except Exception as e:
@@ -1308,48 +1306,47 @@ def update_pickup_location():
 
 @app.route('/api/delete_pickup_location', methods=['POST'])
 def delete_pickup_location():
-    """승차/하차 장소 삭제"""
+    """승차/하차 장소 삭제 (요일별 독립적)"""
     try:
         data = request.get_json()
         location_name = data.get('location_name')
+        day_of_week = data.get('day_of_week')  # 요일 정보 추가 필수
         
-        print(f"🗑️ 승차/하차 장소 삭제: {location_name}")
+        if day_of_week is None:
+            return jsonify({'success': False, 'error': 'day_of_week 파라미터가 필요합니다.'})
         
-        # Location 테이블에서 장소 삭제
-        location_record = Location.query.filter_by(name=location_name).first()
-        if location_record:
-            db.session.delete(location_record)
+        print(f"🗑️ 승차/하차 장소 삭제: {location_name} (요일: {day_of_week})")
         
-        # Student 테이블의 pickup_location 초기화
-        students = Student.query.filter_by(pickup_location=location_name).all()
-        updated_student_count = 0
-        student_names = []
-        for student in students:
-            student.pickup_location = None
-            student.estimated_pickup_time = None
-            student_names.append(student.name)
-            updated_student_count += 1
+        # ⚠️ Location 테이블은 건드리지 않음 (다른 요일에서 사용할 수 있음)
+        # 전역 Location 테이블을 삭제하면 모든 요일에 영향을 줌
         
-        # Schedule 테이블의 해당 장소 스케줄 삭제
+        # ⚠️ Student 테이블도 건드리지 않음 (기본 장소 정보만 유지)
+        # pickup_location은 학생의 기본 장소 정보로만 사용
+        
+        # 🎯 Schedule 테이블의 해당 요일만 삭제
         schedules = Schedule.query.filter(
             Schedule.schedule_type.in_(['pickup', 'dropoff']),
-            Schedule.location == location_name
+            Schedule.location == location_name,
+            Schedule.day_of_week == day_of_week  # 요일별 구분 추가!
         ).all()
+        
         deleted_schedule_count = 0
+        student_names = []
         for schedule in schedules:
+            student_names.append(schedule.student.name)
             db.session.delete(schedule)
             deleted_schedule_count += 1
         
         db.session.commit()
         
-        print(f"✅ 장소 삭제 완료: 학생 {updated_student_count}명, 스케줄 {deleted_schedule_count}개")
+        print(f"✅ 장소 삭제 완료: {day_of_week}요일 스케줄 {deleted_schedule_count}개")
         
         return jsonify({
             'success': True,
-            'message': f'"{location_name}" 장소가 삭제되었습니다.',
-            'updated_students': updated_student_count,
+            'message': f'{day_of_week}요일 "{location_name}" 장소가 삭제되었습니다.',
             'deleted_schedules': deleted_schedule_count,
-            'student_names': student_names
+            'student_names': student_names,
+            'day_affected': day_of_week
         })
     
     except Exception as e:
