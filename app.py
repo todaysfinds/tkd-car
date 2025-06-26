@@ -1851,8 +1851,14 @@ def create_empty_location():
         schedule_type = data.get('type', 'pickup')
         
         print(f"🏗️ 빈 장소 생성 요청: {location_name} (day={day_of_week}, part={session_part}, type={schedule_type})")
+        print(f"   - 받은 데이터: {data}")
+        print(f"   - day_of_week 타입: {type(day_of_week)}, 값: {day_of_week}")
+        print(f"   - session_part 타입: {type(session_part)}, 값: {session_part}")
+        print(f"   - location_name 타입: {type(location_name)}, 값: {location_name}")
+        print(f"   - schedule_type 타입: {type(schedule_type)}, 값: {schedule_type}")
         
         if not all([day_of_week is not None, session_part, location_name]):
+            print(f"❌ 필수 정보 누락 체크: day_of_week={day_of_week is not None}, session_part={bool(session_part)}, location_name={bool(location_name)}")
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
         
         # 부별 기본 시간 설정
@@ -1886,14 +1892,20 @@ def create_empty_location():
         # 🎯 실제 더미 학생으로 장소 생성 (새로고침 후에도 유지됨)  
         # 더미 학생 생성 (이름 길이 제한으로 해시 사용)
         import hashlib
-        location_hash = hashlib.md5(f"{location_name}_{day_of_week}_{session_part}_{schedule_type}".encode()).hexdigest()[:8]
+        hash_input = f"{location_name}_{day_of_week}_{session_part}_{schedule_type}"
+        location_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8]
         dummy_student_name = f"_PH_{location_hash}"
+        
+        print(f"   - 해시 입력: {hash_input}")
+        print(f"   - 더미 학생명: {dummy_student_name}")
         
         # 더미 학생이 이미 있는지 확인
         existing_dummy = Student.query.filter(Student.name.like('_PH_%')).filter_by(name=dummy_student_name).first()
+        print(f"   - 기존 더미 학생: {existing_dummy.name if existing_dummy else 'None'}")
         
         if not existing_dummy:
             # 더미 학생 생성
+            print(f"   - 새 더미 학생 생성 중...")
             dummy_student = Student(
                 name=dummy_student_name,
                 grade="PLACEHOLDER",
@@ -1904,10 +1916,13 @@ def create_empty_location():
             db.session.add(dummy_student)
             db.session.flush()  # ID 생성을 위해 flush
             dummy_student_id = dummy_student.id
+            print(f"   - 더미 학생 생성 완료: ID={dummy_student_id}")
         else:
             dummy_student_id = existing_dummy.id
+            print(f"   - 기존 더미 학생 재사용: ID={dummy_student_id}")
         
         # 더미 스케줄 생성
+        print(f"   - 더미 스케줄 생성 중... (time={default_time})")
         dummy_schedule = Schedule(
             student_id=dummy_student_id,
             day_of_week=day_of_week,
@@ -1917,7 +1932,9 @@ def create_empty_location():
         )
         
         db.session.add(dummy_schedule)
+        print(f"   - DB 커밋 중...")
         db.session.commit()
+        print(f"   - DB 커밋 완료!")
         
         print(f"✅ 빈 장소 생성 완료: {location_name} (더미 스케줄 ID: {dummy_schedule.id})")
         
