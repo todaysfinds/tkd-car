@@ -913,8 +913,9 @@ function createEmptyLocation(dayNum, sessionPart, locationName, type) {
     .then(data => {
         if (data.success) {
             console.log('✅ 장소 생성 성공:', data);
-            // 임시로 빈 장소를 화면에 추가
-            addEmptyLocationToUI(dayNum, sessionPart, locationName, type);
+            // 새로고침으로 안전하게 처리 (DB와 일치)
+            alert(`"${locationName}" 장소가 생성되었습니다.`);
+            window.location.reload();
         } else {
             console.error('❌ 장소 생성 실패:', data);
             showNotification(`장소 추가 실패: ${data.error}`, 'error');

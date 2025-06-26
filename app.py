@@ -246,8 +246,10 @@ def schedule():
     # 승차/하차 완전 분리 구조
     schedule_data = {}
     
-    # 모든 스케줄 조회 (승차/하차 구분)
-    schedules = db.session.query(Student, Schedule).join(Schedule).order_by(
+    # 모든 스케줄 조회 (더미 학생 제외)
+    schedules = db.session.query(Student, Schedule).join(Schedule).filter(
+        ~Student.name.like('_PLACEHOLDER_%')  # 더미 학생 제외
+    ).order_by(
         Schedule.day_of_week, Schedule.schedule_type, Schedule.time, Schedule.location, Student.name
     ).all()
     
@@ -309,11 +311,46 @@ def schedule():
                 'schedule': schedule
             })
     
+    # 🎯 더미 스케줄로 생성된 빈 장소들 추가 (실제 학생 없는 장소)
+    dummy_schedules = db.session.query(Student, Schedule).join(Schedule).filter(
+        Student.name.like('_PLACEHOLDER_%')  # 더미 학생만 조회
+    ).all()
+    
+    for dummy_student, dummy_schedule in dummy_schedules:
+        day = dummy_schedule.day_of_week
+        schedule_type = dummy_schedule.schedule_type
+        location = dummy_schedule.location
+        
+        if schedule_type in ['pickup', 'dropoff']:
+            part = dummy_student.session_part or 1
+            
+            # 해당 장소에 실제 학생이 있는지 확인
+            if (day in schedule_data and 
+                part in schedule_data[day] and 
+                schedule_type in schedule_data[day][part] and 
+                location in schedule_data[day][part][schedule_type]):
+                # 실제 학생이 있으면 더미는 추가하지 않음
+                continue
+            
+            # 빈 장소 구조 초기화
+            if day not in schedule_data:
+                schedule_data[day] = {}
+            if part not in schedule_data[day]:
+                schedule_data[day][part] = {}
+            if schedule_type not in schedule_data[day][part]:
+                schedule_data[day][part][schedule_type] = {}
+            
+            # 빈 장소로 추가 (빈 리스트)
+            schedule_data[day][part][schedule_type][location] = []
+    
     return render_template('schedule.html', schedule_data=schedule_data)
 
 @app.route('/admin/students')
 def admin_students():
-    students = Student.query.order_by(Student.name).all()
+    # 더미 학생 제외
+    students = Student.query.filter(
+        ~Student.name.like('_PLACEHOLDER_%')
+    ).order_by(Student.name).all()
     return render_template('admin_students.html', students=students)
 
 @app.route('/admin/quick-call-manager')
@@ -367,8 +404,10 @@ def approve_request_api(request_id):
 
 @app.route('/admin/locations')
 def admin_locations():
-    # 장소별로 학생들을 그룹화
-    students = Student.query.all()
+    # 장소별로 학생들을 그룹화 (더미 학생 제외)
+    students = Student.query.filter(
+        ~Student.name.like('_PLACEHOLDER_%')
+    ).all()
     location_groups = {}
     
     for student in students:
@@ -785,7 +824,11 @@ def delete_student():
 @app.route('/api/get_all_students')
 def get_all_students():
     try:
-        students = Student.query.order_by(Student.name).all()
+        # 더미 학생 제외
+        students = Student.query.filter(
+            ~Student.name.like('_PLACEHOLDER_%')
+        ).order_by(Student.name).all()
+        
         return jsonify({
             'success': True,
             'students': [{
@@ -1782,13 +1825,15 @@ def delete_quick_call_number(number_id):
 
 @app.route('/api/create_empty_location', methods=['POST'])
 def create_empty_location():
-    """빈 장소 생성 (더미 스케줄로 실제 생성)"""
+    """빈 장소 생성 (실제 더미 스케줄 생성으로 지속성 보장)"""
     try:
         data = request.get_json()
         day_of_week = data.get('day_of_week')
         session_part = data.get('session_part')
         location_name = data.get('location_name')
         schedule_type = data.get('type', 'pickup')
+        
+        print(f"🏗️ 빈 장소 생성 요청: {location_name} (day={day_of_week}, part={session_part}, type={schedule_type})")
         
         if not all([day_of_week is not None, session_part, location_name]):
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
@@ -1809,11 +1854,11 @@ def create_empty_location():
         existing_schedule = Schedule.query.filter_by(
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            location=location_name,
-            time=default_time
+            location=location_name
         ).first()
         
         if existing_schedule:
+            print(f"📍 장소 이미 존재: {location_name}")
             return jsonify({
                 'success': True, 
                 'message': f'"{location_name}" 장소가 이미 존재합니다.',
@@ -1821,8 +1866,41 @@ def create_empty_location():
                 'existing': True
             })
         
-        # 실제로는 빈 장소만 프론트엔드에서 관리
-        # 실제 스케줄은 학생이 추가될 때만 생성
+        # 🎯 실제 더미 학생으로 장소 생성 (새로고침 후에도 유지됨)
+        # 더미 학생 생성 (이름에 특수 마킹으로 구분)
+        dummy_student_name = f"_PLACEHOLDER_{location_name}_{day_of_week}_{session_part}_{schedule_type}"
+        
+        # 더미 학생이 이미 있는지 확인
+        existing_dummy = Student.query.filter(Student.name.like('_PLACEHOLDER_%')).filter_by(name=dummy_student_name).first()
+        
+        if not existing_dummy:
+            # 더미 학생 생성
+            dummy_student = Student(
+                name=dummy_student_name,
+                grade="PLACEHOLDER",
+                session_part=session_part,
+                pickup_location=location_name,
+                memo="시스템 생성 더미 - 수정 금지"
+            )
+            db.session.add(dummy_student)
+            db.session.flush()  # ID 생성을 위해 flush
+            dummy_student_id = dummy_student.id
+        else:
+            dummy_student_id = existing_dummy.id
+        
+        # 더미 스케줄 생성
+        dummy_schedule = Schedule(
+            student_id=dummy_student_id,
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            time=default_time,
+            location=location_name
+        )
+        
+        db.session.add(dummy_schedule)
+        db.session.commit()
+        
+        print(f"✅ 빈 장소 생성 완료: {location_name} (더미 스케줄 ID: {dummy_schedule.id})")
         
         return jsonify({
             'success': True, 
@@ -1832,11 +1910,12 @@ def create_empty_location():
             'session_part': session_part,
             'type': schedule_type,
             'default_time': default_time.strftime('%H:%M'),
-            'placeholder_created': True
+            'dummy_created': True
         })
         
     except Exception as e:
         db.session.rollback()
+        print(f"❌ 빈 장소 생성 실패: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 # 카카오톡 설정 관리 API
