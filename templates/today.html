@@ -889,7 +889,7 @@ function saveLocationSettings() {
         return;
     }
     
-    // 승차/하차 장소명 변경 API 호출
+    // 승차/하차 장소명 변경 API 호출 (요일 정보 포함)
     fetch('/api/update_pickup_location', {
         method: 'POST',
         headers: {
@@ -897,7 +897,8 @@ function saveLocationSettings() {
         },
         body: JSON.stringify({
             old_location: currentLocationSettings.originalLocation,
-            new_location: newLocationName
+            new_location: newLocationName,
+            day_of_week: {{ day_of_week }}
         })
     })
     .then(response => response.json())
@@ -927,14 +928,15 @@ function deleteCurrentLocation() {
         return;
     }
     
-    // 승차/하차 장소 삭제 API 호출
+    // 승차/하차 장소 삭제 API 호출 (요일 정보 포함)
     fetch('/api/delete_pickup_location', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            location_name: locationName
+            location_name: locationName,
+            day_of_week: {{ day_of_week }}
         })
     })
     .then(response => response.json())

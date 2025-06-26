@@ -248,7 +248,7 @@ def schedule():
     
     # 모든 스케줄 조회 (더미 학생 제외)
     schedules = db.session.query(Student, Schedule).join(Schedule).filter(
-        ~Student.name.like('_PLACEHOLDER_%')  # 더미 학생 제외
+        ~Student.name.like('_PH_%')  # 더미 학생 제외
     ).order_by(
         Schedule.day_of_week, Schedule.schedule_type, Schedule.time, Schedule.location, Student.name
     ).all()
@@ -313,7 +313,7 @@ def schedule():
     
     # 🎯 더미 스케줄로 생성된 빈 장소들 추가 (실제 학생 없는 장소)
     dummy_schedules = db.session.query(Student, Schedule).join(Schedule).filter(
-        Student.name.like('_PLACEHOLDER_%')  # 더미 학생만 조회
+        Student.name.like('_PH_%')  # 더미 학생만 조회
     ).all()
     
     for dummy_student, dummy_schedule in dummy_schedules:
@@ -349,7 +349,7 @@ def schedule():
 def admin_students():
     # 더미 학생 제외
     students = Student.query.filter(
-        ~Student.name.like('_PLACEHOLDER_%')
+        ~Student.name.like('_PH_%')
     ).order_by(Student.name).all()
     return render_template('admin_students.html', students=students)
 
@@ -406,7 +406,7 @@ def approve_request_api(request_id):
 def admin_locations():
     # 장소별로 학생들을 그룹화 (더미 학생 제외)
     students = Student.query.filter(
-        ~Student.name.like('_PLACEHOLDER_%')
+        ~Student.name.like('_PH_%')
     ).all()
     location_groups = {}
     
@@ -464,6 +464,7 @@ def add_location():
 
 @app.route('/api/update_location', methods=['POST'])
 def update_location():
+    """장소관리 페이지에서의 일반적인 장소명 변경 (전역적 변경)"""
     try:
         data = request.get_json()
         original_name = data.get('original_name')
@@ -473,14 +474,30 @@ def update_location():
         if not original_name or not new_name:
             return jsonify({'success': False, 'message': '장소명이 필요합니다.'})
         
-        # 해당 장소의 모든 학생들 업데이트
+        print(f"🔄 장소명 전역 변경: '{original_name}' → '{new_name}'")
+        
+        # Location 테이블 업데이트
+        location = Location.query.filter_by(name=original_name).first()
+        if location:
+            location.name = new_name
+            if default_time:
+                location.default_time = default_time
+        
+        # 해당 장소의 모든 학생들 업데이트 (전역적 변경)
         students = Student.query.filter_by(pickup_location=original_name).all()
         for student in students:
             student.pickup_location = new_name
             if default_time:
                 student.estimated_pickup_time = default_time
         
+        # Schedule 테이블의 모든 해당 장소도 업데이트 (전역적 변경)
+        schedules = Schedule.query.filter_by(location=original_name).all()
+        for schedule in schedules:
+            schedule.location = new_name
+        
         db.session.commit()
+        
+        print(f"✅ 장소명 전역 변경 완료: {len(students)}명 학생, {len(schedules)}개 스케줄 업데이트")
         return jsonify({'success': True})
     except Exception as e:
         db.session.rollback()
@@ -826,7 +843,7 @@ def get_all_students():
     try:
         # 더미 학생 제외
         students = Student.query.filter(
-            ~Student.name.like('_PLACEHOLDER_%')
+            ~Student.name.like('_PH_%')
         ).order_by(Student.name).all()
         
         return jsonify({
@@ -1866,12 +1883,14 @@ def create_empty_location():
                 'existing': True
             })
         
-        # 🎯 실제 더미 학생으로 장소 생성 (새로고침 후에도 유지됨)
-        # 더미 학생 생성 (이름에 특수 마킹으로 구분)
-        dummy_student_name = f"_PLACEHOLDER_{location_name}_{day_of_week}_{session_part}_{schedule_type}"
+        # 🎯 실제 더미 학생으로 장소 생성 (새로고침 후에도 유지됨)  
+        # 더미 학생 생성 (이름 길이 제한으로 해시 사용)
+        import hashlib
+        location_hash = hashlib.md5(f"{location_name}_{day_of_week}_{session_part}_{schedule_type}".encode()).hexdigest()[:8]
+        dummy_student_name = f"_PH_{location_hash}"
         
         # 더미 학생이 이미 있는지 확인
-        existing_dummy = Student.query.filter(Student.name.like('_PLACEHOLDER_%')).filter_by(name=dummy_student_name).first()
+        existing_dummy = Student.query.filter(Student.name.like('_PH_%')).filter_by(name=dummy_student_name).first()
         
         if not existing_dummy:
             # 더미 학생 생성
@@ -1880,7 +1899,7 @@ def create_empty_location():
                 grade="PLACEHOLDER",
                 session_part=session_part,
                 pickup_location=location_name,
-                memo="시스템 생성 더미 - 수정 금지"
+                memo=f"빈장소:{location_name}({day_of_week}요일{session_part}부{schedule_type})"
             )
             db.session.add(dummy_student)
             db.session.flush()  # ID 생성을 위해 flush
