@@ -902,16 +902,36 @@ def add_student_to_schedule():
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
-        # 중복 체크 (같은 학생, 같은 날, 같은 타입, 같은 장소)
+        # 중복 체크 (더미 학생은 제외)
         existing_schedule = Schedule.query.filter_by(
             student_id=student_id,
             day_of_week=day_of_week,
             schedule_type=schedule_type,
             location=target_location
+        ).join(Student).filter(
+            ~Student.name.like('_PH_%')  # 더미 학생 제외
         ).first()
         
         if existing_schedule:
             return jsonify({'success': False, 'error': '이미 해당 스케줄이 존재합니다.'})
+        
+        # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 제거
+        dummy_schedules = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=target_location
+        ).join(Student).filter(
+            Student.name.like('_PH_%')  # 더미 학생만
+        ).all()
+        
+        if dummy_schedules:
+            print(f"   - 더미 스케줄 {len(dummy_schedules)}개 제거 중...")
+            for dummy_schedule in dummy_schedules:
+                # 더미 학생과 스케줄 모두 삭제
+                dummy_student = dummy_schedule.student
+                db.session.delete(dummy_schedule)
+                db.session.delete(dummy_student)
+            print(f"   - 더미 스케줄 제거 완료")
         
         # 새 스케줄 추가
         new_schedule = Schedule(
@@ -1000,12 +1020,14 @@ def add_multiple_students_to_schedule():
                 invalid_students.append(student_name)
                 continue
             
-            # 중복 체크
+            # 중복 체크 (더미 학생 제외)
             existing_schedule = Schedule.query.filter_by(
                 student_id=student_id,
                 day_of_week=day_of_week,
                 schedule_type=schedule_type,
                 location=target_location
+            ).join(Student).filter(
+                ~Student.name.like('_PH_%')  # 더미 학생 제외
             ).first()
             
             if existing_schedule:
@@ -1025,6 +1047,24 @@ def add_multiple_students_to_schedule():
                 'duplicates': duplicates,
                 'invalid_students': invalid_students
             })
+        
+        # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 제거
+        dummy_schedules = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=target_location
+        ).join(Student).filter(
+            Student.name.like('_PH_%')  # 더미 학생만
+        ).all()
+        
+        if dummy_schedules:
+            print(f"   - 더미 스케줄 {len(dummy_schedules)}개 제거 중...")
+            for dummy_schedule in dummy_schedules:
+                # 더미 학생과 스케줄 모두 삭제
+                dummy_student = dummy_schedule.student
+                db.session.delete(dummy_schedule)
+                db.session.delete(dummy_student)
+            print(f"   - 더미 스케줄 제거 완료")
         
         # 모든 검증 통과 시에만 실제 추가
         added_students = []
