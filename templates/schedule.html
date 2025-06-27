@@ -46,32 +46,44 @@
 
                 <!-- 시간표 구조 -->
                 <div class="space-y-6">
-                    <!-- 돌봄시스템 1 (1부 전) -->
+                    <!-- 돌봄시스템 A (1부 전) -->
                     <div class="border rounded-lg overflow-hidden border-orange-200">
-                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
-                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
-                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care1')" 
-                                    class="text-xs text-orange-600 hover:text-orange-800">
-                                + 학생
-                            </button>
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 A</h3>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
                                 {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
-                                <div class="flex flex-wrap gap-1">
-                                    {% for student_data in students %}
-                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                        <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
-                                                class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                data-student-id="{{ student_data.student.id }}">
-                                            {{ student_data.student.name }}
-                                        </button>
-                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care1')" 
-                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                <div class="border border-gray-200 rounded p-1 bg-white">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care1')" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
+                                            </button>
+                                            <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'care_system', 'care1')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
+                                            </button>
+                                        </div>
                                     </div>
-                                    {% endfor %}
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for student_data in students %}
+                                        <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
+                                            <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
+                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care1')" 
+                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
                                 </div>
                                 {% endfor %}
+                            {% else %}
+                                <button onclick="addNewLocationToCareSystem({{ day_num }}, 'care1')" 
+                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50">
+                                    + 새 장소 추가
+                                </button>
                             {% endif %}
                         </div>
                     </div>
@@ -293,6 +305,48 @@
                         </div>
                     </div>
 
+                    <!-- 돌봄시스템 B (2부와 3부 사이) -->
+                    <div class="border rounded-lg overflow-hidden border-orange-200">
+                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 B</h3>
+                        </div>
+                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
+                            {% if day_num in schedule_data and 'care2' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care2'] %}
+                                {% for location, students in schedule_data[day_num]['care2']['students'].items() %}
+                                <div class="border border-gray-200 rounded p-1 bg-white">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="addStudentToCareSystem({{ day_num }}, '{{ location }}', 'care2')" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
+                                            </button>
+                                            <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'care_system', 'care2')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-1">
+                                        {% for student_data in students %}
+                                        <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
+                                            <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
+                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care2')" 
+                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <button onclick="addNewLocationToCareSystem({{ day_num }}, 'care2')" 
+                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50">
+                                    + 새 장소 추가
+                                </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
                     <!-- 3부 (4:30-5:20) -->
                     <div class="border rounded-lg overflow-hidden">
                         <div class="bg-white px-3 py-1 border-b">
@@ -402,7 +456,7 @@
                                                     class="text-xs text-blue-600 hover:text-blue-800">
                                                 + 학생
                                             </button>
-                                            <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'care_system')" 
+                                            <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'care_system', 'care3')" 
                                                     class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                 ⚙️
                                             </button>
@@ -744,7 +798,11 @@ function showLocationSettings(dayNum, locationName, locationType, sessionPart = 
     
     // 돌봄시스템/국기원부의 경우 접미사 제거
     let cleanLocationName = locationName;
+    let careType = null;
+    
     if (locationType === 'care_system') {
+        // care1, care2, care3 구분을 위해 sessionPart 사용
+        careType = sessionPart;
         // _care1, _care2, _care3 제거
         cleanLocationName = locationName.replace(/_care[123]$/, '');
     } else if (locationType === 'national_training') {
@@ -759,10 +817,18 @@ function showLocationSettings(dayNum, locationName, locationType, sessionPart = 
         locationName: cleanLocationName,
         locationType: locationType,
         sessionPart: sessionPart,  // 🎯 시간대 정보 추가!
+        careType: careType,        // 🎯 돌봄시스템 구분 추가!
         originalLocation: cleanLocationName
     };
     
-    const timeText = sessionPart ? ` (${sessionPart}부)` : '';
+    let timeText = '';
+    if (sessionPart && typeof sessionPart === 'number') {
+        timeText = ` (${sessionPart}부)`;
+    } else if (careType) {
+        const careNames = {care1: 'A', care2: 'B', care3: 'C'};
+        timeText = ` (돌봄시스템 ${careNames[careType] || careType})`;
+    }
+    
     document.getElementById('locationSettingsTitle').textContent = `"${cleanLocationName}" 장소 설정${timeText}`;
     document.getElementById('locationNameInput').value = cleanLocationName;
     document.getElementById('locationSettingsModal').classList.remove('hidden');
