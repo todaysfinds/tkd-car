@@ -1045,6 +1045,8 @@ def add_multiple_students_to_schedule():
                 print(f"      - 학생: {sched.student.name} (ID: {sched.student_id})")
             
             # 중복 체크 (더미 학생 제외) - 더 안전한 방법
+            print(f"   🔍 중복 체크 조건: student_id={student_id}, day={day_of_week}, type={schedule_type}, location='{target_location}'")
+            
             existing_schedule = Schedule.query.filter_by(
                 student_id=student_id,
                 day_of_week=day_of_week,
@@ -1052,19 +1054,22 @@ def add_multiple_students_to_schedule():
                 location=target_location
             ).first()
             
+            print(f"   🔍 기존 스케줄 검색 결과: {existing_schedule}")
+            
             # 더미 학생인지 확인
             is_dummy = False
             if existing_schedule:
                 existing_student = Student.query.get(existing_schedule.student_id)
+                print(f"   🔍 기존 스케줄의 학생: {existing_student.name} (ID: {existing_student.id})")
                 if existing_student and existing_student.name.startswith('_PH_'):
                     is_dummy = True
                     print(f"   ℹ️ 기존 스케줄은 더미 학생: {existing_student.name}")
             
             if existing_schedule and not is_dummy:
-                print(f"   ❌ 중복 발견: {student_name} 이미 등록됨 (기존: {existing_student.name})")
-                duplicates.append(student_name)
+                print(f"   ❌ 중복 발견: {student_name}(ID:{student_id}) 이미 등록됨 (기존: {existing_student.name}(ID:{existing_student.id}))")
+                duplicates.append(f"{student_name}(ID:{student_id})")
             else:
-                print(f"   ✅ 중복 없음: {student_name} 추가 가능")
+                print(f"   ✅ 중복 없음: {student_name}(ID:{student_id}) 추가 가능")
         
         # 중복이나 잘못된 학생이 있으면 전체 취소
         if duplicates or invalid_students:
