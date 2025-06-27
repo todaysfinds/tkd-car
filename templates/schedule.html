@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 
-{% block page_title %}차량 ?�행{% endblock %}
+{% block page_title %}차량 운행{% endblock %}
 
 {% block content %}
-<!-- ?�� 로컬 개발 ?�경 경고 -->
+<!-- 🚨 로컬 개발 환경 경고 -->
 {% if is_local_dev %}
 <div class="mb-4 p-3 bg-red-100 border-l-4 border-red-500 rounded-r-lg">
     <div class="flex items-center">
@@ -14,15 +14,15 @@
         </div>
         <div class="ml-2">
             <p class="text-xs text-red-700">
-                <strong>?�️ 로컬 개발 ?�버</strong> - 배포?�이?��? <strong>?�른 DB</strong> ?�용�?
-                ?�제 ?�업: <a href="https://tkd-car.onrender.com/schedule" class="underline font-semibold">tkd-car.onrender.com</a>
+                <strong>⚠️ 로컬 개발 서버</strong> - 배포사이트와 <strong>다른 DB</strong> 사용중!
+                실제 작업: <a href="https://tkd-car.onrender.com/schedule" class="underline font-semibold">tkd-car.onrender.com</a>
             </p>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- ?�� 관리자??중복 ?�리 ?�구 (배포 ?�이???�용) -->
+<!-- 🔧 관리자용 중복 정리 도구 (배포 사이트 전용) -->
 {% if not is_local_dev %}
 <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
     <div class="flex items-center justify-between">
@@ -30,43 +30,43 @@
             <svg class="h-4 w-4 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"/>
             </svg>
-            <span class="text-sm font-medium text-yellow-800">관리자 ?�구</span>
+            <span class="text-sm font-medium text-yellow-800">관리자 도구</span>
         </div>
         <div class="flex gap-2">
-            <button  
-                    class="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700" data-action="cleanup-all" class="admin-action-btn">
-                ?�� ?�체 중복 ?�리
+            <button onclick="cleanupAllDuplicates()" 
+                    class="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700">
+                🧹 전체 중복 정리
             </button>
-            <button  
-                    class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700" data-action="cleanup-specific" class="admin-action-btn">
-                ?�� ?�정 ?�생 ?�리
+            <button onclick="showDuplicateCleanupModal()" 
+                    class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700">
+                🔍 특정 학생 정리
             </button>
         </div>
     </div>
 </div>
 {% endif %}
 
-<!-- 관리자 ?�비게이??-->
+<!-- 관리자 네비게이션 -->
 <div class="bg-white border-b border-gray-200 mb-4">
     <div class="flex space-x-1 p-2">
         <a href="{{ url_for('schedule') }}" 
            class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
-            차량 ?�행
+            차량 운행
         </a>
         <a href="{{ url_for('admin_students') }}" 
            class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg">
-            ?�생 명단
+            학생 명단
         </a>
     </div>
 </div>
 
 <div class="px-4 py-4 pb-20">
-    <!-- ?�일�??��?�?관�?-->
+    <!-- 요일별 스케줄 관리 -->
     <div class="relative mb-4">
-        <!-- ?�일 ?�비게이??-->
+        <!-- 요일 네비게이션 -->
         <div class="flex justify-center">
             <div class="inline-flex bg-gray-100 rounded-lg p-1">
-                {% for day_name, day_num in [('??, 0), ('??, 1), ('??, 2), ('�?, 3), ('�?, 4)] %}
+                {% for day_name, day_num in [('월', 0), ('화', 1), ('수', 2), ('목', 3), ('금', 4)] %}
                 <button id="day-nav-{{ day_num }}" 
                         class="px-6 py-2 text-sm font-medium rounded-md transition-all duration-200 day-nav-btn
                                {% if loop.first %}bg-blue-500 text-white{% else %}text-gray-700 hover:text-gray-900 hover:bg-white{% endif %}"
@@ -78,41 +78,41 @@
         </div>
     </div>
 
-    <!-- ?�일�??��?�??�이지??(??번에 ?�나�??�시) -->
-        {% for day_name, day_num in [('?�요??, 0), ('?�요??, 1), ('?�요??, 2), ('목요??, 3), ('금요??, 4)] %}
+    <!-- 요일별 스케줄 페이지들 (한 번에 하나만 표시) -->
+        {% for day_name, day_num in [('월요일', 0), ('화요일', 1), ('수요일', 2), ('목요일', 3), ('금요일', 4)] %}
     <div class="day-page {% if not loop.first %}hidden{% endif %}" id="day-page-{{ day_num }}" data-day="{{ day_num }}">
             <div class="bg-white rounded-lg shadow p-4">
                 <div class="flex items-center justify-between mb-6">
-                    <h2 class="text-lg font-semibold text-gray-900">{{ day_name }} ?��?�?/h2>
+                    <h2 class="text-lg font-semibold text-gray-900">{{ day_name }} 스케줄</h2>
                 </div>
 
-                <!-- ?�간??구조 -->
+                <!-- 시간표 구조 -->
                 <div class="space-y-6">
-                    <!-- ?�봄?�스??A (1부 ?? -->
+                    <!-- 돌봄시스템 A (1부 전) -->
                     <div class="border rounded-lg overflow-hidden border-orange-200">
                         <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
-                            <h3 class="font-semibold text-orange-800 text-sm">?�� ?�봄?�스??A</h3>
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 A</h3>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
                                 {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
                                 <div class="border border-gray-200 rounded p-1 bg-white">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                         <div class="flex items-center gap-1">
                                             <button class="text-xs text-blue-600 hover:text-blue-800 add-care-student-btn"
                                                     data-day="{{ day_num }}" 
                                                     data-location="{{ location }}" 
                                                     data-care-type="care1">
-                                                + ?�생
+                                                + 학생
                                             </button>
                                             <button class="text-xs text-gray-500 hover:text-gray-700 location-settings-btn" 
                                                     data-day="{{ day_num }}" 
                                                     data-location="{{ location }}" 
                                                     data-location-type="care_system" 
                                                     data-session-part="care1"
-                                                    title="?�소 ?�정">
-                                                ?�️
+                                                    title="장소 설정">
+                                                ⚙️
                                             </button>
                                         </div>
                                     </div>
@@ -125,16 +125,16 @@
                                                     data-day="{{ day_num }}"
                                                     data-location="{{ location }}"
                                                     data-care-type="care1"
-                                                    style="font-size: 11px;">??/button>
+                                                    style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
                                     </div>
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <button  
-                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50" data-day="{{ day_num }}" data-care-type="care1" class="add-care-location-btn">
-                                    + ???�소 추�?
+                                <button onclick="addNewLocationToCareSystem({{ day_num }}, 'care1')" 
+                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50">
+                                    + 새 장소 추가
                                 </button>
                             {% endif %}
                         </div>
@@ -146,36 +146,36 @@
                             <h3 class="font-semibold text-gray-800 text-sm">1부 (2:00-2:50)</h3>
                         </div>
                         <div class="grid grid-cols-2 gap-0">
-                            <!-- ?�차 -->
+                            <!-- 승차 -->
                             <div class="border-r">
-                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][1] %}
                                         {% for location, students in schedule_data[day_num][1]['pickup'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="1" data-location="{{ location|tojson }}" data-type="pickup" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 1, {{ location|tojson }}, 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="pickup" data-session="1" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 1)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="1" data-type="pickup" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 1, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -183,51 +183,51 @@
                                         {% endfor %}
                                     {% endif %}
                                     
-                                    <button  
-                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50" data-day="{{ day_num }}" data-session="1" data-type="pickup" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 1, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
-                            <!-- ?�차 -->
+                            <!-- 하차 -->
                             <div>
-                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][1] %}
                                         {% for location, students in schedule_data[day_num][1]['dropoff'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="1" data-location="{{ location|tojson }}" data-type="dropoff" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 1, {{ location|tojson }}, 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="dropoff" data-session="1" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 1)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="1" data-type="dropoff" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 1, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50" data-day="{{ day_num }}" data-session="1" data-type="dropoff" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 1, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
@@ -240,87 +240,87 @@
                             <h3 class="font-semibold text-gray-800 text-sm">2부 (3:00-3:50)</h3>
                         </div>
                         <div class="grid grid-cols-2 gap-0">
-                            <!-- ?�차 -->
+                            <!-- 승차 -->
                             <div class="border-r">
-                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][2] %}
                                         {% for location, students in schedule_data[day_num][2]['pickup'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="2" data-location="{{ location|tojson }}" data-type="pickup" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, {{ location|tojson }}, 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="pickup" data-session="2" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 2)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="2" data-type="pickup" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 2, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50" data-day="{{ day_num }}" data-session="2" data-type="pickup" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 2, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
-                            <!-- ?�차 -->
+                            <!-- 하차 -->
                             <div>
-                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][2] %}
                                         {% for location, students in schedule_data[day_num][2]['dropoff'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="2" data-location="{{ location|tojson }}" data-type="dropoff" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, {{ location|tojson }}, 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="dropoff" data-session="2" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 2)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="2" data-type="dropoff" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 2, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50" data-day="{{ day_num }}" data-session="2" data-type="dropoff" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 2, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
@@ -329,25 +329,25 @@
 
 
 
-                    <!-- ?�봄?�스??B (2부?� 3부 ?�이) -->
+                    <!-- 돌봄시스템 B (2부와 3부 사이) -->
                     <div class="border rounded-lg overflow-hidden border-orange-200">
                         <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
-                            <h3 class="font-semibold text-orange-800 text-sm">?�� ?�봄?�스??B</h3>
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 B</h3>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care2' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care2'] %}
                                 {% for location, students in schedule_data[day_num]['care2']['students'].items() %}
                                 <div class="border border-gray-200 rounded p-1 bg-white">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                         <div class="flex items-center gap-1">
-                                            <button  
-                                                    class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-care-type="care2" class="care-add-student-btn">
-                                                + ?�생
+                                            <button onclick="addStudentToCareSystem({{ day_num }}, {{ location|tojson }}, 'care2')" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
                                             </button>
-                                            <button  
-                                                    class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="care_system" data-session="'care2'" class="location-settings-btn">
-                                                ?�️
+                                            <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'care_system', 'care2')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
                                             </button>
                                         </div>
                                     </div>
@@ -355,17 +355,17 @@
                                         {% for student_data in students %}
                                         <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
                                             <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
-                                            <button  
-                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-care-type="care2" class="remove-care-student-btn">??/button>
+                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 'care2')" 
+                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
                                     </div>
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <button  
-                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50" data-day="{{ day_num }}" data-care-type="care2" class="add-care-location-btn">
-                                    + ???�소 추�?
+                                <button onclick="addNewLocationToCareSystem({{ day_num }}, 'care2')" 
+                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50">
+                                    + 새 장소 추가
                                 </button>
                             {% endif %}
                         </div>
@@ -377,112 +377,112 @@
                             <h3 class="font-semibold text-gray-800 text-sm">3부 (4:30-5:20)</h3>
                         </div>
                         <div class="grid grid-cols-2 gap-0">
-                            <!-- ?�차 -->
+                            <!-- 승차 -->
                             <div class="border-r">
-                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 3 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][3] %}
                                         {% for location, students in schedule_data[day_num][3]['pickup'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="3" data-location="{{ location|tojson }}" data-type="pickup" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 3, {{ location|tojson }}, 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="pickup" data-session="3" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 3)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="3" data-type="pickup" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 3, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50" data-day="{{ day_num }}" data-session="3" data-type="pickup" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 3, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
-                            <!-- ?�차 -->
+                            <!-- 하차 -->
                             <div>
-                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 3 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][3] %}
                                         {% for location, students in schedule_data[day_num][3]['dropoff'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="3" data-location="{{ location|tojson }}" data-type="dropoff" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 3, {{ location|tojson }}, 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="dropoff" data-session="3" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 3)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="3" data-type="dropoff" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 3, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50" data-day="{{ day_num }}" data-session="3" data-type="dropoff" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 3, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- ?�봄?�스??C (4부?� 5부 ?�이) -->
+                    <!-- 돌봄시스템 C (4부와 5부 사이) -->
                     <div class="border rounded-lg overflow-hidden border-orange-200">
                         <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
-                            <h3 class="font-semibold text-orange-800 text-sm">?�� ?�봄?�스??C</h3>
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 C</h3>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care3' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care3'] %}
                                 {% for location, students in schedule_data[day_num]['care3']['students'].items() %}
                                 <div class="border border-gray-200 rounded p-1 bg-white">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                         <div class="flex items-center gap-1">
-                                            <button  
-                                                    class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-care-type="care3" class="care-add-student-btn">
-                                                + ?�생
+                                            <button onclick="addStudentToCareSystem({{ day_num }}, {{ location|tojson }}, 'care3')" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
                                             </button>
-                                            <button  
-                                                    class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="care_system" data-session="'care3'" class="location-settings-btn">
-                                                ?�️
+                                            <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'care_system', 'care3')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
                                             </button>
                                         </div>
                                     </div>
@@ -490,41 +490,41 @@
                                         {% for student_data in students %}
                                         <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
                                             <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
-                                            <button  
-                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-care-type="care3" class="remove-care-student-btn">??/button>
+                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 'care3')" 
+                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
                                     </div>
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <button  
-                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50" data-day="{{ day_num }}" data-care-type="care3" class="add-care-location-btn">
-                                    + ???�소 추�?
+                                <button onclick="addNewLocationToCareSystem({{ day_num }}, 'care3')" 
+                                        class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50">
+                                    + 새 장소 추가
                                 </button>
                             {% endif %}
                         </div>
                     </div>
 
-                    <!-- �?��?��? (4부?� 5부 ?�이) -->
+                    <!-- 국기원부 (4부와 5부 사이) -->
                     <div class="border rounded-lg overflow-hidden border-purple-200">
                         <div class="bg-purple-100 px-3 py-1 border-b border-purple-200">
-                            <h3 class="font-semibold text-purple-800 text-sm">?��?�� �?��?��?</h3>
+                            <h3 class="font-semibold text-purple-800 text-sm">🇰🇷 국기원부</h3>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'national' in schedule_data[day_num] and 'students' in schedule_data[day_num]['national'] %}
                                 {% for location, students in schedule_data[day_num]['national']['students'].items() %}
                                 <div class="border border-gray-200 rounded p-1 bg-white">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                        <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                         <div class="flex items-center gap-1">
-                                            <button  
-                                                    class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-location="{{ location|tojson }}" class="national-add-student-btn">
-                                                + ?�생
+                                            <button onclick="addStudentToNationalTraining({{ day_num }}, {{ location|tojson }})" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
                                             </button>
-                                            <button  
-                                                    class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="national_training" class="location-settings-btn">
-                                                ?�️
+                                            <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'national_training')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
                                             </button>
                                         </div>
                                     </div>
@@ -532,17 +532,17 @@
                                         {% for student_data in students %}
                                         <div class="flex items-center justify-between text-xs bg-purple-50 px-1 py-0.5 rounded border border-purple-200 min-w-[45px] max-w-[85px]">
                                             <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
-                                            <button  
-                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" class="remove-national-student-btn">??/button>
+                                            <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }})" 
+                                                    class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
                                     </div>
                                 </div>
                                 {% endfor %}
                             {% else %}
-                                <button  
-                                        class="w-full text-xs text-purple-600 border border-dashed border-purple-300 rounded p-1 hover:bg-purple-50" data-day="{{ day_num }}" data-national-type="national" class="add-national-location-btn">
-                                    + ???�소 추�?
+                                <button onclick="addNewLocationToNationalTraining({{ day_num }}, 'national')" 
+                                        class="w-full text-xs text-purple-600 border border-dashed border-purple-300 rounded p-1 hover:bg-purple-50">
+                                    + 새 장소 추가
                                 </button>
                             {% endif %}
                         </div>
@@ -554,87 +554,87 @@
                             <h3 class="font-semibold text-gray-800 text-sm">5부 (7:00-7:50)</h3>
                         </div>
                         <div class="grid grid-cols-2 gap-0">
-                            <!-- ?�차 -->
+                            <!-- 승차 -->
                             <div class="border-r">
-                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 5 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][5] %}
                                         {% for location, students in schedule_data[day_num][5]['pickup'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="5" data-location="{{ location|tojson }}" data-type="pickup" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 5, {{ location|tojson }}, 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="pickup" data-session="5" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 5)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="5" data-type="pickup" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 5, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50" data-day="{{ day_num }}" data-session="5" data-type="pickup" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 5, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
-                            <!-- ?�차 -->
+                            <!-- 하차 -->
                             <div>
-                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 5 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][5] %}
                                         {% for location, students in schedule_data[day_num][5]['dropoff'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="5" data-location="{{ location|tojson }}" data-type="dropoff" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 5, {{ location|tojson }}, 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="dropoff" data-session="5" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 5)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="5" data-type="dropoff" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 5, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50" data-day="{{ day_num }}" data-session="5" data-type="dropoff" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 5, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
@@ -647,87 +647,87 @@
                             <h3 class="font-semibold text-gray-800 text-sm">4부 (5:30-6:20)</h3>
                         </div>
                         <div class="grid grid-cols-2 gap-0">
-                            <!-- ?�차 -->
+                            <!-- 승차 -->
                             <div class="border-r">
-                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 4 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][4] %}
                                         {% for location, students in schedule_data[day_num][4]['pickup'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="4" data-location="{{ location|tojson }}" data-type="pickup" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 4, {{ location|tojson }}, 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="pickup" data-session="4" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 4)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="4" data-type="pickup" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 4, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50" data-day="{{ day_num }}" data-session="4" data-type="pickup" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 4, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
-                            <!-- ?�차 -->
+                            <!-- 하차 -->
                             <div>
-                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">?�차</div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]">
                                     {% if day_num in schedule_data and 4 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][4] %}
                                         {% for location, students in schedule_data[day_num][4]['dropoff'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">?�� {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button  
-                                                        class="text-xs text-blue-600 hover:text-blue-800" data-day="{{ day_num }}" data-session="4" data-location="{{ location|tojson }}" data-type="dropoff" class="regular-add-student-btn">
-                                                    + ?�생
+                                                <button onclick="addStudentToLocation({{ day_num }}, 4, {{ location|tojson }}, 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
                                                 </button>
-                                                    <button  
-                                                            class="text-xs text-gray-500 hover:text-gray-700" title="?�소 ?�정" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-location-type="dropoff" data-session="4" class="location-settings-btn">
-                                                        ?�️
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 4)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
                                                     </button>
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
                                                 {% for student_data in students %}
                                                 <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
-                                                    <button  
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                            data-student-id="{{ student_data.student.id }}" data-student-id="{{ student_data.student.id }}" class="student-attendance-btn">
+                                                            data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button  
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0" data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location|tojson }}" data-session="4" data-type="dropoff" class="remove-student-btn">??/button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 4, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
                                         </div>
                                         {% endfor %}
                                     {% endif %}
-                                    <button  
-                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50" data-day="{{ day_num }}" data-session="4" data-type="dropoff" class="add-location-btn">
-                                        + ???�소 추�?
+                                    <button onclick="addNewLocation({{ day_num }}, 4, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
                                     </button>
                                 </div>
                             </div>
@@ -739,50 +739,50 @@
         {% endfor %}
 </div>
 
-<!-- ?�생 추�? 모달 -->
+<!-- 학생 추가 모달 -->
 <div id="studentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-        <h3 class="text-lg font-semibold mb-4" id="modalTitle">?�생 추�?</h3>
+        <h3 class="text-lg font-semibold mb-4" id="modalTitle">학생 추가</h3>
         
         <div class="space-y-4">
-            <!-- ?�생 검??-->
+            <!-- 학생 검색 -->
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">?�생 검??/label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">학생 검색</label>
                 <div class="relative">
                     <input 
                         type="text" 
                         id="studentSearch" 
-                        placeholder="?�생 ?�름???�력?�세??.." 
+                        placeholder="학생 이름을 입력하세요..." 
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
                         autocomplete="off"
                     >
                     <div id="studentDropdown" class="absolute z-50 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto hidden shadow-lg">
-                        <!-- 검??결과가 ?�기???�시?�니??-->
+                        <!-- 검색 결과가 여기에 표시됩니다 -->
                     </div>
                 </div>
             </div>
             
-            <!-- ?�택???�생??-->
+            <!-- 선택된 학생들 -->
             <div id="selectedStudents" class="space-y-2">
-                <!-- ?�택???�생?�이 ?�기???�시?�니??-->
+                <!-- 선택된 학생들이 여기에 표시됩니다 -->
             </div>
         </div>
         
         <div class="flex justify-end space-x-2 mt-6">
-            <button type="button" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50" class="modal-close-btn">취소</button>
-            <button type="button" id="addStudentBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed" disabled class="confirm-add-btn">추�?</button>
+            <button type="button" onclick="closeModal()" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">취소</button>
+            <button type="button" id="addStudentBtn" onclick="confirmAddStudents()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed" disabled>추가</button>
         </div>
     </div>
 </div>
 
-<!-- ?�소 ?�정 모달 -->
+<!-- 장소 설정 모달 -->
 <div id="locationSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-lg p-6 w-full max-w-md">
-        <h3 class="text-lg font-semibold mb-4" id="locationSettingsTitle">?�소 ?�정</h3>
+        <h3 class="text-lg font-semibold mb-4" id="locationSettingsTitle">장소 설정</h3>
         
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-medium text-gray-700 mb-2">?�소�?/label>
+                <label class="block text-sm font-medium text-gray-700 mb-2">장소명</label>
                 <input type="text" id="locationNameInput" 
                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
                        onkeydown="handleLocationSettingsKeydown(event)">
@@ -790,18 +790,18 @@
         </div>
         
         <div class="flex justify-between mt-6">
-            <button type="button" 
-                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700" class="delete-location-btn">
-                ?���??�소 ??��
+            <button type="button" onclick="deleteLocation()" 
+                    class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                🗑️ 장소 삭제
             </button>
             <div class="flex space-x-2">
-                <button type="button" 
-                        class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50" class="close-settings-btn">
+                <button type="button" onclick="closeLocationSettings()" 
+                        class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
                     취소
                 </button>
-                <button type="button" 
-                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700" class="save-settings-btn">
-                    ?�??
+                <button type="button" onclick="saveLocationSettings()" 
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    저장
                 </button>
             </div>
         </div>
@@ -809,7 +809,7 @@
 </div>
 
 <script>
-// ?�역 변?�들???�임?�페?�스�?캡슐??
+// 전역 변수들을 네임스페이스로 캡슐화
 window.ScheduleApp = {
     currentDayIndex: 0,
     selectedStudents: [],
@@ -817,22 +817,22 @@ window.ScheduleApp = {
     currentLocationSettings: null
 };
 
-// DOM 로드 ???�벤??리스???�록
+// DOM 로드 후 이벤트 리스너 등록
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('?�� ?�이지 로드 ?�료');
+    console.log('📄 페이지 로드 완료');
     
-    // ?�벤???�임???�용?�여 ?�적?�로 ?�성?�는 버튼?�도 처리
+    // 이벤트 위임을 사용하여 동적으로 생성되는 버튼들도 처리
     document.addEventListener('click', handleButtonClick);
     
-    // URL?�서 ?�재 ?�일 ?�인
+    // URL에서 현재 요일 확인
     const urlParams = new URLSearchParams(window.location.search);
     const savedDay = urlParams.get('day');
     
     if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
         ScheduleApp.currentDayIndex = parseInt(savedDay);
-        console.log('?�� ?�?�된 ?�일�?즉시 ?�정:', ScheduleApp.currentDayIndex);
+        console.log('🔄 저장된 요일로 즉시 설정:', ScheduleApp.currentDayIndex);
     } else {
-        // ?�늘 ?�일�?초기??
+        // 오늘 요일로 초기화
         const today = new Date();
         const dayOfWeek = today.getDay();
         
@@ -842,29 +842,29 @@ document.addEventListener('DOMContentLoaded', function() {
             ScheduleApp.currentDayIndex = 0;
         }
         
-        console.log('?���??�늘 ?�일�?초기??', ScheduleApp.currentDayIndex);
+        console.log('🗓️ 오늘 요일로 초기화:', ScheduleApp.currentDayIndex);
     }
     
     initializeDayPageDirectly(ScheduleApp.currentDayIndex);
     addStudentClickEvents();
 });
 
-// ?�합 버튼 ?�릭 ?�들??
+// 통합 버튼 클릭 핸들러
 function handleButtonClick(event) {
     const button = event.target.closest('button');
     if (!button) return;
     
     const classList = button.classList;
     
-    // ?�일 ?�비게이??
+    // 요일 네비게이션
     if (classList.contains('day-nav-btn') || (button.id && button.id.startsWith('day-nav-'))) {
         const dayNum = parseInt(button.dataset.day);
         showDayPage(dayNum);
         return;
     }
     
-    // ?�생 추�? 버튼 (?�봄?�스??
-    if (classList.contains('care-add-student-btn')) {
+    // 학생 추가 버튼 (돌봄시스템)
+    if (classList.contains('add-care-student-btn')) {
         const dayNum = parseInt(button.dataset.day);
         const location = button.dataset.location;
         const careType = button.dataset.careType;
@@ -872,8 +872,8 @@ function handleButtonClick(event) {
         return;
     }
     
-    // ?�생 추�? 버튼 (?�반)
-    if (classList.contains('regular-add-student-btn')) {
+    // 학생 추가 버튼 (일반)
+    if (classList.contains('add-regular-student-btn')) {
         const dayNum = parseInt(button.dataset.day);
         const sessionPart = parseInt(button.dataset.sessionPart || '1');
         const location = button.dataset.location;
@@ -882,7 +882,7 @@ function handleButtonClick(event) {
         return;
     }
     
-    // �?��?��? ?�생 추�?
+    // 국기원부 학생 추가
     if (classList.contains('add-national-student-btn')) {
         const dayNum = parseInt(button.dataset.day);
         const location = button.dataset.location;
@@ -890,8 +890,8 @@ function handleButtonClick(event) {
         return;
     }
     
-    // ?�생 ?�거 버튼
-    if (classList.contains('remove-student-btn') || classList.contains('remove-care-student-btn') || classList.contains('remove-national-student-btn')) {
+    // 학생 제거 버튼
+    if (classList.contains('remove-student-btn')) {
         const studentId = parseInt(button.dataset.studentId);
         const dayNum = parseInt(button.dataset.day);
         const location = button.dataset.location;
@@ -909,8 +909,8 @@ function handleButtonClick(event) {
         return;
     }
     
-    // ???�소 추�? 버튼
-    if (classList.contains('add-location-btn') || classList.contains('add-care-location-btn') || classList.contains('add-national-location-btn')) {
+    // 새 장소 추가 버튼
+    if (classList.contains('add-new-location-btn')) {
         const dayNum = parseInt(button.dataset.day);
         const sessionPart = button.dataset.sessionPart;
         const type = button.dataset.type;
@@ -927,7 +927,7 @@ function handleButtonClick(event) {
         return;
     }
     
-    // ?�소 ?�정 버튼
+    // 장소 설정 버튼
     if (classList.contains('location-settings-btn')) {
         const dayNum = parseInt(button.dataset.day);
         const location = button.dataset.location;
@@ -937,16 +937,16 @@ function handleButtonClick(event) {
         showLocationSettings(dayNum, location, locationType, sessionPart);
         return;
     }
-    // 모든 ?�소 컨테?�너?�을 찾아???�거
+    // 모든 장소 컨테이너들을 찾아서 제거
     const allLocationContainers = dayPage.querySelectorAll('.border.border-gray-200.rounded');
     let removedCount = 0;
     
     allLocationContainers.forEach(container => {
         const locationSpan = container.querySelector('.text-gray-700');
-        if (locationSpan && locationSpan.textContent.includes(`?�� ${locationName}`)) {
-            console.log('????��???�소 컨테?�너 찾음:', locationSpan.textContent);
+        if (locationSpan && locationSpan.textContent.includes(`📍 ${locationName}`)) {
+            console.log('✅ 삭제할 장소 컨테이너 찾음:', locationSpan.textContent);
             
-            // ?�니메이?�으�??�거
+            // 애니메이션으로 제거
             container.style.transition = 'all 0.3s ease';
             container.style.opacity = '0';
             container.style.transform = 'scale(0.8)';
@@ -956,9 +956,9 @@ function handleButtonClick(event) {
                 container.remove();
                 removedCount++;
                 
-                console.log(`?���??�소 컨테?�너 ?�거 ?�료: ${locationName}`);
+                console.log(`🗑️ 장소 컨테이너 제거 완료: ${locationName}`);
                 
-                // ?�당 ?�션???�소가 모두 ?�어지�?+ ???�소 추�? 버튼 ?�시 ?�시
+                // 해당 섹션에 장소가 모두 없어지면 + 새 장소 추가 버튼 다시 표시
                 if (parentContainer) {
                     const remainingLocations = parentContainer.querySelectorAll('.border.border-gray-200.rounded');
                     if (remainingLocations.length === 0) {
@@ -966,7 +966,7 @@ function handleButtonClick(event) {
                         addButtons.forEach(btn => {
                             if (btn.style.display === 'none') {
                                 btn.style.display = 'block';
-                                console.log('?�� + ???�소 추�? 버튼 ?�시 ?�시');
+                                console.log('🔘 + 새 장소 추가 버튼 다시 표시');
                             }
                         });
                     }
@@ -975,55 +975,55 @@ function handleButtonClick(event) {
         }
     });
     
-    // 즉시 ?�드백이 ?�으�??�로고침?�로 ?��?
+    // 즉시 피드백이 없으면 새로고침으로 대체
     if (removedCount === 0) {
-        console.log('?�️ DOM?�서 ?�소�?찾을 ???�어 ?�로고침 ?�행');
+        console.log('⚠️ DOM에서 장소를 찾을 수 없어 새로고침 실행');
         setTimeout(() => {
             window.location.reload();
         }, 1000);
     }
 }
 
-// ?�버깅용 ?�수: ?�재 ?�이지??모든 ?�소 ?�보 출력
+// 디버깅용 함수: 현재 페이지의 모든 장소 정보 출력
 function debugAllLocations() {
-    console.log('?�� ?�재 ?�일??모든 ?�소 ?�보:');
+    console.log('🔍 현재 요일의 모든 장소 정보:');
     const dayPage = document.getElementById(`day-page-${currentDayIndex}`);
     if (!dayPage) {
-        console.log('???�재 ?�일 ?�이지 ?�음');
+        console.log('❌ 현재 요일 페이지 없음');
         return;
     }
     
     const allLocationSpans = dayPage.querySelectorAll('.text-gray-700');
-    console.log(`?�� �?${allLocationSpans.length}�??�소 ?�팬 발견:`);
+    console.log(`📍 총 ${allLocationSpans.length}개 장소 스팬 발견:`);
     
     allLocationSpans.forEach((span, index) => {
         console.log(`${index + 1}. "${span.textContent}"`);
     });
     
     const allButtons = dayPage.querySelectorAll('button[onclick]');
-    console.log(`?�� �?${allButtons.length}�?onclick 버튼 발견:`);
+    console.log(`🔘 총 ${allButtons.length}개 onclick 버튼 발견:`);
     
     allButtons.forEach((button, index) => {
         const onclick = button.getAttribute('onclick');
         if (onclick && onclick.includes('showLocationSettings')) {
-            console.log(`${index + 1}. ?�정 버튼: ${onclick}`);
+            console.log(`${index + 1}. 설정 버튼: ${onclick}`);
         }
     });
 }
 
-// ?�� 개선???�림 ?�스??
+// 🎯 개선된 알림 시스템
 function showNotification(message, type = 'info', duration = 3000) {
-    // 기존 ?�림 ?�거
+    // 기존 알림 제거
     const existingNotification = document.querySelector('.notification-toast');
     if (existingNotification) {
         existingNotification.remove();
     }
     
-    // ???�림 ?�성
+    // 새 알림 생성
     const notification = document.createElement('div');
     notification.className = `notification-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
     
-    // ?�?�별 ?��???
+    // 타입별 스타일
     const styles = {
         'success': 'bg-green-500 text-white',
         'error': 'bg-red-500 text-white', 
@@ -1036,12 +1036,12 @@ function showNotification(message, type = 'info', duration = 3000) {
     
     document.body.appendChild(notification);
     
-    // ?�니메이?�으�??�시
+    // 애니메이션으로 표시
     setTimeout(() => {
         notification.classList.remove('translate-x-full');
     }, 100);
     
-    // ?�동 ?�거
+    // 자동 제거
     setTimeout(() => {
         notification.classList.add('translate-x-full');
         setTimeout(() => {
