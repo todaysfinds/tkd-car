@@ -1086,38 +1086,55 @@ def add_multiple_students_to_schedule():
                 'invalid_students': invalid_students
             })
         
-        # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 제거
-        dummy_schedules = Schedule.query.filter_by(
-            day_of_week=day_of_week,
-            schedule_type=schedule_type,
-            location=target_location
-        ).join(Student).filter(
-            Student.name.like('_PH_%')  # 더미 학생만
+        # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 완전 제거
+        print(f"   🧹 더미 스케줄 완전 제거 시작...")
+        
+        # 1단계: 해당 장소의 모든 더미 스케줄 찾기
+        dummy_schedules = db.session.query(Schedule).join(Student).filter(
+            Schedule.day_of_week == day_of_week,
+            Schedule.schedule_type == schedule_type,
+            Schedule.location == target_location,
+            Student.name.like('_PH_%')
         ).all()
         
         print(f"   📋 발견된 더미 스케줄: {len(dummy_schedules)}개")
-        for dummy_schedule in dummy_schedules:
-            print(f"      - 더미 학생: {dummy_schedule.student.name}")
         
+        # 2단계: 더미 학생 ID 수집
+        dummy_student_ids = []
+        for dummy_schedule in dummy_schedules:
+            dummy_student_ids.append(dummy_schedule.student_id)
+            print(f"      - 더미 학생: {dummy_schedule.student.name} (ID: {dummy_schedule.student_id})")
+        
+        # 3단계: 더미 스케줄 일괄 삭제
         if dummy_schedules:
-            print(f"   🗑️ 더미 스케줄 {len(dummy_schedules)}개 제거 중...")
-            for dummy_schedule in dummy_schedules:
-                # 더미 학생과 스케줄 모두 삭제
-                dummy_student = dummy_schedule.student
-                print(f"      - 삭제: {dummy_student.name}")
-                db.session.delete(dummy_schedule)
-                db.session.delete(dummy_student)
-            print(f"   ✅ 더미 스케줄 제거 완료")
+            print(f"   🗑️ 더미 스케줄 {len(dummy_schedules)}개 일괄 삭제 중...")
+            for schedule in dummy_schedules:
+                db.session.delete(schedule)
+            
+            # 4단계: 더미 학생 일괄 삭제  
+            dummy_students = Student.query.filter(Student.id.in_(dummy_student_ids)).all()
+            for student in dummy_students:
+                print(f"      - 더미 학생 삭제: {student.name}")
+                db.session.delete(student)
+            
+            # 5단계: 중간 커밋으로 더미 데이터 완전 제거
+            db.session.commit()
+            print(f"   ✅ 더미 데이터 완전 제거 완료")
         else:
             print(f"   ℹ️ 제거할 더미 스케줄 없음")
         
-        # 모든 검증 통과 시에만 실제 추가
+        # 🎯 안전한 학생 추가 (개별 검증 후 일괄 추가)
+        print(f"   📝 실제 학생 추가 시작...")
         added_students = []
+        new_schedules = []
+        
         for student_data in students:
             student_id = student_data.get('id')
             student_name = student_data.get('name', f'학생{student_id}')
             
-            # 새 스케줄 추가
+            print(f"   ➕ 스케줄 생성: {student_name}(ID:{student_id})")
+            
+            # 새 스케줄 생성 (아직 DB에 추가하지 않음)
             new_schedule = Schedule(
                 student_id=student_id,
                 day_of_week=day_of_week,
@@ -1126,7 +1143,7 @@ def add_multiple_students_to_schedule():
                 location=target_location
             )
             
-            db.session.add(new_schedule)
+            new_schedules.append(new_schedule)
             
             # 프론트엔드 DOM 업데이트용 상세 정보 추가
             added_students.append({
@@ -1141,7 +1158,12 @@ def add_multiple_students_to_schedule():
                 'time': schedule_time.strftime('%H:%M')
             })
         
-        # 모든 변경사항을 한 번에 커밋
+        # 모든 스케줄을 한 번에 DB에 추가
+        print(f"   💾 {len(new_schedules)}개 스케줄 일괄 추가 중...")
+        for schedule in new_schedules:
+            db.session.add(schedule)
+        
+        # 최종 커밋
         db.session.commit()
         
         print(f"✅ [성공] {len(added_students)}명의 학생이 {target_location}에 추가됨")
@@ -1159,16 +1181,21 @@ def add_multiple_students_to_schedule():
         import traceback
         traceback.print_exc()
         
-        # 정확한 에러 진단
+        # 정확한 에러 진단 및 복구 시도
         error_str = str(e).lower()
         if 'value too long' in error_str or 'stringdatatruncation' in error_str:
             error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
-        elif 'duplicate' in error_str:
-            error_msg = '이미 동일한 스케줄이 존재합니다.'
+        elif 'duplicate' in error_str or 'integrity' in error_str:
+            # 중복 오류 시 더 자세한 정보 제공
+            error_msg = f'데이터 중복 오류가 발생했습니다. 페이지를 새로고침하고 다시 시도해주세요. (위치: {target_location}, 학생 수: {len(students) if "students" in locals() else "Unknown"})'
         else:
-            error_msg = f'서버 오류: {str(e)}'
+            error_msg = f'서버 오류: {str(e)} - 페이지 새로고침 후 다시 시도해주세요.'
         
-        return jsonify({'success': False, 'error': error_msg})
+        return jsonify({
+            'success': False, 
+            'error': error_msg,
+            'need_refresh': True  # 프론트엔드에서 새로고침 유도
+        })
 
 # 장소 및 스케줄 관리 API
 @app.route('/api/update_location_name', methods=['POST'])
