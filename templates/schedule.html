@@ -156,11 +156,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="1" data-location="{{ location }}" data-type="pickup" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 1, \'{{ location }}\', \'pickup\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 1, {{ location|tojson }}, 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="pickup" data-session="1" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'pickup\', 1)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 1)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -174,7 +174,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="1" data-type="pickup" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 1, \'pickup\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 1, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -199,11 +199,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="1" data-location="{{ location }}" data-type="dropoff" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 1, \'{{ location }}\', \'dropoff\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 1, {{ location|tojson }}, 'dropoff')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="dropoff" data-session="1" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'dropoff\', 1)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 1)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -217,7 +217,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="1" data-type="dropoff" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 1, \'dropoff\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 1, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -250,11 +250,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="2" data-location="{{ location }}" data-type="pickup" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 2, \'{{ location }}\', \'pickup\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, {{ location|tojson }}, 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="pickup" data-session="2" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'pickup\', 2)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 2)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -268,7 +268,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="2" data-type="pickup" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 2, \'pickup\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 2, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -292,11 +292,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="2" data-location="{{ location }}" data-type="dropoff" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 2, \'{{ location }}\', \'dropoff\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, {{ location|tojson }}, 'dropoff')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="dropoff" data-session="2" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'dropoff\', 2)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 2)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -310,7 +310,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="2" data-type="dropoff" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 2, \'dropoff\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 2, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -341,11 +341,11 @@
                                     <div class="flex items-center justify-between mb-1">
                                         <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                         <div class="flex items-center gap-1">
-                                            <button data-day="{{ day_num }}" data-location="{{ location }}" data-care-type="care2" class="add-care-student-btn" onclick="addStudentToCareSystem({{ day_num }}, \'{{ location }}\', \'care2\')" 
+                                            <button onclick="addStudentToCareSystem({{ day_num }}, {{ location|tojson }}, 'care2')" 
                                                     class="text-xs text-blue-600 hover:text-blue-800">
                                                 + 학생
                                             </button>
-                                            <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="care_system" data-session="'care2'" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'care_system\', 'care2')" 
+                                            <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'care_system', 'care2')" 
                                                     class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                 ⚙️
                                             </button>
@@ -355,7 +355,7 @@
                                         {% for student_data in students %}
                                         <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
                                             <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
-                                            <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-care-type="care2" class="remove-care-student-btn" onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', \'care2\')" 
+                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 'care2')" 
                                                     class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
@@ -387,11 +387,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="3" data-location="{{ location }}" data-type="pickup" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 3, \'{{ location }}\', \'pickup\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 3, {{ location|tojson }}, 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="pickup" data-session="3" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'pickup\', 3)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 3)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -405,7 +405,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="3" data-type="pickup" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 3, \'pickup\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 3, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -429,11 +429,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="3" data-location="{{ location }}" data-type="dropoff" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 3, \'{{ location }}\', \'dropoff\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 3, {{ location|tojson }}, 'dropoff')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="dropoff" data-session="3" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'dropoff\', 3)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 3)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -447,7 +447,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="3" data-type="dropoff" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 3, \'dropoff\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 3, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -476,11 +476,11 @@
                                     <div class="flex items-center justify-between mb-1">
                                         <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                         <div class="flex items-center gap-1">
-                                            <button data-day="{{ day_num }}" data-location="{{ location }}" data-care-type="care3" class="add-care-student-btn" onclick="addStudentToCareSystem({{ day_num }}, \'{{ location }}\', \'care3\')" 
+                                            <button onclick="addStudentToCareSystem({{ day_num }}, {{ location|tojson }}, 'care3')" 
                                                     class="text-xs text-blue-600 hover:text-blue-800">
                                                 + 학생
                                             </button>
-                                            <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="care_system" data-session="'care3'" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'care_system\', 'care3')" 
+                                            <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'care_system', 'care3')" 
                                                     class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                 ⚙️
                                             </button>
@@ -490,7 +490,7 @@
                                         {% for student_data in students %}
                                         <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
                                             <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
-                                            <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-care-type="care3" class="remove-care-student-btn" onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', \'care3\')" 
+                                            <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 'care3')" 
                                                     class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
@@ -518,11 +518,11 @@
                                     <div class="flex items-center justify-between mb-1">
                                         <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                         <div class="flex items-center gap-1">
-                                            <button data-day="{{ day_num }}" data-location="{{ location }}" class="add-national-student-btn" onclick="addStudentToNationalTraining({{ day_num }}, \'{{ location }}\')" 
+                                            <button onclick="addStudentToNationalTraining({{ day_num }}, {{ location|tojson }})" 
                                                     class="text-xs text-blue-600 hover:text-blue-800">
                                                 + 학생
                                             </button>
-                                            <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'national_training')" 
+                                            <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'national_training')" 
                                                     class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                 ⚙️
                                             </button>
@@ -532,7 +532,7 @@
                                         {% for student_data in students %}
                                         <div class="flex items-center justify-between text-xs bg-purple-50 px-1 py-0.5 rounded border border-purple-200 min-w-[45px] max-w-[85px]">
                                             <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
-                                            <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" class="remove-national-student-btn" onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\')" 
+                                            <button onclick="removeStudentFromNationalTraining({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }})" 
                                                     class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0" style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
@@ -564,11 +564,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="5" data-location="{{ location }}" data-type="pickup" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 5, \'{{ location }}\', \'pickup\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 5, {{ location|tojson }}, 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="pickup" data-session="5" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'pickup\', 5)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 5)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -582,7 +582,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="5" data-type="pickup" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 5, \'pickup\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 5, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -606,11 +606,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="5" data-location="{{ location }}" data-type="dropoff" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 5, \'{{ location }}\', \'dropoff\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 5, {{ location|tojson }}, 'dropoff')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="dropoff" data-session="5" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'dropoff\', 5)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 5)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -624,7 +624,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="5" data-type="dropoff" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 5, \'dropoff\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 5, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -657,11 +657,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="4" data-location="{{ location }}" data-type="pickup" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 4, \'{{ location }}\', \'pickup\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 4, {{ location|tojson }}, 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="pickup" data-session="4" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'pickup\', 4)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'pickup', 4)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -675,7 +675,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="4" data-type="pickup" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 4, \'pickup\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 4, 'pickup')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -699,11 +699,11 @@
                                             <div class="flex items-center justify-between mb-1">
                                                 <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button data-day="{{ day_num }}" data-session="4" data-location="{{ location }}" data-type="dropoff" class="add-regular-student-btn" onclick="addStudentToLocation({{ day_num }}, 4, \'{{ location }}\', \'dropoff\')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 4, {{ location|tojson }}, 'dropoff')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button data-day="{{ day_num }}" data-location="{{ location }}" data-location-type="dropoff" data-session="4" class="location-settings-btn" onclick="showLocationSettings({{ day_num }}, \'{{ location }}\', \'dropoff\', 4)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, {{ location|tojson }}, 'dropoff', 4)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -717,7 +717,7 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button data-student-id="{{ student_data.student.id }}" data-day="{{ day_num }}" data-location="{{ location }}" data-session="4" data-type="dropoff" class="remove-student-btn" onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, \'{{ location }}\', 4, \'dropoff\')" 
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, {{ location|tojson }}, 4, 'dropoff')" 
                                                             class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
                                                 </div>
                                                 {% endfor %}
