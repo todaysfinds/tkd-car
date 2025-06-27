@@ -275,35 +275,7 @@
                         </div>
                     </div>
 
-                    <!-- 돌봄시스템 2 (2부와 3부 사이) -->
-                    <div class="border rounded-lg overflow-hidden border-orange-200">
-                        <div class="bg-orange-100 px-3 py-1 border-b border-orange-200 flex items-center justify-between">
-                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
-                            <button onclick="addStudentToCareSystem({{ day_num }}, '도장', 'care2')" 
-                                    class="text-xs text-orange-600 hover:text-orange-800">
-                                + 학생
-                            </button>
-                        </div>
-                        <div class="p-2 space-y-2 min-h-[30px] bg-white">
-                            {% if day_num in schedule_data and 'care2' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care2'] %}
-                                {% for location, students in schedule_data[day_num]['care2']['students'].items() %}
-                                <div class="flex flex-wrap gap-1">
-                                    {% for student_data in students %}
-                                    <div class="flex items-center justify-between text-xs bg-gray-50 px-1 py-0.5 rounded border border-gray-200 min-w-[50px] max-w-[100px]">
-                                        <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
-                                                class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
-                                                data-student-id="{{ student_data.student.id }}">
-                                            {{ student_data.student.name }}
-                                        </button>
-                                        <button onclick="removeStudentFromCareSystem({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 'care2')" 
-                                                class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
-                                    </div>
-                                    {% endfor %}
-                                </div>
-                                {% endfor %}
-                            {% endif %}
-                        </div>
-                    </div>
+
 
                     <!-- 돌봄시스템 B (2부와 3부 사이) -->
                     <div class="border rounded-lg overflow-hidden border-orange-200">
@@ -440,10 +412,10 @@
                         </div>
                     </div>
 
-                    <!-- 돌봄시스템 3 (4부와 5부 사이) -->
+                    <!-- 돌봄시스템 C (4부와 5부 사이) -->
                     <div class="border rounded-lg overflow-hidden border-orange-200">
                         <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
-                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템</h3>
+                            <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 C</h3>
                         </div>
                         <div class="p-2 space-y-2 min-h-[30px] bg-white">
                             {% if day_num in schedule_data and 'care3' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care3'] %}
@@ -1811,8 +1783,19 @@ function addEmptyLocationToUI(dayNum, sessionPart, locationName, type) {
 
 // 돌봄시스템 관련 함수들
 function addStudentToCareSystem(dayNum, locationName, careType) {
-    // careType을 숫자로 변환 (care1->6, care2->6, care3->6)
-    let sessionPartNum = 6; // 돌봄시스템은 모두 6번으로 통일
+    // 🎯 careType별로 다른 session_part 할당 (완전 독립)
+    let sessionPartNum;
+    if (careType === 'care1') {
+        sessionPartNum = 6;  // 돌봄시스템 A
+    } else if (careType === 'care2') {
+        sessionPartNum = 8;  // 돌봄시스템 B  
+    } else if (careType === 'care3') {
+        sessionPartNum = 9;  // 돌봄시스템 C
+    } else {
+        sessionPartNum = 6;  // 기본값
+    }
+    
+    console.log(`🏫 돌봄시스템 학생 추가: ${careType} → session_part: ${sessionPartNum}`);
     
     // 장소명을 짧게 유지 (데이터베이스 제한 고려)
     let shortLocation = locationName.length > 90 ? locationName.substring(0, 90) : locationName;
@@ -1820,12 +1803,13 @@ function addStudentToCareSystem(dayNum, locationName, careType) {
     
     currentModalConfig = {
         dayNum: dayNum,
-        sessionPart: sessionPartNum,
+        sessionPart: sessionPartNum,  // 🎯 각 돌봄시스템별 고유 session_part
         type: 'care_system',
         location: finalLocation
     };
     
-    document.getElementById('modalTitle').textContent = `${locationName}에 학생 추가 (돌봄시스템)`;
+    const careNames = {care1: 'A', care2: 'B', care3: 'C'};
+    document.getElementById('modalTitle').textContent = `${locationName}에 학생 추가 (돌봄시스템 ${careNames[careType] || careType})`;
     document.getElementById('studentModal').classList.remove('hidden');
     initStudentSearch();
     
@@ -1835,6 +1819,18 @@ function addStudentToCareSystem(dayNum, locationName, careType) {
 
 function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
     console.log('🗑️ 돌봄시스템 학생 제거 시도:', {studentId, dayNum, location, careType});
+    
+    // 🎯 careType별로 다른 session_part 할당 (완전 독립)
+    let sessionPartNum;
+    if (careType === 'care1') {
+        sessionPartNum = 6;  // 돌봄시스템 A
+    } else if (careType === 'care2') {
+        sessionPartNum = 8;  // 돌봄시스템 B  
+    } else if (careType === 'care3') {
+        sessionPartNum = 9;  // 돌봄시스템 C
+    } else {
+        sessionPartNum = 6;  // 기본값
+    }
     
     // 학생 요소를 미리 찾아두기 (제거 전)
     const studentButton = event.target;
@@ -1849,7 +1845,7 @@ function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
             student_id: studentId,
             day_of_week: dayNum,
             location: location,
-            session_part: 6, // 돌봄시스템은 숫자 6으로 통일
+            session_part: sessionPartNum, // 🎯 각 돌봄시스템별 고유 session_part
             type: 'care_system',
             keep_location: true
         })
