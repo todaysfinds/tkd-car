@@ -464,7 +464,7 @@ def add_location():
 
 @app.route('/api/update_location', methods=['POST'])
 def update_location():
-    """장소관리 페이지에서의 일반적인 장소명 변경 (전역적 변경)"""
+    """🚨 위험: 장소관리 페이지에서의 전역적 장소명 변경 - 사용 금지"""
     try:
         data = request.get_json()
         original_name = data.get('original_name')
@@ -474,8 +474,17 @@ def update_location():
         if not original_name or not new_name:
             return jsonify({'success': False, 'message': '장소명이 필요합니다.'})
         
-        print(f"🔄 장소명 전역 변경: '{original_name}' → '{new_name}'")
+        # 🚨 전역 변경 경고 및 차단
+        print(f"🚨 위험한 전역 장소명 변경 시도 차단: '{original_name}' → '{new_name}'")
         
+        return jsonify({
+            'success': False, 
+            'message': '⚠️ 전역 장소명 변경은 데이터 오염 위험으로 인해 차단되었습니다.\n\n대신 다음을 사용하세요:\n- 스케줄 페이지에서 요일별 독립적 수정\n- 관리자에게 문의하여 안전한 방법으로 변경',
+            'warning': 'GLOBAL_CHANGE_BLOCKED'
+        })
+        
+        # 아래 코드는 실행되지 않음 (안전을 위해 주석 처리)
+        """
         # Location 테이블 업데이트
         location = Location.query.filter_by(name=original_name).first()
         if location:
@@ -499,6 +508,7 @@ def update_location():
         
         print(f"✅ 장소명 전역 변경 완료: {len(students)}명 학생, {len(schedules)}개 스케줄 업데이트")
         return jsonify({'success': True})
+        """
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
@@ -2358,4 +2368,56 @@ def fix_duplicate_schedules():
     except Exception as e:
         db.session.rollback()
         print(f"❌ 중복 스케줄 정리 오류: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/admin/fix_location_consistency', methods=['POST'])
+def fix_location_consistency():
+    """🚨 관리자 전용: 장소 정보 일관성 복구"""
+    try:
+        data = request.get_json()
+        target_location = data.get('target_location')
+        correct_location = data.get('correct_location')
+        day_of_week = data.get('day_of_week')  # 특정 요일만 수정 (선택사항)
+        
+        if not target_location or not correct_location:
+            return jsonify({'success': False, 'error': '대상 장소명과 올바른 장소명이 필요합니다.'})
+        
+        print(f"🔧 장소 정보 일관성 복구: '{target_location}' → '{correct_location}'")
+        if day_of_week is not None:
+            print(f"   - 대상 요일: {day_of_week}")
+        
+        # Schedule 테이블에서 해당 장소 찾기
+        query = Schedule.query.filter(Schedule.location == target_location)
+        if day_of_week is not None:
+            query = query.filter(Schedule.day_of_week == day_of_week)
+        
+        schedules = query.all()
+        
+        updated_count = 0
+        affected_students = set()
+        
+        for schedule in schedules:
+            schedule.location = correct_location
+            affected_students.add(schedule.student.name)
+            updated_count += 1
+            print(f"   ✅ 수정: {schedule.student.name} - {schedule.day_of_week}요일 {schedule.schedule_type}")
+        
+        # 🚨 Student 테이블의 pickup_location은 건드리지 않음
+        # 기본 장소 정보는 그대로 유지하고 스케줄만 수정
+        
+        db.session.commit()
+        
+        print(f"✅ 장소 정보 일관성 복구 완료: {updated_count}개 스케줄, {len(affected_students)}명 학생")
+        
+        return jsonify({
+            'success': True,
+            'message': f'장소 정보 일관성이 복구되었습니다.\n- 수정된 스케줄: {updated_count}개\n- 영향받은 학생: {len(affected_students)}명',
+            'updated_count': updated_count,
+            'affected_students': list(affected_students),
+            'day_affected': day_of_week
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 장소 정보 일관성 복구 오류: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
