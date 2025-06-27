@@ -907,7 +907,8 @@ def add_student_to_schedule():
             student_id=student_id,
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            location=target_location
+            location=target_location,
+            time=schedule_time  # 🎯 시간대별 독립적 처리 추가!
         ).first()
         
         # 더미 학생인지 확인
@@ -925,7 +926,8 @@ def add_student_to_schedule():
         dummy_schedules = Schedule.query.filter_by(
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            location=target_location
+            location=target_location,
+            time=schedule_time  # 🎯 시간대별 독립적 처리 추가!
         ).join(Student).filter(
             Student.name.like('_PH_%')  # 더미 학생만
         ).all()
@@ -1045,13 +1047,14 @@ def add_multiple_students_to_schedule():
                 print(f"      - 학생: {sched.student.name} (ID: {sched.student_id})")
             
             # 중복 체크 (더미 학생 제외) - 더 안전한 방법
-            print(f"   🔍 중복 체크 조건: student_id={student_id}, day={day_of_week}, type={schedule_type}, location='{target_location}'")
+            print(f"   🔍 중복 체크 조건: student_id={student_id}, day={day_of_week}, type={schedule_type}, location='{target_location}', time={schedule_time}")
             
             existing_schedule = Schedule.query.filter_by(
                 student_id=student_id,
                 day_of_week=day_of_week,
                 schedule_type=schedule_type,
-                location=target_location
+                location=target_location,
+                time=schedule_time  # 🎯 시간대별 독립적 처리 추가!
             ).first()
             
             print(f"   🔍 기존 스케줄 검색 결과: {existing_schedule}")
