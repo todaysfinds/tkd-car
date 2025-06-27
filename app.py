@@ -44,6 +44,8 @@ if database_url:
     
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     print(f"🐘 PostgreSQL 사용 (프로덕션): {database_url[:50]}...")
+    # 프로덕션 환경 플래그 설정
+    app.config['IS_LOCAL_DEV'] = False
 else:
     # 로컬 개발: PostgreSQL
     try:
@@ -57,10 +59,14 @@ else:
         test_conn.close()
         app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://localhost:5432/tkd_transport'
         print("🐘 PostgreSQL 사용 (로컬)")
+        # 로컬 PostgreSQL 환경 플래그 설정
+        app.config['IS_LOCAL_DEV'] = True
     except:
         # 로컬에서 PostgreSQL 없으면 환경변수 사용
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tkd_transport.db'
         print("🗄️ 로컬 개발용 SQLite - ⚠️ 배포사이트와 다른 DB!")
+        # 로컬 환경 플래그 설정
+        app.config['IS_LOCAL_DEV'] = True
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -246,6 +252,9 @@ def schedule():
     # 승차/하차 완전 분리 구조
     schedule_data = {}
     
+    # 🚨 로컬 개발 환경 경고 표시
+    is_local_dev = app.config.get('IS_LOCAL_DEV', False)
+    
     # 모든 스케줄 조회 (더미 학생 제외)
     schedules = db.session.query(Student, Schedule).join(Schedule).filter(
         ~Student.name.like('_PH_%')  # 더미 학생 제외
@@ -361,7 +370,14 @@ def schedule():
                 schedule_data[day][part][schedule_type][location] = []
                 print(f"   📍 빈 장소 추가: {location} ({schedule_time}) - {day}요일 {part}부 {schedule_type}")
     
-    return render_template('schedule.html', schedule_data=schedule_data)
+    # 현재 요일 (0=월요일, 6=일요일)
+    current_day = datetime.now().weekday()
+    
+    return render_template('schedule.html', 
+                         schedule_data=schedule_data, 
+                         current_day=current_day,
+                         day_names=['월', '화', '수', '목', '금', '토', '일'],
+                         is_local_dev=is_local_dev)
 
 @app.route('/admin/students')
 def admin_students():
@@ -2042,7 +2058,7 @@ def cleanup_duplicates():
 
 @app.route('/api/create_empty_location', methods=['POST'])
 def create_empty_location():
-    """빈 장소 생성 (실제 더미 스케줄 생성으로 지속성 보장)"""
+    """빈 장소 생성 (실제 더미 스케줄 생성으로 지속성 보장) - 🎯 돌봄시스템/국기원부 지원"""
     try:
         data = request.get_json()
         day_of_week = data.get('day_of_week')
@@ -2060,6 +2076,14 @@ def create_empty_location():
         if not all([day_of_week is not None, session_part, location_name]):
             print(f"❌ 필수 정보 누락 체크: day_of_week={day_of_week is not None}, session_part={bool(session_part)}, location_name={bool(location_name)}")
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
+        
+        # 🎯 돌봄시스템/국기원부 타입 자동 감지 및 보정
+        if session_part in [6, 8, 9]:  # 돌봄시스템 A/B/C
+            schedule_type = 'care_system'
+            print(f"   🏫 돌봄시스템 감지: session_part={session_part} → type=care_system")
+        elif session_part == 7:  # 국기원부
+            schedule_type = 'national_training'
+            print(f"   🏛️ 국기원부 감지: session_part={session_part} → type=national_training")
         
         # 부별 기본 시간 설정 (🎯 돌봄시스템과 국기원부 포함)
         if session_part == 1:
@@ -2083,16 +2107,35 @@ def create_empty_location():
         else:  # 기본값
             default_time = time(14, 0)
         
+        # 🎯 최종 장소명 결정 (돌봄시스템/국기원부는 접미사 추가)
+        if schedule_type == 'care_system':
+            # 돌봄시스템별 접미사 추가
+            if session_part == 6:
+                final_location_name = f"{location_name}_care1"
+            elif session_part == 8:
+                final_location_name = f"{location_name}_care2"
+            elif session_part == 9:
+                final_location_name = f"{location_name}_care3"
+            else:
+                final_location_name = f"{location_name}_care1"
+            print(f"   🏫 돌봄시스템 장소명: {location_name} → {final_location_name}")
+        elif schedule_type == 'national_training':
+            final_location_name = f"{location_name}_national"
+            print(f"   🏛️ 국기원부 장소명: {location_name} → {final_location_name}")
+        else:
+            final_location_name = location_name
+            print(f"   📍 일반 장소명: {final_location_name}")
+        
         # 해당 장소에 이미 스케줄이 있는지 확인 (🎯 시간대별 독립적 체크)
         existing_schedule = Schedule.query.filter_by(
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            location=location_name,
+            location=final_location_name,  # 🔥 최종 장소명 사용!
             time=default_time  # 🔥 시간대별 독립성 보장!
         ).first()
         
         if existing_schedule:
-            print(f"📍 동일 시간대 장소 이미 존재: {location_name} ({default_time})")
+            print(f"📍 동일 시간대 장소 이미 존재: {final_location_name} ({default_time})")
             return jsonify({
                 'success': True, 
                 'message': f'"{location_name}" 장소가 이미 존재합니다. ({default_time})',
@@ -2103,7 +2146,7 @@ def create_empty_location():
         # 🎯 실제 더미 학생으로 장소 생성 (새로고침 후에도 유지됨)  
         # 더미 학생 생성 (이름 길이 제한으로 해시 사용)
         import hashlib
-        hash_input = f"{location_name}_{day_of_week}_{session_part}_{schedule_type}"
+        hash_input = f"{final_location_name}_{day_of_week}_{session_part}_{schedule_type}"
         location_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8]
         dummy_student_name = f"_PH_{location_hash}"
         
@@ -2121,7 +2164,7 @@ def create_empty_location():
                 name=dummy_student_name,
                 grade="PLACEHOLDER",
                 session_part=session_part,
-                pickup_location=location_name,
+                pickup_location=final_location_name,  # 🔥 최종 장소명 사용!
                 memo=f"빈장소:{location_name}({day_of_week}요일{session_part}부{schedule_type})"
             )
             db.session.add(dummy_student)
@@ -2139,7 +2182,7 @@ def create_empty_location():
             day_of_week=day_of_week,
             schedule_type=schedule_type,
             time=default_time,
-            location=location_name
+            location=final_location_name  # 🔥 최종 장소명 사용!
         )
         
         db.session.add(dummy_schedule)
@@ -2147,12 +2190,13 @@ def create_empty_location():
         db.session.commit()
         print(f"   - DB 커밋 완료!")
         
-        print(f"✅ 빈 장소 생성 완료: {location_name} (더미 스케줄 ID: {dummy_schedule.id})")
+        print(f"✅ 빈 장소 생성 완료: {final_location_name} (더미 스케줄 ID: {dummy_schedule.id})")
         
         return jsonify({
             'success': True, 
             'message': f'"{location_name}" 장소가 생성되었습니다.',
             'location_name': location_name,
+            'final_location_name': final_location_name,  # 🔥 디버깅용 추가
             'day_of_week': day_of_week,
             'session_part': session_part,
             'type': schedule_type,
