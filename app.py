@@ -316,7 +316,7 @@ def schedule():
                 'schedule': schedule
             })
     
-    # 🎯 더미 스케줄로 생성된 빈 장소들 추가 (실제 학생 없는 장소)
+    # 🎯 더미 스케줄로 생성된 빈 장소들 추가 (실제 학생 없는 장소) - 시간대별 독립적
     dummy_schedules = db.session.query(Student, Schedule).join(Schedule).filter(
         Student.name.like('_PH_%')  # 더미 학생만 조회
     ).all()
@@ -325,16 +325,26 @@ def schedule():
         day = dummy_schedule.day_of_week
         schedule_type = dummy_schedule.schedule_type
         location = dummy_schedule.location
+        schedule_time = dummy_schedule.time  # 🔥 시간 정보 추가
         
         if schedule_type in ['pickup', 'dropoff']:
             part = dummy_student.session_part or 1
             
-            # 해당 장소에 실제 학생이 있는지 확인
+            # 해당 장소에 실제 학생이 있는지 확인 (🎯 시간대별 독립적 체크)
+            has_real_students = False
             if (day in schedule_data and 
                 part in schedule_data[day] and 
                 schedule_type in schedule_data[day][part] and 
                 location in schedule_data[day][part][schedule_type]):
-                # 실제 학생이 있으면 더미는 추가하지 않음
+                
+                # 실제 학생 데이터 중에서 같은 시간대 확인
+                for student_data in schedule_data[day][part][schedule_type][location]:
+                    if student_data['schedule'].time == schedule_time:
+                        has_real_students = True
+                        break
+            
+            if has_real_students:
+                # 실제 학생이 같은 시간대에 있으면 더미는 추가하지 않음
                 continue
             
             # 빈 장소 구조 초기화
@@ -345,8 +355,11 @@ def schedule():
             if schedule_type not in schedule_data[day][part]:
                 schedule_data[day][part][schedule_type] = {}
             
-            # 빈 장소로 추가 (빈 리스트)
-            schedule_data[day][part][schedule_type][location] = []
+            # 🎯 시간대별 고유 키로 빈 장소 추가
+            location_key = f"{location}_{schedule_time.strftime('%H:%M')}"
+            if location not in schedule_data[day][part][schedule_type]:
+                schedule_data[day][part][schedule_type][location] = []
+                print(f"   📍 빈 장소 추가: {location} ({schedule_time}) - {day}요일 {part}부 {schedule_type}")
     
     return render_template('schedule.html', schedule_data=schedule_data)
 
@@ -2060,18 +2073,19 @@ def create_empty_location():
         else:  # 5부
             default_time = time(19, 0) if schedule_type == 'pickup' else time(19, 50)
         
-        # 해당 장소에 이미 스케줄이 있는지 확인
+        # 해당 장소에 이미 스케줄이 있는지 확인 (🎯 시간대별 독립적 체크)
         existing_schedule = Schedule.query.filter_by(
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            location=location_name
+            location=location_name,
+            time=default_time  # 🔥 시간대별 독립성 보장!
         ).first()
         
         if existing_schedule:
-            print(f"📍 장소 이미 존재: {location_name}")
+            print(f"📍 동일 시간대 장소 이미 존재: {location_name} ({default_time})")
             return jsonify({
                 'success': True, 
-                'message': f'"{location_name}" 장소가 이미 존재합니다.',
+                'message': f'"{location_name}" 장소가 이미 존재합니다. ({default_time})',
                 'location_name': location_name,
                 'existing': True
             })

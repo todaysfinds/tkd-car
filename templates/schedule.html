@@ -913,9 +913,15 @@ function createEmptyLocation(dayNum, sessionPart, locationName, type) {
     .then(data => {
         if (data.success) {
             console.log('✅ 장소 생성 성공:', data);
-            // 새로고침으로 안전하게 처리 (DB와 일치)
-            alert(`"${locationName}" 장소가 생성되었습니다.`);
-            window.location.reload();
+            
+            if (data.existing) {
+                // 이미 존재하는 장소인 경우
+                showNotification(`"${locationName}" 장소가 이미 존재합니다.`, 'info');
+            } else {
+                // 🎯 새로고침 대신 동적 UI 업데이트
+                showNotification(`"${locationName}" 장소가 생성되었습니다.`, 'success');
+                addEmptyLocationToDOM(dayNum, sessionPart, locationName, type);
+            }
         } else {
             console.error('❌ 장소 생성 실패:', data);
             showNotification(`장소 추가 실패: ${data.error}`, 'error');
@@ -2061,6 +2067,47 @@ function debugAllLocations() {
             console.log(`${index + 1}. 설정 버튼: ${onclick}`);
         }
     });
+}
+
+// 🎯 개선된 알림 시스템
+function showNotification(message, type = 'info', duration = 3000) {
+    // 기존 알림 제거
+    const existingNotification = document.querySelector('.notification-toast');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // 새 알림 생성
+    const notification = document.createElement('div');
+    notification.className = `notification-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+    
+    // 타입별 스타일
+    const styles = {
+        'success': 'bg-green-500 text-white',
+        'error': 'bg-red-500 text-white', 
+        'info': 'bg-blue-500 text-white',
+        'warning': 'bg-yellow-500 text-black'
+    };
+    
+    notification.className += ` ${styles[type] || styles.info}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // 애니메이션으로 표시
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 100);
+    
+    // 자동 제거
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 300);
+    }, duration);
 }
 </script>
 {% endblock %} 
