@@ -1011,6 +1011,238 @@ function debugAllLocations() {
     });
 }
 
+// 🎯 누락된 JavaScript 함수들 추가
+
+// 학생을 장소에서 제거하는 함수
+function removeStudentFromLocation(studentId, dayNum, location, sessionPart, type) {
+    if (confirm('이 학생을 현재 장소에서 제거하시겠습니까?')) {
+        fetch('/api/remove_student_from_schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                day_of_week: dayNum,
+                location: location,
+                session_part: sessionPart,
+                schedule_type: type
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('학생이 성공적으로 제거되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('제거 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+// 돌봄시스템에서 학생 제거
+function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
+    if (confirm('이 학생을 돌봄시스템에서 제거하시겠습니까?')) {
+        fetch('/api/remove_student_from_schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                day_of_week: dayNum,
+                location: location,
+                schedule_type: 'care_system'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('학생이 돌봄시스템에서 제거되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('제거 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+// 국기원부에서 학생 제거
+function removeStudentFromNationalTraining(studentId, dayNum, location) {
+    if (confirm('이 학생을 국기원부에서 제거하시겠습니까?')) {
+        fetch('/api/remove_student_from_schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: studentId,
+                day_of_week: dayNum,
+                location: location,
+                schedule_type: 'national_training'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('학생이 국기원부에서 제거되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('제거 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+// 학생을 장소에 추가하는 함수
+function addStudentToLocation(dayNum, sessionPart, location, type) {
+    openStudentModal(dayNum, sessionPart, location, type);
+}
+
+// 새 장소 추가 함수
+function addNewLocation(dayNum, sessionPart, type) {
+    const locationName = prompt('새 장소명을 입력하세요:');
+    if (locationName && locationName.trim()) {
+        fetch('/api/create_empty_location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                day_of_week: dayNum,
+                session_part: sessionPart,
+                schedule_type: type,
+                location_name: locationName.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('새 장소가 추가되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('장소 추가 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+// 학생 선택 모달 열기
+function openStudentModal(dayNum, sessionPart, location, type) {
+    document.getElementById('studentModal').classList.remove('hidden');
+    // 모달에 필요한 데이터 설정
+    window.currentModalData = { dayNum, sessionPart, location, type };
+    loadAllStudents();
+}
+
+// 모달 닫기
+function closeModal() {
+    document.getElementById('studentModal').classList.add('hidden');
+}
+
+// 모든 학생 로드
+function loadAllStudents() {
+    fetch('/api/get_all_students')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayStudents(data.students);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading students:', error);
+        });
+}
+
+// 학생 목록 표시
+function displayStudents(students) {
+    const container = document.getElementById('studentList');
+    if (!container) return;
+    
+    container.innerHTML = students.map(student => `
+        <div class="p-2 border rounded cursor-pointer hover:bg-gray-50" onclick="selectStudent(${student.id}, '${student.name}')">
+            <div class="font-medium">${student.name}</div>
+            <div class="text-sm text-gray-500">${student.grade || ''} - ${student.session_part || ''}부</div>
+        </div>
+    `).join('');
+}
+
+// 학생 선택
+function selectStudent(studentId, studentName) {
+    // 기존 선택 해제
+    document.querySelectorAll('.student-selected').forEach(el => {
+        el.classList.remove('student-selected', 'bg-blue-100');
+    });
+    
+    // 새 선택 표시
+    event.target.closest('div').classList.add('student-selected', 'bg-blue-100');
+    
+    // 선택된 학생 정보 저장
+    window.selectedStudentId = studentId;
+    
+    // 추가 버튼 활성화
+    const addBtn = document.getElementById('addStudentBtn');
+    if (addBtn) {
+        addBtn.disabled = false;
+        addBtn.classList.remove('disabled:bg-gray-300', 'disabled:cursor-not-allowed');
+    }
+}
+
+// 선택된 학생들을 스케줄에 추가
+function confirmAddStudents() {
+    if (!window.selectedStudentId || !window.currentModalData) {
+        showNotification('학생을 선택해주세요.', 'warning');
+        return;
+    }
+    
+    const { dayNum, sessionPart, location, type } = window.currentModalData;
+    
+    fetch('/api/add_student_to_schedule', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_id: window.selectedStudentId,
+            day_of_week: dayNum,
+            session_part: sessionPart,
+            location: location,
+            schedule_type: type
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('학생이 추가되었습니다.', 'success');
+            closeModal();
+            window.location.reload();
+        } else {
+            showNotification('추가 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('네트워크 오류가 발생했습니다.', 'error');
+    });
+}
+
 // 🎯 개선된 알림 시스템
 function showNotification(message, type = 'info', duration = 3000) {
     // 기존 알림 제거
@@ -1050,6 +1282,182 @@ function showNotification(message, type = 'info', duration = 3000) {
             }
         }, 300);
     }, duration);
+}
+
+// 🎯 추가로 누락된 함수들
+function addStudentToCareSystem(dayNum, location, careType) {
+    openStudentModal(dayNum, null, location, 'care_system', careType);
+}
+
+function addStudentToNationalTraining(dayNum, location) {
+    openStudentModal(dayNum, null, location, 'national_training');
+}
+
+function addNewLocationToCareSystem(dayNum, careType) {
+    const locationName = prompt('새 돌봄시스템 장소명을 입력하세요:');
+    if (locationName && locationName.trim()) {
+        fetch('/api/create_empty_care_location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                day_of_week: dayNum,
+                care_type: careType,
+                location_name: locationName.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('새 돌봄시스템 장소가 추가되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('장소 추가 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+function addNewLocationToNationalTraining(dayNum, nationalType) {
+    const locationName = prompt('새 국기원부 장소명을 입력하세요:');
+    if (locationName && locationName.trim()) {
+        fetch('/api/create_empty_location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                day_of_week: dayNum,
+                session_part: 7, // 국기원부
+                schedule_type: 'national_training',
+                location_name: locationName.trim()
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('새 국기원부 장소가 추가되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('장소 추가 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+function showLocationSettings(dayNum, location, locationType, sessionPart) {
+    // 장소 설정 모달 표시 로직
+    console.log('장소 설정:', { dayNum, location, locationType, sessionPart });
+    // 실제 구현은 필요에 따라 추가
+}
+
+function deleteLocation() {
+    // 장소 삭제 로직
+    console.log('장소 삭제');
+}
+
+function closeLocationSettings() {
+    // 장소 설정 모달 닫기
+    const modal = document.getElementById('locationSettingsModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function saveLocationSettings() {
+    // 장소 설정 저장
+    console.log('장소 설정 저장');
+}
+
+// 🎯 요일 페이지 관련 함수들
+function showDayPage(dayIndex) {
+    ScheduleApp.currentDayIndex = dayIndex;
+    
+    // 모든 요일 페이지 숨기기
+    document.querySelectorAll('[id^="day-page-"]').forEach(page => {
+        page.style.display = 'none';
+    });
+    
+    // 선택된 요일 페이지 표시
+    const targetPage = document.getElementById(`day-page-${dayIndex}`);
+    if (targetPage) {
+        targetPage.style.display = 'block';
+    }
+    
+    // 네비게이션 버튼 활성화 상태 업데이트
+    document.querySelectorAll('.day-nav-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('bg-white', 'text-gray-700');
+    });
+    
+    const activeBtn = document.querySelector(`[data-day="${dayIndex}"]`);
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-white', 'text-gray-700');
+        activeBtn.classList.add('bg-blue-600', 'text-white');
+    }
+    
+    // URL 업데이트
+    const url = new URL(window.location);
+    url.searchParams.set('day', dayIndex);
+    window.history.replaceState(null, '', url);
+}
+
+function initializeDayPageDirectly(dayIndex) {
+    showDayPage(dayIndex);
+}
+
+function addStudentClickEvents() {
+    // 학생 출석 체크 이벤트 등록
+    document.querySelectorAll('.student-attendance-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const studentId = this.dataset.studentId;
+            toggleStudentAttendance(studentId);
+        });
+    });
+}
+
+function toggleStudentAttendance(studentId) {
+    console.log('출석 상태 토글:', studentId);
+    // 출석 상태 변경 로직 구현
+}
+
+// 🎯 중복 정리 함수들
+function cleanupAllDuplicates() {
+    if (confirm('모든 중복 스케줄을 정리하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+        fetch('/api/cleanup_duplicates', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('중복 스케줄이 정리되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('정리 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+function showDuplicateCleanupModal() {
+    // 중복 정리 모달 표시
+    console.log('중복 정리 모달 표시');
 }
 </script>
 {% endblock %} 

@@ -4,7 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>장소 및 시간 관리</title>
-    <link href="/static/dist/output.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="theme-color" content="#3b82f6">
+    
+    <!-- Pretendard 폰트 로드 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard.css" rel="stylesheet">
 </head>
 <body class="bg-gray-50">
     <div class="px-4 py-4 pb-20">
@@ -171,7 +176,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    window.location.reload();
                 } else {
                     alert('삭제 중 오류가 발생했습니다.');
                 }
@@ -218,7 +223,7 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    location.reload();
+                    window.location.reload();
                 } else {
                     alert('제거 중 오류가 발생했습니다.');
                 }
@@ -269,7 +274,7 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                window.location.reload();
             } else {
                 alert(data.message || '저장 중 오류가 발생했습니다.');
             }
@@ -303,7 +308,7 @@
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                location.reload();
+                window.location.reload();
             } else {
                 alert('저장 중 오류가 발생했습니다.');
             }
