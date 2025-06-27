@@ -1005,6 +1005,8 @@ def add_multiple_students_to_schedule():
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
         print(f"🔍 학생 {len(students)}명을 {target_location}에 추가 (시간: {schedule_time})")
+        print(f"   - 받은 학생 데이터: {students}")
+        print(f"   - day_of_week: {day_of_week}, session_part: {session_part}, type: {schedule_type}")
         
         # 먼저 중복 체크 (하나라도 중복이면 전체 취소)
         duplicates = []
@@ -1014,11 +1016,27 @@ def add_multiple_students_to_schedule():
             student_id = student_data.get('id')
             student_name = student_data.get('name', f'학생{student_id}')
             
+            print(f"   🔍 학생 체크: {student_name} (ID: {student_id})")
+            
             # 학생 존재 여부 확인
             student = Student.query.get(student_id)
             if not student:
+                print(f"   ❌ 존재하지 않는 학생: {student_name}")
                 invalid_students.append(student_name)
                 continue
+            
+            print(f"   ✅ 학생 존재 확인: {student.name}")
+            
+            # 현재 해당 장소에 있는 모든 스케줄 확인 (디버깅용)
+            all_schedules_at_location = Schedule.query.filter_by(
+                day_of_week=day_of_week,
+                schedule_type=schedule_type,
+                location=target_location
+            ).all()
+            
+            print(f"   📋 해당 장소의 기존 스케줄 {len(all_schedules_at_location)}개:")
+            for sched in all_schedules_at_location:
+                print(f"      - 학생: {sched.student.name} (ID: {sched.student_id})")
             
             # 중복 체크 (더미 학생 제외)
             existing_schedule = Schedule.query.filter_by(
@@ -1031,7 +1049,10 @@ def add_multiple_students_to_schedule():
             ).first()
             
             if existing_schedule:
+                print(f"   ❌ 중복 발견: {student_name} 이미 등록됨")
                 duplicates.append(student_name)
+            else:
+                print(f"   ✅ 중복 없음: {student_name} 추가 가능")
         
         # 중복이나 잘못된 학생이 있으면 전체 취소
         if duplicates or invalid_students:
@@ -1057,14 +1078,21 @@ def add_multiple_students_to_schedule():
             Student.name.like('_PH_%')  # 더미 학생만
         ).all()
         
+        print(f"   📋 발견된 더미 스케줄: {len(dummy_schedules)}개")
+        for dummy_schedule in dummy_schedules:
+            print(f"      - 더미 학생: {dummy_schedule.student.name}")
+        
         if dummy_schedules:
-            print(f"   - 더미 스케줄 {len(dummy_schedules)}개 제거 중...")
+            print(f"   🗑️ 더미 스케줄 {len(dummy_schedules)}개 제거 중...")
             for dummy_schedule in dummy_schedules:
                 # 더미 학생과 스케줄 모두 삭제
                 dummy_student = dummy_schedule.student
+                print(f"      - 삭제: {dummy_student.name}")
                 db.session.delete(dummy_schedule)
                 db.session.delete(dummy_student)
-            print(f"   - 더미 스케줄 제거 완료")
+            print(f"   ✅ 더미 스케줄 제거 완료")
+        else:
+            print(f"   ℹ️ 제거할 더미 스케줄 없음")
         
         # 모든 검증 통과 시에만 실제 추가
         added_students = []
