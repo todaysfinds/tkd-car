@@ -902,18 +902,24 @@ def add_student_to_schedule():
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
-        # 중복 체크 (더미 학생은 제외)
+        # 중복 체크 (더미 학생은 제외) - 더 안전한 방법
         existing_schedule = Schedule.query.filter_by(
             student_id=student_id,
             day_of_week=day_of_week,
             schedule_type=schedule_type,
             location=target_location
-        ).join(Student).filter(
-            ~Student.name.like('_PH_%')  # 더미 학생 제외
         ).first()
         
+        # 더미 학생인지 확인
+        is_dummy = False
         if existing_schedule:
-            return jsonify({'success': False, 'error': '이미 해당 스케줄이 존재합니다.'})
+            existing_student = Student.query.get(existing_schedule.student_id)
+            if existing_student and existing_student.name.startswith('_PH_'):
+                is_dummy = True
+                print(f"   ℹ️ 기존 스케줄은 더미 학생: {existing_student.name}")
+        
+        if existing_schedule and not is_dummy:
+            return jsonify({'success': False, 'error': f'이미 해당 스케줄이 존재합니다. (기존: {existing_student.name})'})
         
         # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 제거
         dummy_schedules = Schedule.query.filter_by(
@@ -1038,18 +1044,24 @@ def add_multiple_students_to_schedule():
             for sched in all_schedules_at_location:
                 print(f"      - 학생: {sched.student.name} (ID: {sched.student_id})")
             
-            # 중복 체크 (더미 학생 제외)
+            # 중복 체크 (더미 학생 제외) - 더 안전한 방법
             existing_schedule = Schedule.query.filter_by(
                 student_id=student_id,
                 day_of_week=day_of_week,
                 schedule_type=schedule_type,
                 location=target_location
-            ).join(Student).filter(
-                ~Student.name.like('_PH_%')  # 더미 학생 제외
             ).first()
             
+            # 더미 학생인지 확인
+            is_dummy = False
             if existing_schedule:
-                print(f"   ❌ 중복 발견: {student_name} 이미 등록됨")
+                existing_student = Student.query.get(existing_schedule.student_id)
+                if existing_student and existing_student.name.startswith('_PH_'):
+                    is_dummy = True
+                    print(f"   ℹ️ 기존 스케줄은 더미 학생: {existing_student.name}")
+            
+            if existing_schedule and not is_dummy:
+                print(f"   ❌ 중복 발견: {student_name} 이미 등록됨 (기존: {existing_student.name})")
                 duplicates.append(student_name)
             else:
                 print(f"   ✅ 중복 없음: {student_name} 추가 가능")
