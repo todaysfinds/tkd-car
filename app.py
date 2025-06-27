@@ -981,8 +981,12 @@ def add_student_to_schedule():
             for dummy_schedule in dummy_schedules:
                 # 더미 학생과 스케줄 모두 삭제
                 dummy_student = dummy_schedule.student
+                print(f"     - 더미 삭제: {dummy_student.name} (ID: {dummy_student.id})")
                 db.session.delete(dummy_schedule)
                 db.session.delete(dummy_student)
+            
+            # 🚨 더미 삭제 후 중간 flush
+            db.session.flush()
             print(f"   - 더미 스케줄 제거 완료")
         
         # 새 스케줄 추가
@@ -2169,14 +2173,28 @@ def create_empty_location():
             )
             db.session.add(dummy_student)
             db.session.flush()  # ID 생성을 위해 flush
+            
+            # 🚨 중요: flush 후 student_id 검증
+            if not dummy_student.id:
+                raise Exception("더미 학생 ID 생성 실패")
+            
             dummy_student_id = dummy_student.id
             print(f"   - 더미 학생 생성 완료: ID={dummy_student_id}")
         else:
             dummy_student_id = existing_dummy.id
             print(f"   - 기존 더미 학생 재사용: ID={dummy_student_id}")
         
+        # 🚨 최종 student_id 검증
+        if not dummy_student_id:
+            raise Exception(f"유효하지 않은 student_id: {dummy_student_id}")
+        
         # 더미 스케줄 생성
-        print(f"   - 더미 스케줄 생성 중... (time={default_time})")
+        print(f"   - 더미 스케줄 생성 중... (time={default_time}, student_id={dummy_student_id})")
+        
+        # 🚨 student_id 재검증
+        if not dummy_student_id or dummy_student_id <= 0:
+            raise Exception(f"잘못된 student_id: {dummy_student_id}")
+        
         dummy_schedule = Schedule(
             student_id=dummy_student_id,
             day_of_week=day_of_week,
@@ -2186,7 +2204,15 @@ def create_empty_location():
         )
         
         db.session.add(dummy_schedule)
-        print(f"   - DB 커밋 중...")
+        
+        # 🚨 스케줄 추가 전 한번 더 flush
+        db.session.flush()
+        
+        # 🚨 스케줄 ID 검증
+        if not dummy_schedule.id:
+            raise Exception("더미 스케줄 ID 생성 실패")
+        
+        print(f"   - DB 커밋 중... (스케줄 ID: {dummy_schedule.id})")
         db.session.commit()
         print(f"   - DB 커밋 완료!")
         

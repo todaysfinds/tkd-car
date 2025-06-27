@@ -1,0 +1,399 @@
+{% extends "base.html" %}
+
+{% block page_title %}차량 운행{% endblock %}
+
+{% block content %}
+<!-- 🚨 로컬 개발 환경 경고 -->
+{% if is_local_dev %}
+<div class="mb-4 p-3 bg-red-100 border-l-4 border-red-500 rounded-r-lg">
+    <div class="flex items-center">
+        <div class="flex-shrink-0">
+            <svg class="h-4 w-4 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        <div class="ml-2">
+            <p class="text-xs text-red-700">
+                <strong>⚠️ 로컬 개발 서버</strong> - 배포사이트와 <strong>다른 DB</strong> 사용중!
+                실제 작업: <a href="https://tkd-car.onrender.com/schedule" class="underline font-semibold">tkd-car.onrender.com</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 관리자 네비게이션 -->
+<div class="bg-white border-b border-gray-200 mb-4">
+    <div class="flex space-x-1 p-2">
+        <a href="{{ url_for('schedule') }}" 
+           class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
+            차량 운행
+        </a>
+        <a href="{{ url_for('admin_students') }}" 
+           class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg">
+            학생 명단
+        </a>
+    </div>
+</div>
+
+<div class="px-4 py-4 pb-20">
+    <!-- 요일별 스케줄 관리 -->
+    <div class="relative mb-4">
+        <!-- 요일 네비게이션 -->
+        <div class="flex justify-center">
+            <div class="inline-flex bg-gray-100 rounded-lg p-1">
+                {% for day_name, day_num in [('월', 0), ('화', 1), ('수', 2), ('목', 3), ('금', 4)] %}
+                <button class="px-6 py-2 text-sm font-medium rounded-md transition-all duration-200 day-nav-btn
+                               {% if loop.first %}bg-blue-500 text-white{% else %}text-gray-700 hover:text-gray-900 hover:bg-white{% endif %}"
+                        data-day="{{ day_num }}">
+                    {{ day_name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 요일별 스케줄 페이지들 -->
+    {% for day_name, day_num in [('월요일', 0), ('화요일', 1), ('수요일', 2), ('목요일', 3), ('금요일', 4)] %}
+    <div class="day-page {% if not loop.first %}hidden{% endif %}" data-day="{{ day_num }}">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-semibold text-gray-900">{{ day_name }} 스케줄</h2>
+            </div>
+
+            <!-- 시간표 구조 -->
+            <div class="space-y-6">
+                <!-- 돌봄시스템 A -->
+                <div class="border rounded-lg overflow-hidden border-orange-200">
+                    <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
+                        <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 A</h3>
+                    </div>
+                    <div class="p-2 space-y-2 min-h-[30px] bg-white">
+                        {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
+                            {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
+                            <div class="border border-gray-200 rounded p-1 bg-white">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                    <div class="flex items-center gap-1">
+                                        <button class="text-xs text-blue-600 hover:text-blue-800 add-care-student-btn"
+                                                data-day="{{ day_num }}" 
+                                                data-location="{{ location }}" 
+                                                data-care-type="care1">
+                                            + 학생
+                                        </button>
+                                        <button class="text-xs text-gray-500 hover:text-gray-700 location-settings-btn" 
+                                                data-day="{{ day_num }}" 
+                                                data-location="{{ location }}" 
+                                                data-location-type="care_system" 
+                                                data-session-part="care1"
+                                                title="장소 설정">
+                                            ⚙️
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
+                                        <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
+                                        <button class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0 remove-student-btn" 
+                                                data-student-id="{{ student_data.student.id }}"
+                                                data-day="{{ day_num }}"
+                                                data-location="{{ location }}"
+                                                data-care-type="care1"
+                                                style="font-size: 11px;">✕</button>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <button class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50 add-new-location-btn" 
+                                    data-day="{{ day_num }}" 
+                                    data-care-type="care1">
+                                + 새 장소 추가
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 1부 (2:00-2:50) -->
+                <div class="border rounded-lg overflow-hidden">
+                    <div class="bg-white px-3 py-1 border-b">
+                        <h3 class="font-semibold text-gray-800 text-sm">1부 (2:00-2:50)</h3>
+                    </div>
+                    <div class="grid grid-cols-2 gap-0">
+                        <!-- 승차 -->
+                        <div class="border-r">
+                            <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
+                            <div class="p-2 space-y-2 min-h-[60px]">
+                                {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][1] %}
+                                    {% for location, students in schedule_data[day_num][1]['pickup'].items() %}
+                                    <div class="border border-gray-200 rounded p-1 bg-white">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                            <div class="flex items-center gap-1">
+                                                <button class="text-xs text-blue-600 hover:text-blue-800 add-regular-student-btn"
+                                                        data-day="{{ day_num }}" 
+                                                        data-session-part="1"
+                                                        data-location="{{ location }}" 
+                                                        data-type="pickup">
+                                                    + 학생
+                                                </button>
+                                                <button class="text-xs text-gray-500 hover:text-gray-700 location-settings-btn" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-location-type="pickup" 
+                                                        data-session-part="1"
+                                                        title="장소 설정">
+                                                    ⚙️
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1">
+                                            {% for student_data in students %}
+                                            <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
+                                                <button class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left student-attendance-btn" 
+                                                        data-student-id="{{ student_data.student.id }}">
+                                                    {{ student_data.student.name }}
+                                                </button>
+                                                <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                        data-student-id="{{ student_data.student.id }}" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-session-part="1" 
+                                                        data-type="pickup">✕</button>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                                
+                                <button class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50 add-new-location-btn" 
+                                        data-day="{{ day_num }}" 
+                                        data-session-part="1" 
+                                        data-type="pickup">
+                                    + 새 장소 추가
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 하차 -->
+                        <div>
+                            <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
+                            <div class="p-2 space-y-2 min-h-[60px]">
+                                {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][1] %}
+                                    {% for location, students in schedule_data[day_num][1]['dropoff'].items() %}
+                                    <div class="border border-gray-200 rounded p-1 bg-white">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                            <div class="flex items-center gap-1">
+                                                <button class="text-xs text-blue-600 hover:text-blue-800 add-regular-student-btn"
+                                                        data-day="{{ day_num }}" 
+                                                        data-session-part="1"
+                                                        data-location="{{ location }}" 
+                                                        data-type="dropoff">
+                                                    + 학생
+                                                </button>
+                                                <button class="text-xs text-gray-500 hover:text-gray-700 location-settings-btn" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-location-type="dropoff" 
+                                                        data-session-part="1"
+                                                        title="장소 설정">
+                                                    ⚙️
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1">
+                                            {% for student_data in students %}
+                                            <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
+                                                <button class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left student-attendance-btn" 
+                                                        data-student-id="{{ student_data.student.id }}">
+                                                    {{ student_data.student.name }}
+                                                </button>
+                                                <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                        data-student-id="{{ student_data.student.id }}" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-session-part="1" 
+                                                        data-type="dropoff">✕</button>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                                
+                                <button class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50 add-new-location-btn" 
+                                        data-day="{{ day_num }}" 
+                                        data-session-part="1" 
+                                        data-type="dropoff">
+                                    + 새 장소 추가
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<script>
+// 🎯 완전히 새로운 JavaScript 코드 - 모든 문법 오류 해결
+const ScheduleManager = {
+    // 상태 관리
+    state: {
+        currentDayIndex: 0,
+        selectedStudents: [],
+        currentModalConfig: null,
+        currentLocationSettings: null,
+        allStudents: []
+    },
+
+    // 초기화
+    init() {
+        this.setupEventListeners();
+        this.initializeDay();
+        this.loadAllStudents();
+    },
+
+    // 이벤트 리스너 설정
+    setupEventListeners() {
+        document.addEventListener('click', this.handleClick.bind(this));
+    },
+
+    // 통합 클릭 핸들러
+    handleClick(event) {
+        const target = event.target.closest('button');
+        if (!target) return;
+
+        const classList = target.classList;
+
+        // 요일 네비게이션
+        if (classList.contains('day-nav-btn')) {
+            const dayNum = parseInt(target.dataset.day);
+            this.showDayPage(dayNum);
+            return;
+        }
+
+        // 학생 추가 - 돌봄시스템
+        if (classList.contains('add-care-student-btn')) {
+            console.log('🏫 돌봄시스템 학생 추가:', target.dataset);
+            return;
+        }
+
+        // 학생 추가 - 일반
+        if (classList.contains('add-regular-student-btn')) {
+            console.log('🚗 일반 학생 추가:', target.dataset);
+            return;
+        }
+
+        // 학생 제거
+        if (classList.contains('remove-student-btn')) {
+            console.log('🗑️ 학생 제거:', target.dataset);
+            return;
+        }
+
+        // 새 장소 추가
+        if (classList.contains('add-new-location-btn')) {
+            console.log('📍 새 장소 추가:', target.dataset);
+            return;
+        }
+
+        // 장소 설정
+        if (classList.contains('location-settings-btn')) {
+            console.log('⚙️ 장소 설정:', target.dataset);
+            return;
+        }
+
+        // 학생 출석 체크
+        if (classList.contains('student-attendance-btn')) {
+            console.log('✅ 출석 체크:', target.dataset.studentId);
+            return;
+        }
+    },
+
+    // 요일 표시
+    showDayPage(dayNum) {
+        console.log('📅 요일 전환:', dayNum);
+        
+        // 모든 요일 페이지 숨김
+        document.querySelectorAll('.day-page').forEach(page => {
+            page.classList.add('hidden');
+        });
+        
+        // 해당 요일 페이지만 표시
+        const targetPage = document.querySelector(`[data-day="${dayNum}"].day-page`);
+        if (targetPage) {
+            targetPage.classList.remove('hidden');
+        }
+        
+        // 네비게이션 버튼 활성화
+        document.querySelectorAll('.day-nav-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white');
+            btn.classList.add('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
+        });
+        
+        const activeBtn = document.querySelector(`[data-day="${dayNum}"].day-nav-btn`);
+        if (activeBtn) {
+            activeBtn.classList.remove('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
+            activeBtn.classList.add('bg-blue-500', 'text-white');
+        }
+        
+        this.state.currentDayIndex = dayNum;
+        
+        // URL 업데이트
+        const url = new URL(window.location);
+        url.searchParams.set('day', dayNum);
+        window.history.replaceState({}, '', url);
+    },
+
+    // 초기 요일 설정
+    initializeDay() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const savedDay = urlParams.get('day');
+        
+        if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
+            this.state.currentDayIndex = parseInt(savedDay);
+        } else {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                this.state.currentDayIndex = dayOfWeek - 1;
+            } else {
+                this.state.currentDayIndex = 0;
+            }
+        }
+        
+        this.showDayPage(this.state.currentDayIndex);
+    },
+
+    // 전체 학생 목록 로드
+    async loadAllStudents() {
+        try {
+            const response = await fetch('/api/get_all_students');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.state.allStudents = data.students;
+                console.log('✅ 학생 목록 로딩 완료:', this.state.allStudents.length + '명');
+            } else {
+                console.error('❌ 학생 목록 로딩 실패:', data.error);
+            }
+        } catch (error) {
+            console.error('❌ 학생 목록 로딩 오류:', error);
+        }
+    }
+};
+
+// DOM 로드 시 초기화
+document.addEventListener('DOMContentLoaded', () => {
+    ScheduleManager.init();
+});
+</script>
+
+{% endblock %} 

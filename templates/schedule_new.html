@@ -1,0 +1,668 @@
+{% extends "base.html" %}
+
+{% block page_title %}차량 운행{% endblock %}
+
+{% block content %}
+<!-- 🚨 로컬 개발 환경 경고 -->
+{% if is_local_dev %}
+<div class="mb-4 p-3 bg-red-100 border-l-4 border-red-500 rounded-r-lg">
+    <div class="flex items-center">
+        <div class="flex-shrink-0">
+            <svg class="h-4 w-4 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+            </svg>
+        </div>
+        <div class="ml-2">
+            <p class="text-xs text-red-700">
+                <strong>⚠️ 로컬 개발 서버</strong> - 배포사이트와 <strong>다른 DB</strong> 사용중!
+                실제 작업: <a href="https://tkd-car.onrender.com/schedule" class="underline font-semibold">tkd-car.onrender.com</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 🔧 관리자용 중복 정리 도구 (배포 사이트 전용) -->
+{% if not is_local_dev %}
+<div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center">
+            <svg class="h-4 w-4 text-yellow-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            <span class="text-sm font-medium text-yellow-800">관리자 도구</span>
+        </div>
+        <div class="flex gap-2">
+            <button class="px-3 py-1 text-xs bg-yellow-600 text-white rounded hover:bg-yellow-700 admin-cleanup-btn" 
+                    data-action="cleanup-all">
+                🧹 전체 중복 정리
+            </button>
+            <button class="px-3 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 admin-cleanup-btn" 
+                    data-action="cleanup-specific">
+                🔍 특정 학생 정리
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- 관리자 네비게이션 -->
+<div class="bg-white border-b border-gray-200 mb-4">
+    <div class="flex space-x-1 p-2">
+        <a href="{{ url_for('schedule') }}" 
+           class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
+            차량 운행
+        </a>
+        <a href="{{ url_for('admin_students') }}" 
+           class="px-4 py-2 text-sm font-medium text-gray-700 hover:text-blue-600 hover:bg-gray-50 rounded-lg">
+            학생 명단
+        </a>
+    </div>
+</div>
+
+<div class="px-4 py-4 pb-20">
+    <!-- 요일별 스케줄 관리 -->
+    <div class="relative mb-4">
+        <!-- 요일 네비게이션 -->
+        <div class="flex justify-center">
+            <div class="inline-flex bg-gray-100 rounded-lg p-1">
+                {% for day_name, day_num in [('월', 0), ('화', 1), ('수', 2), ('목', 3), ('금', 4)] %}
+                <button class="px-6 py-2 text-sm font-medium rounded-md transition-all duration-200 day-nav-btn
+                               {% if loop.first %}bg-blue-500 text-white{% else %}text-gray-700 hover:text-gray-900 hover:bg-white{% endif %}"
+                        data-day="{{ day_num }}">
+                    {{ day_name }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- 요일별 스케줄 페이지들 -->
+    {% for day_name, day_num in [('월요일', 0), ('화요일', 1), ('수요일', 2), ('목요일', 3), ('금요일', 4)] %}
+    <div class="day-page {% if not loop.first %}hidden{% endif %}" data-day="{{ day_num }}">
+        <div class="bg-white rounded-lg shadow p-4">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-semibold text-gray-900">{{ day_name }} 스케줄</h2>
+            </div>
+
+            <!-- 시간표 구조 -->
+            <div class="space-y-6">
+                <!-- 돌봄시스템 A -->
+                <div class="border rounded-lg overflow-hidden border-orange-200">
+                    <div class="bg-orange-100 px-3 py-1 border-b border-orange-200">
+                        <h3 class="font-semibold text-orange-800 text-sm">🏫 돌봄시스템 A</h3>
+                    </div>
+                    <div class="p-2 space-y-2 min-h-[30px] bg-white">
+                        {% if day_num in schedule_data and 'care1' in schedule_data[day_num] and 'students' in schedule_data[day_num]['care1'] %}
+                            {% for location, students in schedule_data[day_num]['care1']['students'].items() %}
+                            <div class="border border-gray-200 rounded p-1 bg-white">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                    <div class="flex items-center gap-1">
+                                        <button class="text-xs text-blue-600 hover:text-blue-800 add-care-student-btn"
+                                                data-day="{{ day_num }}" 
+                                                data-location="{{ location }}" 
+                                                data-care-type="care1">
+                                            + 학생
+                                        </button>
+                                        <button class="text-xs text-gray-500 hover:text-gray-700 location-settings-btn" 
+                                                data-day="{{ day_num }}" 
+                                                data-location="{{ location }}" 
+                                                data-location-type="care_system" 
+                                                data-session-part="care1"
+                                                title="장소 설정">
+                                            ⚙️
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="flex flex-wrap gap-1">
+                                    {% for student_data in students %}
+                                    <div class="flex items-center justify-between text-xs bg-orange-50 px-1 py-0.5 rounded border border-orange-200 min-w-[45px] max-w-[85px]">
+                                        <span class="text-gray-800 truncate" style="font-size: 11px;">{{ student_data.student.name }}</span>
+                                        <button class="text-red-500 hover:text-red-700 ml-1 flex-shrink-0 remove-student-btn" 
+                                                data-student-id="{{ student_data.student.id }}"
+                                                data-day="{{ day_num }}"
+                                                data-location="{{ location }}"
+                                                data-care-type="care1"
+                                                style="font-size: 11px;">✕</button>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <button class="w-full text-xs text-orange-600 border border-dashed border-orange-300 rounded p-1 hover:bg-orange-50 add-new-location-btn" 
+                                    data-day="{{ day_num }}" 
+                                    data-care-type="care1">
+                                + 새 장소 추가
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 1부 (2:00-2:50) -->
+                <div class="border rounded-lg overflow-hidden">
+                    <div class="bg-white px-3 py-1 border-b">
+                        <h3 class="font-semibold text-gray-800 text-sm">1부 (2:00-2:50)</h3>
+                    </div>
+                    <div class="grid grid-cols-2 gap-0">
+                        <!-- 승차 -->
+                        <div class="border-r">
+                            <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
+                            <div class="p-2 space-y-2 min-h-[60px]">
+                                {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][1] %}
+                                    {% for location, students in schedule_data[day_num][1]['pickup'].items() %}
+                                    <div class="border border-gray-200 rounded p-1 bg-white">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                            <div class="flex items-center gap-1">
+                                                <button class="text-xs text-blue-600 hover:text-blue-800 add-regular-student-btn"
+                                                        data-day="{{ day_num }}" 
+                                                        data-session-part="1"
+                                                        data-location="{{ location }}" 
+                                                        data-type="pickup">
+                                                    + 학생
+                                                </button>
+                                                <button class="text-xs text-gray-500 hover:text-gray-700 location-settings-btn" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-location-type="pickup" 
+                                                        data-session-part="1"
+                                                        title="장소 설정">
+                                                    ⚙️
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1">
+                                            {% for student_data in students %}
+                                            <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
+                                                <button class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left student-attendance-btn" 
+                                                        data-student-id="{{ student_data.student.id }}">
+                                                    {{ student_data.student.name }}
+                                                </button>
+                                                <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                        data-student-id="{{ student_data.student.id }}" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-session-part="1" 
+                                                        data-type="pickup">✕</button>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                                
+                                <button class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50 add-new-location-btn" 
+                                        data-day="{{ day_num }}" 
+                                        data-session-part="1" 
+                                        data-type="pickup">
+                                    + 새 장소 추가
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- 하차 -->
+                        <div>
+                            <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
+                            <div class="p-2 space-y-2 min-h-[60px]">
+                                {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][1] %}
+                                    {% for location, students in schedule_data[day_num][1]['dropoff'].items() %}
+                                    <div class="border border-gray-200 rounded p-1 bg-white">
+                                        <div class="flex items-center justify-between mb-1">
+                                            <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                            <div class="flex items-center gap-1">
+                                                <button class="text-xs text-blue-600 hover:text-blue-800 add-regular-student-btn"
+                                                        data-day="{{ day_num }}" 
+                                                        data-session-part="1"
+                                                        data-location="{{ location }}" 
+                                                        data-type="dropoff">
+                                                    + 학생
+                                                </button>
+                                                <button class="text-xs text-gray-500 hover:text-gray-700 location-settings-btn" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-location-type="dropoff" 
+                                                        data-session-part="1"
+                                                        title="장소 설정">
+                                                    ⚙️
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-wrap gap-1">
+                                            {% for student_data in students %}
+                                            <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
+                                                <button class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left student-attendance-btn" 
+                                                        data-student-id="{{ student_data.student.id }}">
+                                                    {{ student_data.student.name }}
+                                                </button>
+                                                <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                        data-student-id="{{ student_data.student.id }}" 
+                                                        data-day="{{ day_num }}" 
+                                                        data-location="{{ location }}" 
+                                                        data-session-part="1" 
+                                                        data-type="dropoff">✕</button>
+                                            </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                {% endif %}
+                                
+                                <button class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50 add-new-location-btn" 
+                                        data-day="{{ day_num }}" 
+                                        data-session-part="1" 
+                                        data-type="dropoff">
+                                    + 새 장소 추가
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 더 많은 부들을 여기에 추가... -->
+                
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- 학생 추가 모달 -->
+<div id="studentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <h3 class="text-lg font-semibold mb-4" id="modalTitle">학생 추가</h3>
+        
+        <div class="space-y-4">
+            <!-- 학생 검색 -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">학생 검색</label>
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="studentSearch" 
+                        placeholder="학생 이름을 입력하세요..." 
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500"
+                        autocomplete="off">
+                    <div id="studentDropdown" class="absolute z-50 w-full bg-white border border-gray-300 rounded-lg mt-1 max-h-48 overflow-y-auto hidden shadow-lg">
+                        <!-- 검색 결과가 여기에 표시됩니다 -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 선택된 학생들 -->
+            <div id="selectedStudents" class="space-y-2">
+                <!-- 선택된 학생들이 여기에 표시됩니다 -->
+            </div>
+        </div>
+        
+        <div class="flex justify-end space-x-2 mt-6">
+            <button type="button" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 modal-close-btn">취소</button>
+            <button type="button" id="addStudentBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed confirm-add-students-btn" disabled>추가</button>
+        </div>
+    </div>
+</div>
+
+<!-- 장소 설정 모달 -->
+<div id="locationSettingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <h3 class="text-lg font-semibold mb-4" id="locationSettingsTitle">장소 설정</h3>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">장소명</label>
+                <input type="text" id="locationNameInput" 
+                       class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+        </div>
+        
+        <div class="flex justify-between mt-6">
+            <button type="button" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 delete-location-btn">
+                🗑️ 장소 삭제
+            </button>
+            <div class="flex space-x-2">
+                <button type="button" class="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 location-settings-close-btn">
+                    취소
+                </button>
+                <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 save-location-settings-btn">
+                    저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 🎯 완전히 새로운 JavaScript 코드 - 모든 문법 오류 해결
+const ScheduleManager = {
+    // 상태 관리
+    state: {
+        currentDayIndex: 0,
+        selectedStudents: [],
+        currentModalConfig: null,
+        currentLocationSettings: null,
+        allStudents: []
+    },
+
+    // 초기화
+    init() {
+        this.setupEventListeners();
+        this.initializeDay();
+        this.loadAllStudents();
+    },
+
+    // 이벤트 리스너 설정
+    setupEventListeners() {
+        document.addEventListener('click', this.handleClick.bind(this));
+        document.addEventListener('keydown', this.handleKeydown.bind(this));
+        
+        // 학생 검색 설정
+        const studentSearch = document.getElementById('studentSearch');
+        if (studentSearch) {
+            studentSearch.addEventListener('input', this.handleStudentSearch.bind(this));
+            studentSearch.addEventListener('focus', this.handleStudentSearchFocus.bind(this));
+        }
+    },
+
+    // 통합 클릭 핸들러
+    handleClick(event) {
+        const target = event.target.closest('button');
+        if (!target) return;
+
+        const classList = target.classList;
+
+        // 요일 네비게이션
+        if (classList.contains('day-nav-btn')) {
+            const dayNum = parseInt(target.dataset.day);
+            this.showDayPage(dayNum);
+            return;
+        }
+
+        // 학생 추가 - 돌봄시스템
+        if (classList.contains('add-care-student-btn')) {
+            this.addStudentToCareSystem(target.dataset);
+            return;
+        }
+
+        // 학생 추가 - 일반
+        if (classList.contains('add-regular-student-btn')) {
+            this.addStudentToLocation(target.dataset);
+            return;
+        }
+
+        // 학생 추가 - 국기원부
+        if (classList.contains('add-national-student-btn')) {
+            this.addStudentToNationalTraining(target.dataset);
+            return;
+        }
+
+        // 학생 제거
+        if (classList.contains('remove-student-btn')) {
+            this.removeStudent(target.dataset);
+            return;
+        }
+
+        // 새 장소 추가
+        if (classList.contains('add-new-location-btn')) {
+            this.addNewLocation(target.dataset);
+            return;
+        }
+
+        // 장소 설정
+        if (classList.contains('location-settings-btn')) {
+            this.showLocationSettings(target.dataset);
+            return;
+        }
+
+        // 모달 관련
+        if (classList.contains('modal-close-btn')) {
+            this.closeModal();
+            return;
+        }
+
+        if (classList.contains('confirm-add-students-btn')) {
+            this.confirmAddStudents();
+            return;
+        }
+
+        if (classList.contains('location-settings-close-btn')) {
+            this.closeLocationSettings();
+            return;
+        }
+
+        if (classList.contains('save-location-settings-btn')) {
+            this.saveLocationSettings();
+            return;
+        }
+
+        if (classList.contains('delete-location-btn')) {
+            this.deleteLocation();
+            return;
+        }
+
+        // 학생 출석 체크
+        if (classList.contains('student-attendance-btn')) {
+            this.toggleStudentAttendance(target.dataset.studentId);
+            return;
+        }
+
+        // 관리자 도구
+        if (classList.contains('admin-cleanup-btn')) {
+            this.handleAdminCleanup(target.dataset.action);
+            return;
+        }
+    },
+
+    // 키보드 이벤트 핸들러
+    handleKeydown(event) {
+        // ESC키로 모달 닫기
+        if (event.key === 'Escape') {
+            this.closeModal();
+            this.closeLocationSettings();
+        }
+
+        // 엔터키 처리
+        if (event.key === 'Enter') {
+            const activeModal = document.querySelector('.fixed:not(.hidden)');
+            if (activeModal) {
+                if (activeModal.id === 'studentModal') {
+                    const searchInput = document.getElementById('studentSearch');
+                    if (document.activeElement === searchInput) {
+                        this.selectFirstSearchResult();
+                    } else {
+                        this.confirmAddStudents();
+                    }
+                } else if (activeModal.id === 'locationSettingsModal') {
+                    this.saveLocationSettings();
+                }
+            }
+        }
+    },
+
+    // 요일 표시
+    showDayPage(dayNum) {
+        console.log('📅 요일 전환:', dayNum);
+        
+        // 모든 요일 페이지 숨김
+        document.querySelectorAll('.day-page').forEach(page => {
+            page.classList.add('hidden');
+        });
+        
+        // 해당 요일 페이지만 표시
+        const targetPage = document.querySelector(`[data-day="${dayNum}"]`);
+        if (targetPage) {
+            targetPage.classList.remove('hidden');
+        }
+        
+        // 네비게이션 버튼 활성화
+        document.querySelectorAll('.day-nav-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-500', 'text-white');
+            btn.classList.add('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
+        });
+        
+        const activeBtn = document.querySelector(`[data-day="${dayNum}"].day-nav-btn`);
+        if (activeBtn) {
+            activeBtn.classList.remove('text-gray-700', 'hover:text-gray-900', 'hover:bg-white');
+            activeBtn.classList.add('bg-blue-500', 'text-white');
+        }
+        
+        this.state.currentDayIndex = dayNum;
+        
+        // URL 업데이트
+        const url = new URL(window.location);
+        url.searchParams.set('day', dayNum);
+        window.history.replaceState({}, '', url);
+    },
+
+    // 초기 요일 설정
+    initializeDay() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const savedDay = urlParams.get('day');
+        
+        if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
+            this.state.currentDayIndex = parseInt(savedDay);
+        } else {
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            
+            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                this.state.currentDayIndex = dayOfWeek - 1;
+            } else {
+                this.state.currentDayIndex = 0;
+            }
+        }
+        
+        this.showDayPage(this.state.currentDayIndex);
+    },
+
+    // 전체 학생 목록 로드
+    async loadAllStudents() {
+        try {
+            const response = await fetch('/api/get_all_students');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.state.allStudents = data.students;
+                console.log('✅ 학생 목록 로딩 완료:', this.state.allStudents.length + '명');
+            } else {
+                console.error('❌ 학생 목록 로딩 실패:', data.error);
+                this.showNotification('학생 목록을 불러오는데 실패했습니다.', 'error');
+            }
+        } catch (error) {
+            console.error('❌ 학생 목록 로딩 오류:', error);
+            this.showNotification('학생 목록을 불러오는데 오류가 발생했습니다.', 'error');
+        }
+    },
+
+    // 알림 표시
+    showNotification(message, type = 'info', duration = 3000) {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+        
+        const styles = {
+            'success': 'bg-green-500 text-white',
+            'error': 'bg-red-500 text-white', 
+            'info': 'bg-blue-500 text-white',
+            'warning': 'bg-yellow-500 text-black'
+        };
+        
+        notification.className += ` ${styles[type] || styles.info}`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.classList.remove('translate-x-full');
+        }, 100);
+        
+        setTimeout(() => {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => notification.remove(), 300);
+        }, duration);
+    },
+
+    // 나머지 메서드들...
+    addStudentToCareSystem(data) {
+        console.log('🏫 돌봄시스템 학생 추가:', data);
+        // 구현 예정
+    },
+
+    addStudentToLocation(data) {
+        console.log('🚗 일반 스케줄 학생 추가:', data);
+        // 구현 예정
+    },
+
+    removeStudent(data) {
+        console.log('🗑️ 학생 제거:', data);
+        // 구현 예정
+    },
+
+    addNewLocation(data) {
+        console.log('📍 새 장소 추가:', data);
+        // 구현 예정
+    },
+
+    showLocationSettings(data) {
+        console.log('⚙️ 장소 설정:', data);
+        // 구현 예정
+    },
+
+    closeModal() {
+        document.getElementById('studentModal').classList.add('hidden');
+        this.state.selectedStudents = [];
+        this.state.currentModalConfig = null;
+    },
+
+    closeLocationSettings() {
+        document.getElementById('locationSettingsModal').classList.add('hidden');
+        this.state.currentLocationSettings = null;
+    },
+
+    confirmAddStudents() {
+        console.log('📝 학생 추가 확인');
+        // 구현 예정
+    },
+
+    saveLocationSettings() {
+        console.log('💾 장소 설정 저장');
+        // 구현 예정
+    },
+
+    deleteLocation() {
+        console.log('🗑️ 장소 삭제');
+        // 구현 예정
+    },
+
+    toggleStudentAttendance(studentId) {
+        console.log('✅ 출석 체크 토글:', studentId);
+        // 구현 예정
+    },
+
+    handleAdminCleanup(action) {
+        console.log('🧹 관리자 정리 도구:', action);
+        // 구현 예정
+    },
+
+    handleStudentSearch() {
+        console.log('🔍 학생 검색');
+        // 구현 예정
+    },
+
+    handleStudentSearchFocus() {
+        console.log('🎯 학생 검색 포커스');
+        // 구현 예정
+    },
+
+    selectFirstSearchResult() {
+        console.log('👆 첫 번째 검색 결과 선택');
+        // 구현 예정
+    }
+};
+
+// DOM 로드 시 초기화
+document.addEventListener('DOMContentLoaded', () => {
+    ScheduleManager.init();
+});
+</script>
+
+{% endblock %} 
