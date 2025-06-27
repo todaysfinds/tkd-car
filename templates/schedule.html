@@ -96,7 +96,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup', 1)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -139,7 +139,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff', 1)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -190,7 +190,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup', 2)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -232,7 +232,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff', 2)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -313,7 +313,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup', 3)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -355,7 +355,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff', 3)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -490,7 +490,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup', 5)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -532,7 +532,7 @@
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff')" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff', 5)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -555,6 +555,99 @@
                                         {% endfor %}
                                     {% endif %}
                                     <button onclick="addNewLocation({{ day_num }}, 5, 'dropoff')" 
+                                            class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4부 (5:30-6:20) -->
+                    <div class="border rounded-lg overflow-hidden">
+                        <div class="bg-white px-3 py-1 border-b">
+                            <h3 class="font-semibold text-gray-800 text-sm">4부 (5:30-6:20)</h3>
+                        </div>
+                        <div class="grid grid-cols-2 gap-0">
+                            <!-- 승차 -->
+                            <div class="border-r">
+                                <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 4 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][4] %}
+                                        {% for location, students in schedule_data[day_num][4]['pickup'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <div class="flex items-center gap-1">
+                                                <button onclick="addStudentToLocation({{ day_num }}, 4, '{{ location }}', 'pickup')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup', 4)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 4, 'pickup')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 4, 'pickup')" 
+                                            class="w-full text-xs text-pink-600 border border-dashed border-pink-300 rounded p-1 hover:bg-pink-50">
+                                        + 새 장소 추가
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- 하차 -->
+                            <div>
+                                <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
+                                <div class="p-2 space-y-2 min-h-[60px]">
+                                    {% if day_num in schedule_data and 4 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][4] %}
+                                        {% for location, students in schedule_data[day_num][4]['dropoff'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                            <div class="flex items-center justify-between mb-1">
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <div class="flex items-center gap-1">
+                                                <button onclick="addStudentToLocation({{ day_num }}, 4, '{{ location }}', 'dropoff')" 
+                                                        class="text-xs text-blue-600 hover:text-blue-800">
+                                                    + 학생
+                                                </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff', 4)" 
+                                                            class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                        ⚙️
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="flex flex-wrap gap-1">
+                                                {% for student_data in students %}
+                                                <div class="flex items-center justify-between text-xs bg-sky-50 px-1 py-0.5 rounded border border-sky-200 min-w-[50px] max-w-[100px]">
+                                                    <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
+                                                            class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
+                                                            data-student-id="{{ student_data.student.id }}">
+                                                        {{ student_data.student.name }}
+                                                    </button>
+                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 4, 'dropoff')" 
+                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    {% endif %}
+                                    <button onclick="addNewLocation({{ day_num }}, 4, 'dropoff')" 
                                             class="w-full text-xs text-sky-600 border border-dashed border-sky-300 rounded p-1 hover:bg-sky-50">
                                         + 새 장소 추가
                                     </button>
@@ -646,8 +739,8 @@ let currentModalConfig = null;
 let currentLocationSettings = null;
 
 // 장소 설정 모달 열기
-function showLocationSettings(dayNum, locationName, locationType) {
-    console.log('⚙️ 장소 설정 모달 열기:', {dayNum, locationName, locationType});
+function showLocationSettings(dayNum, locationName, locationType, sessionPart = null) {
+    console.log('⚙️ 장소 설정 모달 열기:', {dayNum, locationName, locationType, sessionPart});
     
     // 돌봄시스템/국기원부의 경우 접미사 제거
     let cleanLocationName = locationName;
@@ -665,10 +758,12 @@ function showLocationSettings(dayNum, locationName, locationType) {
         dayNum: dayNum,
         locationName: cleanLocationName,
         locationType: locationType,
+        sessionPart: sessionPart,  // 🎯 시간대 정보 추가!
         originalLocation: cleanLocationName
     };
     
-    document.getElementById('locationSettingsTitle').textContent = `"${cleanLocationName}" 장소 설정`;
+    const timeText = sessionPart ? ` (${sessionPart}부)` : '';
+    document.getElementById('locationSettingsTitle').textContent = `"${cleanLocationName}" 장소 설정${timeText}`;
     document.getElementById('locationNameInput').value = cleanLocationName;
     document.getElementById('locationSettingsModal').classList.remove('hidden');
     
