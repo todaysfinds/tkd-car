@@ -60,7 +60,7 @@ else:
     except:
         # 로컬에서 PostgreSQL 없으면 환경변수 사용
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tkd_transport.db'
-        print("🗄️ 로컬 개발용 SQLite")
+        print("🗄️ 로컬 개발용 SQLite - ⚠️ 배포사이트와 다른 DB!")
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
@@ -1952,6 +1952,63 @@ def delete_quick_call_number(number_id):
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/cleanup_duplicates', methods=['POST'])
+def cleanup_duplicates():
+    """중복 스케줄 정리 (관리자용)"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        location = data.get('location')
+        schedule_type = data.get('schedule_type', 'pickup')
+        
+        if day_of_week is None or not location:
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
+        
+        print(f"🧹 중복 정리: day={day_of_week}, location='{location}', type={schedule_type}")
+        
+        # 해당 조건의 모든 스케줄 찾기
+        schedules = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            location=location,
+            schedule_type=schedule_type
+        ).all()
+        
+        print(f"   📋 발견된 스케줄: {len(schedules)}개")
+        
+        # 학생별로 그룹화
+        student_schedules = {}
+        for schedule in schedules:
+            student_id = schedule.student_id
+            if student_id not in student_schedules:
+                student_schedules[student_id] = []
+            student_schedules[student_id].append(schedule)
+        
+        # 중복 제거
+        removed_count = 0
+        for student_id, sch_list in student_schedules.items():
+            if len(sch_list) > 1:
+                student = Student.query.get(student_id)
+                print(f"   🔍 {student.name} 중복 {len(sch_list)}개 발견")
+                
+                # 첫 번째만 남기고 나머지 삭제
+                for schedule in sch_list[1:]:
+                    print(f"      - 삭제: {schedule.id}")
+                    db.session.delete(schedule)
+                    removed_count += 1
+        
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'{removed_count}개의 중복 스케줄이 정리되었습니다.',
+            'removed_count': removed_count
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 중복 정리 에러: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/create_empty_location', methods=['POST'])
 def create_empty_location():
     """빈 장소 생성 (실제 더미 스케줄 생성으로 지속성 보장)"""
@@ -2234,3 +2291,68 @@ def success_response(message, data=None):
     return jsonify(response)
 
 # 불필요한 일회성 API 제거됨
+
+@app.route('/api/admin/fix_duplicate_schedules', methods=['POST'])
+def fix_duplicate_schedules():
+    """🚨 관리자 전용: 중복 스케줄 정리"""
+    try:
+        data = request.get_json()
+        student_name = data.get('student_name')
+        
+        if not student_name:
+            return jsonify({'success': False, 'error': '학생 이름이 필요합니다.'})
+        
+        print(f"🔍 중복 스케줄 정리 시작: {student_name}")
+        
+        # 해당 학생의 모든 스케줄 조회
+        student = Student.query.filter_by(name=student_name).first()
+        if not student:
+            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
+        
+        schedules = Schedule.query.filter_by(student_id=student.id).all()
+        
+        # 중복 찾기: (요일, 시간대, 승차/하차, 장소) 조합별로 그룹화
+        schedule_groups = {}
+        for schedule in schedules:
+            key = (schedule.day_of_week, schedule.schedule_time, schedule.schedule_type, schedule.location)
+            if key not in schedule_groups:
+                schedule_groups[key] = []
+            schedule_groups[key].append(schedule)
+        
+        # 중복 제거
+        removed_count = 0
+        duplicate_info = []
+        
+        for key, group in schedule_groups.items():
+            if len(group) > 1:
+                # 첫 번째만 남기고 나머지 삭제
+                day, time, type_, location = key
+                duplicate_info.append({
+                    'day': day,
+                    'time': str(time),
+                    'type': type_,
+                    'location': location,
+                    'duplicate_count': len(group)
+                })
+                
+                # 첫 번째 제외하고 삭제
+                for schedule in group[1:]:
+                    db.session.delete(schedule)
+                    removed_count += 1
+                    print(f"🗑️ 중복 스케줄 삭제: {day}요일 {time} {type_} {location}")
+        
+        db.session.commit()
+        
+        print(f"✅ 중복 스케줄 정리 완료: {removed_count}개 삭제")
+        
+        return jsonify({
+            'success': True,
+            'message': f'{student_name} 학생의 중복 스케줄 {removed_count}개를 정리했습니다.',
+            'removed_count': removed_count,
+            'duplicate_info': duplicate_info
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 중복 스케줄 정리 오류: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
