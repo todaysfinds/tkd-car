@@ -268,7 +268,12 @@ def schedule():
                 location = schedule.location or '도장'
         else:
             part = student.session_part or 1
-            location = schedule.location or student.pickup_location or '미정'
+            # 🚨 중요: Schedule.location을 최우선으로 사용 (폴백 최소화)
+            if schedule.location:
+                location = schedule.location
+            else:
+                # Schedule.location이 없을 때만 Student.pickup_location 사용
+                location = student.pickup_location or f'미정_{student.id}'  # 학생별 고유 미정 장소
         
         schedule_type = schedule.schedule_type  # 'pickup', 'dropoff', 'care_system', 'national_training'
         
@@ -2420,4 +2425,75 @@ def fix_location_consistency():
     except Exception as e:
         db.session.rollback()
         print(f"❌ 장소 정보 일관성 복구 오류: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/admin/diagnose_schedule_data', methods=['POST'])
+def diagnose_schedule_data():
+    """🔍 관리자 전용: 스케줄 데이터 진단"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        session_part = data.get('session_part')
+        
+        print(f"🔍 스케줄 데이터 진단 시작 (요일: {day_of_week}, 부: {session_part})")
+        
+        # 해당 요일/부의 모든 스케줄 조회
+        query = Schedule.query.join(Student).filter(
+            ~Student.name.like('_PH_%')  # 더미 학생 제외
+        )
+        
+        if day_of_week is not None:
+            query = query.filter(Schedule.day_of_week == day_of_week)
+        
+        if session_part is not None:
+            query = query.filter(Student.session_part == session_part)
+        
+        schedules = query.all()
+        
+        # 문제 진단
+        issues = []
+        location_groups = {}
+        
+        for schedule in schedules:
+            student = schedule.student
+            
+            # 장소별 그룹화
+            location = schedule.location or student.pickup_location or f'미정_{student.id}'
+            if location not in location_groups:
+                location_groups[location] = []
+            location_groups[location].append({
+                'student_name': student.name,
+                'student_id': student.id,
+                'schedule_location': schedule.location,
+                'student_pickup_location': student.pickup_location,
+                'schedule_type': schedule.schedule_type,
+                'schedule_time': str(schedule.time)
+            })
+            
+            # 문제 체크
+            if not schedule.location and not student.pickup_location:
+                issues.append(f"⚠️ {student.name}: 스케줄과 학생 모두 장소 정보 없음")
+            elif not schedule.location:
+                issues.append(f"📍 {student.name}: 스케줄 장소 정보 없음 (학생 기본 장소: {student.pickup_location})")
+            elif schedule.location != student.pickup_location:
+                issues.append(f"🔄 {student.name}: 스케줄 장소({schedule.location}) ≠ 학생 기본 장소({student.pickup_location})")
+        
+        # 중복 장소에 있는 학생들 체크
+        for location, students in location_groups.items():
+            if len(students) > 1:
+                student_names = [s['student_name'] for s in students]
+                issues.append(f"👥 {location}: {len(students)}명 학생 ({', '.join(student_names)})")
+        
+        print(f"✅ 진단 완료: {len(schedules)}개 스케줄, {len(issues)}개 문제 발견")
+        
+        return jsonify({
+            'success': True,
+            'total_schedules': len(schedules),
+            'location_groups': location_groups,
+            'issues': issues,
+            'issue_count': len(issues)
+        })
+        
+    except Exception as e:
+        print(f"❌ 스케줄 데이터 진단 오류: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
