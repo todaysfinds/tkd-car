@@ -1512,22 +1512,44 @@ function addStudentsToDOM(addedStudents) {
         let targetContainer = null;
         
         if (type === 'care_system') {
-            // 돌봄시스템 컨테이너 찾기
+            // 🎯 session_part별로 돌봄시스템 A/B/C 구분
+            let careType, careSystemName;
+            if (session_part === 6) {
+                careType = 'care1';
+                careSystemName = '돌봄시스템 A';
+            } else if (session_part === 8) {
+                careType = 'care2';
+                careSystemName = '돌봄시스템 B';
+            } else if (session_part === 9) {
+                careType = 'care3';
+                careSystemName = '돌봄시스템 C';
+            } else {
+                careType = 'care1';
+                careSystemName = '돌봄시스템 A';
+            }
+            
+            console.log(`🏫 돌봄시스템 DOM 추가: ${careSystemName} (session_part=${session_part})`);
+            
+            // 해당 돌봄시스템 컨테이너 찾기
             const careContainers = dayPage.querySelectorAll('.border-orange-200');
             careContainers.forEach(container => {
                 const careTitle = container.querySelector('.text-orange-800');
-                if (careTitle && careTitle.textContent.includes('돌봄시스템')) {
+                if (careTitle && careTitle.textContent.includes(careSystemName)) {
+                    console.log(`✅ ${careSystemName} 컨테이너 찾음`);
                     const spaceContainer = container.querySelector('.space-y-2');
                     if (spaceContainer) {
                         // 해당 장소의 위치 찾기 또는 생성
                         let locationContainer = null;
                         const existingLocations = spaceContainer.querySelectorAll('.border.border-gray-200.rounded');
                         
-                        // 기존 장소 검색 (location에서 _care3 부분 제거해서 비교)
+                        // 기존 장소 검색 (location에서 _care1/_care2/_care3 부분 제거해서 비교)
                         const cleanLocation = location.replace(/_care\d+$/, '');
+                        console.log(`🔍 장소 검색: ${cleanLocation}`);
+                        
                         for (let locDiv of existingLocations) {
                             const locTitle = locDiv.querySelector('.text-gray-700');
                             if (locTitle && locTitle.textContent.includes(cleanLocation)) {
+                                console.log(`✅ 기존 장소 찾음: ${locTitle.textContent}`);
                                 locationContainer = locDiv.querySelector('.flex.flex-wrap.gap-1');
                                 break;
                             }
@@ -1535,19 +1557,28 @@ function addStudentsToDOM(addedStudents) {
                         
                         // 장소가 없으면 새로 생성
                         if (!locationContainer) {
+                            console.log(`🏗️ 새 장소 생성: ${cleanLocation}`);
                             const newLocationHTML = `
                                 <div class="border border-gray-200 rounded p-1 bg-white">
                                     <div class="flex items-center justify-between mb-1">
                                         <span class="text-xs font-medium text-gray-700">📍 ${cleanLocation}</span>
-                                        <button onclick="addStudentToCareSystem(${day_of_week}, '${cleanLocation}', 'care3')" 
-                                                class="text-xs text-blue-600 hover:text-blue-800">+ 학생</button>
+                                        <div class="flex items-center gap-1">
+                                            <button onclick="addStudentToCareSystem(${day_of_week}, '${cleanLocation}', '${careType}')" 
+                                                    class="text-xs text-blue-600 hover:text-blue-800">
+                                                + 학생
+                                            </button>
+                                            <button onclick="showLocationSettings(${day_of_week}, '${cleanLocation}', 'care_system', '${careType}')" 
+                                                    class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
+                                                ⚙️
+                                            </button>
+                                        </div>
                                     </div>
                                     <div class="flex flex-wrap gap-1"></div>
                                 </div>
                             `;
                             
                             // + 새 장소 추가 버튼 위에 삽입
-                            const addButton = spaceContainer.querySelector('button[onclick*="addNewLocationToCareSystem"]');
+                            const addButton = spaceContainer.querySelector(`button[onclick*="addNewLocationToCareSystem"][onclick*="${careType}"]`);
                             if (addButton) {
                                 addButton.insertAdjacentHTML('beforebegin', newLocationHTML);
                                 // 방금 생성한 container 찾기
@@ -1555,6 +1586,7 @@ function addStudentsToDOM(addedStudents) {
                                 locationContainer = newLocDiv.querySelector('.flex.flex-wrap.gap-1');
                                 // + 새 장소 추가 버튼 숨기기
                                 addButton.style.display = 'none';
+                                console.log(`✅ 새 장소 DOM 생성 완료`);
                             }
                         }
                         
@@ -1687,9 +1719,21 @@ function createStudentElementHTML(student, dayNum, sessionPart, type, location) 
     let bgColor, borderColor, removeFunction;
     
     if (type === 'care_system') {
+        // 🎯 session_part별로 돌봄시스템 A/B/C 구분
+        let careType;
+        if (sessionPart === 6) {
+            careType = 'care1';
+        } else if (sessionPart === 8) {
+            careType = 'care2';
+        } else if (sessionPart === 9) {
+            careType = 'care3';
+        } else {
+            careType = 'care1';
+        }
+        
         bgColor = 'bg-orange-50';
         borderColor = 'border-orange-200';
-        removeFunction = `removeStudentFromCareSystem(${student.id}, ${dayNum}, '${location}', '${sessionPart}')`;
+        removeFunction = `removeStudentFromCareSystem(${student.id}, ${dayNum}, '${location}', '${careType}')`;
     } else if (type === 'national_training') {
         bgColor = 'bg-purple-50';
         borderColor = 'border-purple-200';
@@ -1878,7 +1922,7 @@ function removeCareSystemStudentFromDOM(studentElement) {
     }, 300);
 }
 
-// 돌봄시스템 새 장소 추가
+// 돌봄시스템 새 장소 추가 (🎯 실제 장소 생성 후 학생 추가)
 function addNewLocationToCareSystem(dayNum, careType) {
     const locationName = prompt('새 장소명을 입력하세요:');
     if (!locationName || locationName.trim() === '') {
@@ -1886,7 +1930,35 @@ function addNewLocationToCareSystem(dayNum, careType) {
     }
     
     const cleanLocation = locationName.trim();
-    addStudentToCareSystem(dayNum, cleanLocation, careType);
+    console.log(`🏫 돌봄시스템 새 장소 생성: ${cleanLocation} (${careType})`);
+    
+    // 🎯 먼저 빈 장소를 실제로 생성
+    fetch('/api/create_empty_care_location', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            day_of_week: dayNum,
+            care_type: careType,
+            location_name: cleanLocation
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        console.log('📡 돌봄시스템 장소 생성 응답:', data);
+        if (data.success) {
+            // 성공하면 바로 학생 추가 모달 열기
+            console.log('✅ 돌봄시스템 장소 생성 완료, 학생 추가 모달 열기');
+            addStudentToCareSystem(dayNum, cleanLocation, careType);
+        } else {
+            alert('장소 생성 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(error => {
+        console.error('❌ 돌봄시스템 장소 생성 에러:', error);
+        alert('장소 생성 중 오류가 발생했습니다.');
+    });
 }
 
 // 국기원부 관련 함수들
