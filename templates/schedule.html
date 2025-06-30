@@ -1149,7 +1149,11 @@ function openStudentModal(dayNum, sessionPart, location, type) {
     document.getElementById('studentModal').classList.remove('hidden');
     // 모달에 필요한 데이터 설정
     window.currentModalData = { dayNum, sessionPart, location, type };
-    loadAllStudents();
+    window.selectedStudents = [];
+    
+    // 학생 검색 초기화
+    initStudentSearch();
+    updateSelectedStudentsDisplay();
 }
 
 // 모달 닫기
@@ -1157,90 +1161,206 @@ function closeModal() {
     document.getElementById('studentModal').classList.add('hidden');
 }
 
-// 모든 학생 로드
-function loadAllStudents() {
+// 학생 검색 초기화
+function initStudentSearch() {
+    const searchInput = document.getElementById('studentSearch');
+    const dropdown = document.getElementById('studentDropdown');
+    
+    if (!searchInput || !dropdown) {
+        console.error('학생 검색 요소를 찾을 수 없습니다');
+        return;
+    }
+    
+    let allStudents = [];
+    
+    // 전체 학생 목록 불러오기
     fetch('/api/get_all_students')
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayStudents(data.students);
+                allStudents = data.students;
+                console.log('학생 목록 로드 성공:', allStudents.length + '명');
+                
+                // 초기에 전체 목록 표시
+                displayStudentDropdown(allStudents, dropdown);
+            } else {
+                console.error('학생 목록 로드 실패:', data.error);
             }
         })
         .catch(error => {
-            console.error('Error loading students:', error);
+            console.error('학생 목록 로딩 실패:', error);
         });
-}
-
-// 학생 목록 표시
-function displayStudents(students) {
-    const container = document.getElementById('studentList');
-    if (!container) return;
     
-    container.innerHTML = students.map(student => `
-        <div class="p-2 border rounded cursor-pointer hover:bg-gray-50" onclick="selectStudent(${student.id}, '${student.name}')">
-            <div class="font-medium">${student.name}</div>
-            <div class="text-sm text-gray-500">${student.grade || ''} - ${student.session_part || ''}부</div>
-        </div>
-    `).join('');
-}
-
-// 학생 선택
-function selectStudent(studentId, studentName) {
-    // 기존 선택 해제
-    document.querySelectorAll('.student-selected').forEach(el => {
-        el.classList.remove('student-selected', 'bg-blue-100');
+    // 기존 이벤트 리스너 제거
+    const newSearchInput = searchInput.cloneNode(true);
+    searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+    
+    // 검색 입력 이벤트
+    newSearchInput.addEventListener('input', function() {
+        const query = this.value.toLowerCase().trim();
+        let filteredStudents;
+        
+        if (query.length === 0) {
+            filteredStudents = allStudents;
+        } else {
+            filteredStudents = allStudents.filter(student => 
+                student.name.toLowerCase().includes(query)
+            );
+        }
+        
+        // 이미 선택된 학생들 제외
+        const selectedIds = (window.selectedStudents || []).map(s => s.id);
+        filteredStudents = filteredStudents.filter(student => 
+            !selectedIds.includes(student.id)
+        );
+        
+        displayStudentDropdown(filteredStudents, dropdown);
     });
     
-    // 새 선택 표시
-    event.target.closest('div').classList.add('student-selected', 'bg-blue-100');
+    // 포커스 시 전체 명단 표시
+    newSearchInput.addEventListener('focus', function() {
+        if (allStudents.length > 0) {
+            this.dispatchEvent(new Event('input'));
+        }
+        dropdown.classList.remove('hidden');
+    });
     
-    // 선택된 학생 정보 저장
-    window.selectedStudentId = studentId;
+    // 외부 클릭 시 드롭다운 닫기
+    document.addEventListener('click', function(e) {
+        if (!newSearchInput.contains(e.target) && !dropdown.contains(e.target)) {
+            dropdown.classList.add('hidden');
+        }
+    });
+}
+
+// 학생 드롭다운 표시
+function displayStudentDropdown(students, dropdown) {
+    if (students.length > 0) {
+        dropdown.innerHTML = students.map(student => `
+            <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                 onclick="selectStudentFromDropdown(${student.id}, '${student.name}')">
+                <div class="font-medium text-gray-900">${student.name}</div>
+                <div class="text-xs text-gray-500">${student.grade || '학년 정보 없음'} - ${student.session_part || '미지정'}부</div>
+            </div>
+        `).join('');
+        dropdown.classList.remove('hidden');
+    } else {
+        dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-center">검색 결과가 없습니다</div>';
+        dropdown.classList.remove('hidden');
+    }
+}
+
+// 드롭다운에서 학생 선택
+function selectStudentFromDropdown(studentId, studentName) {
+    // 중복 체크
+    if (!window.selectedStudents) {
+        window.selectedStudents = [];
+    }
     
-    // 추가 버튼 활성화
+    if (window.selectedStudents.find(s => s.id === studentId)) {
+        showNotification('이미 선택된 학생입니다.', 'warning');
+        return;
+    }
+    
+    window.selectedStudents.push({
+        id: studentId,
+        name: studentName
+    });
+    
+    // 검색창 초기화
+    document.getElementById('studentSearch').value = '';
+    document.getElementById('studentDropdown').classList.add('hidden');
+    
+    updateSelectedStudentsDisplay();
+    console.log('학생 선택됨:', studentName);
+}
+
+// 선택된 학생들 표시 업데이트
+function updateSelectedStudentsDisplay() {
+    const container = document.getElementById('selectedStudents');
     const addBtn = document.getElementById('addStudentBtn');
-    if (addBtn) {
+    
+    if (!container || !addBtn) return;
+    
+    if (!window.selectedStudents || window.selectedStudents.length === 0) {
+        container.innerHTML = '<div class="text-sm text-gray-500">선택된 학생이 없습니다.</div>';
+        addBtn.disabled = true;
+        addBtn.classList.add('disabled:bg-gray-300', 'disabled:cursor-not-allowed');
+    } else {
+        container.innerHTML = window.selectedStudents.map(student => `
+            <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2">
+                <span class="text-sm font-medium text-blue-800">${student.name}</span>
+                <button onclick="removeSelectedStudent(${student.id})" class="text-blue-600 hover:text-blue-800">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `).join('');
         addBtn.disabled = false;
         addBtn.classList.remove('disabled:bg-gray-300', 'disabled:cursor-not-allowed');
     }
 }
 
+// 선택된 학생 제거
+function removeSelectedStudent(studentId) {
+    if (!window.selectedStudents) return;
+    
+    window.selectedStudents = window.selectedStudents.filter(s => s.id !== studentId);
+    updateSelectedStudentsDisplay();
+    
+    // 드롭다운 다시 표시 (검색창에 포커스가 있다면)
+    const searchInput = document.getElementById('studentSearch');
+    if (searchInput === document.activeElement) {
+        searchInput.dispatchEvent(new Event('input'));
+    }
+}
+
 // 선택된 학생들을 스케줄에 추가
 function confirmAddStudents() {
-    if (!window.selectedStudentId || !window.currentModalData) {
+    if (!window.selectedStudents || window.selectedStudents.length === 0 || !window.currentModalData) {
         showNotification('학생을 선택해주세요.', 'warning');
         return;
     }
     
     const { dayNum, sessionPart, location, type } = window.currentModalData;
     
-    fetch('/api/add_student_to_schedule', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            student_id: window.selectedStudentId,
-            day_of_week: dayNum,
-            session_part: sessionPart,
-            location: location,
-            schedule_type: type
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('학생이 추가되었습니다.', 'success');
-            closeModal();
-            window.location.reload();
-        } else {
-            showNotification('추가 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        showNotification('네트워크 오류가 발생했습니다.', 'error');
+    // 여러 학생을 한 번에 추가
+    const promises = window.selectedStudents.map(student => {
+        return fetch('/api/add_student_to_schedule', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                student_id: student.id,
+                day_of_week: dayNum,
+                session_part: sessionPart,
+                location: location,
+                schedule_type: type
+            })
+        }).then(response => response.json());
     });
+    
+    Promise.all(promises)
+        .then(results => {
+            const successful = results.filter(result => result.success);
+            const failed = results.filter(result => !result.success);
+            
+            if (successful.length > 0) {
+                showNotification(`${successful.length}명의 학생이 추가되었습니다.`, 'success');
+                closeModal();
+                window.location.reload();
+            }
+            
+            if (failed.length > 0) {
+                showNotification(`${failed.length}명 추가 실패: ${failed[0].error || '알 수 없는 오류'}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
 }
 
 // 🎯 개선된 알림 시스템
