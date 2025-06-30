@@ -1018,24 +1018,24 @@ def add_student_to_schedule():
             
         print(f"      - 시간범위: {time_start} ~ {time_end}")
         
-        # 🚨 절대적으로 확실한 중복 체크: 정확히 동일한 5개 조건만 체크
-        # 1. 동일한 학생 + 2. 동일한 요일 + 3. 동일한 부(시간범위) + 4. 동일한 타입 + 5. 동일한 장소
-        print(f"      - 중복 체크 대상: 학생={student_id}, 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 시간범위={time_start}~{time_end}")
+        # 🎯 관대한 중복 체크: 정확히 동일한 6개 조건이 모두 일치할 때만 중복으로 판단
+        # 1. 동일한 학생 + 2. 동일한 요일 + 3. 동일한 부 + 4. 동일한 타입 + 5. 동일한 장소 + 6. 정확히 동일한 시간
+        print(f"      - 관대한 중복 체크: 학생={student_id}, 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
         
         existing_schedule = Schedule.query.filter(
             Schedule.student_id == student_id,
             Schedule.day_of_week == day_of_week, 
             Schedule.schedule_type == schedule_type,
             Schedule.location == target_location,
-            Schedule.time >= time_start,
-            Schedule.time <= time_end
+            Schedule.time == schedule_time  # 🎯 정확히 동일한 시간만
         ).first()
         
         print(f"      - 중복 체크 결과: {'발견됨' if existing_schedule else '없음'}")
         if existing_schedule:
             print(f"        → 기존: 시간={existing_schedule.time}, 장소={existing_schedule.location}")
+            print(f"        → 정말 동일한 스케줄이므로 중복!")
         else:
-            print(f"        → 추가 가능!")
+            print(f"        → 다른 스케줄이므로 추가 가능!")
         
         # 더미 학생인지 확인
         is_dummy = False
@@ -1057,15 +1057,14 @@ def add_student_to_schedule():
         if existing_schedule and not is_dummy:
             return jsonify({'success': False, 'error': f'이미 해당 스케줄이 존재합니다. (기존: {existing_student.name})'})
         
-        # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 제거 (정확한 조건으로)
-        print(f"   🧹 더미 스케줄 제거 대상: 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 시간범위={time_start}~{time_end}")
+        # 🎯 실제 학생 추가 전에 정확히 동일한 더미 스케줄만 제거
+        print(f"   🧹 더미 스케줄 제거 대상: 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
         
         dummy_schedules = Schedule.query.filter(
             Schedule.day_of_week == day_of_week,
             Schedule.schedule_type == schedule_type,
             Schedule.location == target_location,
-            Schedule.time >= time_start,
-            Schedule.time <= time_end
+            Schedule.time == schedule_time  # 🎯 정확히 동일한 시간만
         ).join(Student).filter(
             Student.name.like('_PH_%')  # 더미 학생만
         ).all()
@@ -1221,23 +1220,23 @@ def add_multiple_students_to_schedule():
             print(f"      - 타입={schedule_type}, 장소='{target_location}'")
             print(f"      - 시간범위: {time_start} ~ {time_end}")
             
-            # 🚨 절대적으로 확실한 중복 체크: 정확히 동일한 5개 조건만 체크 (단일 추가와 동일)
-            print(f"      - 중복 체크 대상: 학생={student_id}, 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 시간범위={time_start}~{time_end}")
+            # 🎯 관대한 중복 체크: 정확히 동일한 6개 조건이 모두 일치할 때만 중복으로 판단 (단일 추가와 동일)
+            print(f"      - 관대한 중복 체크: 학생={student_id}, 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
             
             existing_schedule = Schedule.query.filter(
                 Schedule.student_id == student_id,
                 Schedule.day_of_week == day_of_week, 
                 Schedule.schedule_type == schedule_type,
                 Schedule.location == target_location,
-                Schedule.time >= time_start,
-                Schedule.time <= time_end
+                Schedule.time == schedule_time  # 🎯 정확히 동일한 시간만
             ).first()
             
             print(f"      - 중복 체크 결과: {'발견됨' if existing_schedule else '없음'}")
             if existing_schedule:
                 print(f"        → 기존: 시간={existing_schedule.time}, 장소={existing_schedule.location}")
+                print(f"        → 정말 동일한 스케줄이므로 중복!")
             else:
-                print(f"        → 추가 가능!")
+                print(f"        → 다른 스케줄이므로 추가 가능!")
             
             print(f"   🔍 기존 스케줄 검색 결과: {existing_schedule}")
             
@@ -1274,16 +1273,14 @@ def add_multiple_students_to_schedule():
         # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 완전 제거
         print(f"   🧹 더미 스케줄 완전 제거 시작...")
         
-        # 1단계: 해당 장소의 더미 스케줄 찾기 (정확한 조건으로)
-        print(f"   🧹 더미 스케줄 제거 대상: 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}")
-        print(f"      - 시간범위: {time_start} ~ {time_end}")
+        # 1단계: 정확히 동일한 더미 스케줄만 찾기
+        print(f"   🧹 더미 스케줄 제거 대상: 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
         
         dummy_schedules = db.session.query(Schedule).join(Student).filter(
             Schedule.day_of_week == day_of_week,
             Schedule.schedule_type == schedule_type,
             Schedule.location == target_location,
-            Schedule.time >= time_start,
-            Schedule.time <= time_end,
+            Schedule.time == schedule_time,  # 🎯 정확히 동일한 시간만
             Student.name.like('_PH_%')
         ).all()
         
