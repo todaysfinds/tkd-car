@@ -809,180 +809,169 @@
 </div>
 
 <script>
-// 전역 변수들을 네임스페이스로 캡슐화
-window.ScheduleApp = {
-    currentDayIndex: 0,
-    selectedStudents: [],
-    currentModalConfig: null,
-    currentLocationSettings: null
+// 🎯 안정적인 전역 상태 관리
+const ScheduleManager = {
+    // 상태 변수들
+    state: {
+        currentDayIndex: 0,
+        selectedStudents: [],
+        currentModalData: null,
+        allStudents: []
+    },
+    
+    // 초기화
+    init() {
+        console.log('🚀 ScheduleManager 초기화 시작');
+        this.initCurrentDay();
+        this.bindEvents();
+        this.loadAllStudents();
+    },
+    
+    // 현재 요일 초기화
+    initCurrentDay() {
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            const savedDay = urlParams.get('day');
+            
+            if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
+                this.state.currentDayIndex = parseInt(savedDay);
+            } else {
+                const today = new Date();
+                const dayOfWeek = today.getDay();
+                this.state.currentDayIndex = (dayOfWeek >= 1 && dayOfWeek <= 5) ? dayOfWeek - 1 : 0;
+            }
+            
+            this.showDayPage(this.state.currentDayIndex);
+            console.log('✅ 현재 요일 설정:', this.state.currentDayIndex);
+        } catch (error) {
+            console.error('❌ 요일 초기화 실패:', error);
+            this.state.currentDayIndex = 0;
+            this.showDayPage(0);
+        }
+    },
+    
+    // 이벤트 바인딩
+    bindEvents() {
+        // 안전한 이벤트 위임
+        document.addEventListener('click', this.handleClick.bind(this));
+        console.log('✅ 이벤트 바인딩 완료');
+    },
+    
+    // 모든 학생 데이터 로드
+    async loadAllStudents() {
+        try {
+            const response = await fetch('/api/get_all_students');
+            const data = await response.json();
+            
+            if (data.success) {
+                this.state.allStudents = data.students;
+                console.log('✅ 학생 데이터 로드:', this.state.allStudents.length + '명');
+            } else {
+                console.error('❌ 학생 데이터 로드 실패:', data.error);
+            }
+        } catch (error) {
+            console.error('❌ 학생 데이터 네트워크 오류:', error);
+        }
+    }
 };
 
-// DOM 로드 후 이벤트 리스너 등록
+// DOM 로드 후 초기화
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('📄 페이지 로드 완료');
-    
-    // 이벤트 위임을 사용하여 동적으로 생성되는 버튼들도 처리
-    document.addEventListener('click', handleButtonClick);
-    
-    // URL에서 현재 요일 확인
-    const urlParams = new URLSearchParams(window.location.search);
-    const savedDay = urlParams.get('day');
-    
-    if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
-        ScheduleApp.currentDayIndex = parseInt(savedDay);
-        console.log('🔄 저장된 요일로 즉시 설정:', ScheduleApp.currentDayIndex);
-    } else {
-        // 오늘 요일로 초기화
-        const today = new Date();
-        const dayOfWeek = today.getDay();
-        
-        if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-            ScheduleApp.currentDayIndex = dayOfWeek - 1;
-        } else {
-            ScheduleApp.currentDayIndex = 0;
-        }
-        
-        console.log('🗓️ 오늘 요일로 초기화:', ScheduleApp.currentDayIndex);
-    }
-    
-    initializeDayPageDirectly(ScheduleApp.currentDayIndex);
-    addStudentClickEvents();
+    ScheduleManager.init();
 });
 
-// 통합 버튼 클릭 핸들러
-function handleButtonClick(event) {
-    const button = event.target.closest('button');
-    if (!button) return;
-    
-    const classList = button.classList;
-    
-    // 요일 네비게이션
-    if (classList.contains('day-nav-btn') || (button.id && button.id.startsWith('day-nav-'))) {
-        const dayNum = parseInt(button.dataset.day);
-        showDayPage(dayNum);
-        return;
-    }
-    
-    // 학생 추가 버튼 (돌봄시스템)
-    if (classList.contains('add-care-student-btn')) {
-        const dayNum = parseInt(button.dataset.day);
-        const location = button.dataset.location;
-        const careType = button.dataset.careType;
-        addStudentToCareSystem(dayNum, location, careType);
-        return;
-    }
-    
-    // 학생 추가 버튼 (일반)
-    if (classList.contains('add-regular-student-btn')) {
-        const dayNum = parseInt(button.dataset.day);
-        const sessionPart = parseInt(button.dataset.sessionPart || '1');
-        const location = button.dataset.location;
-        const type = button.dataset.type || 'pickup';
-        addStudentToLocation(dayNum, sessionPart, location, type);
-        return;
-    }
-    
-    // 국기원부 학생 추가
-    if (classList.contains('add-national-student-btn')) {
-        const dayNum = parseInt(button.dataset.day);
-        const location = button.dataset.location;
-        addStudentToNationalTraining(dayNum, location);
-        return;
-    }
-    
-    // 학생 제거 버튼
-    if (classList.contains('remove-student-btn')) {
-        const studentId = parseInt(button.dataset.studentId);
-        const dayNum = parseInt(button.dataset.day);
-        const location = button.dataset.location;
-        const type = button.dataset.type;
-        const sessionPart = button.dataset.sessionPart;
-        const careType = button.dataset.careType;
+// 안전한 클릭 핸들러를 ScheduleManager에 추가
+ScheduleManager.handleClick = function(event) {
+    try {
+        const button = event.target.closest('button');
+        if (!button) return;
         
-        if (careType) {
-            removeStudentFromCareSystem(studentId, dayNum, location, careType);
-        } else if (type === 'national_training') {
-            removeStudentFromNationalTraining(studentId, dayNum, location);
-        } else {
-            removeStudentFromLocation(studentId, dayNum, location, parseInt(sessionPart), type);
+        // onclick 속성이 있는 버튼은 기본 처리에 맡김
+        if (button.hasAttribute('onclick')) {
+            return;
         }
-        return;
-    }
-    
-    // 새 장소 추가 버튼
-    if (classList.contains('add-new-location-btn')) {
-        const dayNum = parseInt(button.dataset.day);
-        const sessionPart = button.dataset.sessionPart;
-        const type = button.dataset.type;
-        const careType = button.dataset.careType;
-        const nationalType = button.dataset.nationalType;
         
-        if (careType) {
-            addNewLocationToCareSystem(dayNum, careType);
-        } else if (nationalType) {
-            addNewLocationToNationalTraining(dayNum, nationalType);
-        } else {
-            addNewLocation(dayNum, parseInt(sessionPart), type);
+        const classList = button.classList;
+        
+        // 요일 네비게이션
+        if (classList.contains('day-nav-btn') || (button.id && button.id.startsWith('day-nav-'))) {
+            const dayNum = parseInt(button.dataset.day);
+            if (!isNaN(dayNum)) {
+                this.showDayPage(dayNum);
+            }
+            return;
         }
-        return;
-    }
-    
-    // 장소 설정 버튼
-    if (classList.contains('location-settings-btn')) {
-        const dayNum = parseInt(button.dataset.day);
-        const location = button.dataset.location;
-        const locationType = button.dataset.locationType;
-        const sessionPart = button.dataset.sessionPart;
         
-        showLocationSettings(dayNum, location, locationType, sessionPart);
-        return;
-    }
-    // 모든 장소 컨테이너들을 찾아서 제거
-    const allLocationContainers = dayPage.querySelectorAll('.border.border-gray-200.rounded');
-    let removedCount = 0;
-    
-    allLocationContainers.forEach(container => {
-        const locationSpan = container.querySelector('.text-gray-700');
-        if (locationSpan && locationSpan.textContent.includes(`📍 ${locationName}`)) {
-            console.log('✅ 삭제할 장소 컨테이너 찾음:', locationSpan.textContent);
+        // 학생 추가 버튼들
+        if (button.textContent.includes('+ 학생')) {
+            const dayNum = parseInt(button.dataset.day);
+            const location = button.dataset.location;
+            const sessionPart = parseInt(button.dataset.sessionPart || '1');
+            const type = button.dataset.type || 'pickup';
             
-            // 애니메이션으로 제거
-            container.style.transition = 'all 0.3s ease';
-            container.style.opacity = '0';
-            container.style.transform = 'scale(0.8)';
-            
-            setTimeout(() => {
-                const parentContainer = container.parentElement;
-                container.remove();
-                removedCount++;
-                
-                console.log(`🗑️ 장소 컨테이너 제거 완료: ${locationName}`);
-                
-                // 해당 섹션에 장소가 모두 없어지면 + 새 장소 추가 버튼 다시 표시
-                if (parentContainer) {
-                    const remainingLocations = parentContainer.querySelectorAll('.border.border-gray-200.rounded');
-                    if (remainingLocations.length === 0) {
-                        const addButtons = parentContainer.querySelectorAll('button[onclick*="addNewLocation"]');
-                        addButtons.forEach(btn => {
-                            if (btn.style.display === 'none') {
-                                btn.style.display = 'block';
-                                console.log('🔘 + 새 장소 추가 버튼 다시 표시');
-                            }
-                        });
-                    }
-                }
-            }, 300);
+            if (!isNaN(dayNum) && location) {
+                this.openStudentModal(dayNum, sessionPart, location, type);
+            }
+            return;
         }
-    });
-    
-    // 즉시 피드백이 없으면 새로고침으로 대체
-    if (removedCount === 0) {
-        console.log('⚠️ DOM에서 장소를 찾을 수 없어 새로고침 실행');
-        setTimeout(() => {
-            window.location.reload();
-        }, 1000);
+        
+        // 학생 제거 버튼
+        if (button.textContent.includes('✕') && button.dataset.studentId) {
+            const studentId = parseInt(button.dataset.studentId);
+            const dayNum = parseInt(button.dataset.day);
+            const location = button.dataset.location;
+            const sessionPart = parseInt(button.dataset.sessionPart);
+            const type = button.dataset.type;
+            
+            if (!isNaN(studentId) && !isNaN(dayNum) && location) {
+                this.removeStudent(studentId, dayNum, location, sessionPart, type);
+            }
+            return;
+        }
+        
+    } catch (error) {
+        console.error('❌ 클릭 핸들러 오류:', error);
     }
-}
+};
+
+// 요일 페이지 표시
+ScheduleManager.showDayPage = function(dayIndex) {
+    try {
+        this.state.currentDayIndex = dayIndex;
+        
+        // 모든 요일 페이지 숨기기
+        document.querySelectorAll('[id^="day-page-"]').forEach(page => {
+            page.style.display = 'none';
+        });
+        
+        // 선택된 요일 페이지 표시
+        const targetPage = document.getElementById(`day-page-${dayIndex}`);
+        if (targetPage) {
+            targetPage.style.display = 'block';
+        }
+        
+        // 네비게이션 버튼 활성화 상태 업데이트
+        document.querySelectorAll('.day-nav-btn').forEach(btn => {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-white', 'text-gray-700');
+        });
+        
+        const activeBtn = document.querySelector(`[data-day="${dayIndex}"]`);
+        if (activeBtn) {
+            activeBtn.classList.remove('bg-white', 'text-gray-700');
+            activeBtn.classList.add('bg-blue-600', 'text-white');
+        }
+        
+        // URL 업데이트
+        const url = new URL(window.location);
+        url.searchParams.set('day', dayIndex);
+        window.history.replaceState(null, '', url);
+        
+        console.log('✅ 요일 페이지 전환:', dayIndex);
+    } catch (error) {
+        console.error('❌ 요일 페이지 전환 실패:', error);
+    }
+};
 
 // 디버깅용 함수: 현재 페이지의 모든 장소 정보 출력
 function debugAllLocations() {
@@ -1013,37 +1002,151 @@ function debugAllLocations() {
 
 // 🎯 누락된 JavaScript 함수들 추가
 
-// 학생을 장소에서 제거하는 함수
-function removeStudentFromLocation(studentId, dayNum, location, sessionPart, type) {
-    if (confirm('이 학생을 현재 장소에서 제거하시겠습니까?')) {
-        fetch('/api/remove_student_from_schedule', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                student_id: studentId,
-                day_of_week: dayNum,
-                location: location,
-                session_part: sessionPart,
-                schedule_type: type
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showNotification('학생이 성공적으로 제거되었습니다.', 'success');
-                window.location.reload();
-            } else {
-                showNotification('제거 중 오류가 발생했습니다: ' + (data.error || '알 수 없는 오류'), 'error');
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            showNotification('네트워크 오류가 발생했습니다.', 'error');
-        });
+// 학생 모달 열기
+ScheduleManager.openStudentModal = function(dayNum, sessionPart, location, type) {
+    try {
+        console.log('🎯 학생 모달 열기:', { dayNum, sessionPart, location, type });
+        
+        // 모달 데이터 저장
+        this.state.currentModalData = { dayNum, sessionPart, location, type };
+        this.state.selectedStudents = [];
+        
+        // 모달 표시
+        const modal = document.getElementById('studentModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            this.initStudentSearch();
+            this.updateSelectedStudentsDisplay();
+        } else {
+            console.error('❌ 학생 모달을 찾을 수 없습니다');
+        }
+    } catch (error) {
+        console.error('❌ 학생 모달 열기 실패:', error);
     }
-}
+};
+
+// 학생 검색 초기화
+ScheduleManager.initStudentSearch = function() {
+    try {
+        const searchInput = document.getElementById('studentSearch');
+        const dropdown = document.getElementById('studentDropdown');
+        
+        if (!searchInput || !dropdown) {
+            console.error('❌ 검색 요소를 찾을 수 없습니다');
+            return;
+        }
+        
+        // 기존 이벤트 리스너 제거
+        const newSearchInput = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+        
+        // 검색 이벤트 바인딩
+        newSearchInput.addEventListener('input', (e) => {
+            this.handleStudentSearch(e.target.value);
+        });
+        
+        // 엔터키 이벤트 바인딩
+        newSearchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                this.handleEnterKey(e.target.value);
+            }
+        });
+        
+        // 포커스 시 전체 명단 표시
+        newSearchInput.addEventListener('focus', () => {
+            this.handleStudentSearch('');
+            dropdown.classList.remove('hidden');
+        });
+        
+        // 외부 클릭 시 드롭다운 닫기
+        document.addEventListener('click', (e) => {
+            if (!newSearchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+        
+        console.log('✅ 학생 검색 초기화 완료');
+    } catch (error) {
+        console.error('❌ 학생 검색 초기화 실패:', error);
+    }
+};
+
+// 학생 검색 처리
+ScheduleManager.handleStudentSearch = function(query) {
+    try {
+        const dropdown = document.getElementById('studentDropdown');
+        if (!dropdown) return;
+        
+        let filteredStudents = this.state.allStudents;
+        
+        if (query.trim().length > 0) {
+            filteredStudents = this.state.allStudents.filter(student => 
+                student.name.toLowerCase().includes(query.toLowerCase().trim())
+            );
+        }
+        
+        // 이미 선택된 학생들 제외
+        const selectedIds = this.state.selectedStudents.map(s => s.id);
+        filteredStudents = filteredStudents.filter(student => 
+            !selectedIds.includes(student.id)
+        );
+        
+        this.displayStudentDropdown(filteredStudents);
+    } catch (error) {
+        console.error('❌ 학생 검색 처리 실패:', error);
+    }
+};
+
+// 엔터키 처리
+ScheduleManager.handleEnterKey = function(query) {
+    try {
+        if (query.trim().length === 0) return;
+        
+        let filteredStudents = this.state.allStudents.filter(student => 
+            student.name.toLowerCase().includes(query.toLowerCase().trim())
+        );
+        
+        const selectedIds = this.state.selectedStudents.map(s => s.id);
+        filteredStudents = filteredStudents.filter(student => 
+            !selectedIds.includes(student.id)
+        );
+        
+        if (filteredStudents.length > 0) {
+            const firstStudent = filteredStudents[0];
+            this.selectStudent(firstStudent.id, firstStudent.name);
+            console.log('✅ 엔터키로 첫 번째 학생 선택:', firstStudent.name);
+        } else {
+            this.showNotification('검색 결과가 없거나 이미 선택된 학생입니다.', 'warning');
+        }
+    } catch (error) {
+        console.error('❌ 엔터키 처리 실패:', error);
+    }
+};
+
+// 학생 드롭다운 표시
+ScheduleManager.displayStudentDropdown = function(students) {
+    try {
+        const dropdown = document.getElementById('studentDropdown');
+        if (!dropdown) return;
+        
+        if (students.length > 0) {
+            dropdown.innerHTML = students.map(student => `
+                <div class="px-3 py-2 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                     onclick="ScheduleManager.selectStudent(${student.id}, '${student.name}')">
+                    <div class="font-medium text-gray-900">${student.name}</div>
+                    <div class="text-xs text-gray-500">${student.grade || '학년 정보 없음'} - ${student.session_part || '미지정'}부</div>
+                </div>
+            `).join('');
+            dropdown.classList.remove('hidden');
+        } else {
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-center">검색 결과가 없습니다</div>';
+            dropdown.classList.remove('hidden');
+        }
+    } catch (error) {
+        console.error('❌ 드롭다운 표시 실패:', error);
+    }
+};
 
 // 돌봄시스템에서 학생 제거
 function removeStudentFromCareSystem(studentId, dayNum, location, careType) {
@@ -1306,16 +1409,28 @@ function selectStudentFromDropdown(studentId, studentName) {
 
 // 선택된 학생들 표시 업데이트
 function updateSelectedStudentsDisplay() {
+    console.log('🔄 updateSelectedStudentsDisplay 호출됨');
+    console.log('현재 선택된 학생들:', window.selectedStudents);
+    
     const container = document.getElementById('selectedStudents');
     const addBtn = document.getElementById('addStudentBtn');
     
-    if (!container || !addBtn) return;
+    console.log('Container 찾음:', !!container);
+    console.log('Add Button 찾음:', !!addBtn);
+    console.log('Add Button disabled 상태:', addBtn ? addBtn.disabled : 'N/A');
+    
+    if (!container || !addBtn) {
+        console.log('❌ Container 또는 AddBtn을 찾을 수 없음');
+        return;
+    }
     
     if (!window.selectedStudents || window.selectedStudents.length === 0) {
+        console.log('📝 학생 없음 - 버튼 비활성화');
         container.innerHTML = '<div class="text-sm text-gray-500">선택된 학생이 없습니다.</div>';
         addBtn.disabled = true;
         addBtn.classList.add('disabled:bg-gray-300', 'disabled:cursor-not-allowed');
     } else {
+        console.log(`📝 학생 ${window.selectedStudents.length}명 - 버튼 활성화`);
         container.innerHTML = window.selectedStudents.map(student => `
             <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2">
                 <span class="text-sm font-medium text-blue-800">${student.name}</span>
@@ -1328,6 +1443,7 @@ function updateSelectedStudentsDisplay() {
         `).join('');
         addBtn.disabled = false;
         addBtn.classList.remove('disabled:bg-gray-300', 'disabled:cursor-not-allowed');
+        console.log('✅ 버튼 활성화 완료, disabled:', addBtn.disabled);
     }
 }
 
@@ -1345,117 +1461,254 @@ function removeSelectedStudent(studentId) {
     }
 }
 
-// 선택된 학생들을 스케줄에 추가
-function confirmAddStudents() {
-    console.log('🚀 confirmAddStudents 시작');
-    console.log('선택된 학생들:', window.selectedStudents);
-    console.log('모달 데이터:', window.currentModalData);
-    
-    if (!window.selectedStudents || window.selectedStudents.length === 0 || !window.currentModalData) {
-        console.log('❌ 필수 데이터 누락');
-        showNotification('학생을 선택해주세요.', 'warning');
-        return;
+// 학생 선택
+ScheduleManager.selectStudent = function(studentId, studentName) {
+    try {
+        console.log('🎯 학생 선택:', studentName);
+        
+        // 중복 체크
+        if (this.state.selectedStudents.find(s => s.id === studentId)) {
+            this.showNotification('이미 선택된 학생입니다.', 'warning');
+            return;
+        }
+        
+        // 학생 추가
+        this.state.selectedStudents.push({
+            id: studentId,
+            name: studentName
+        });
+        
+        // 검색창 초기화
+        const searchInput = document.getElementById('studentSearch');
+        if (searchInput) {
+            searchInput.value = '';
+        }
+        
+        const dropdown = document.getElementById('studentDropdown');
+        if (dropdown) {
+            dropdown.classList.add('hidden');
+        }
+        
+        this.updateSelectedStudentsDisplay();
+        console.log('✅ 학생 선택 완료:', studentName);
+    } catch (error) {
+        console.error('❌ 학생 선택 실패:', error);
     }
-    
-    const { dayNum, sessionPart, location, type } = window.currentModalData;
-    
-    console.log('📦 전송할 데이터:', {
-        dayNum, sessionPart, location, type,
-        studentCount: window.selectedStudents.length
-    });
-    
-    // 여러 학생을 한 번에 추가
-    const promises = window.selectedStudents.map((student, index) => {
-        const requestData = {
-            student_id: student.id,
-            day_of_week: dayNum,
-            session_part: sessionPart,
-            location: location,
-            schedule_type: type
-        };
+};
+
+// 선택된 학생 표시 업데이트
+ScheduleManager.updateSelectedStudentsDisplay = function() {
+    try {
+        console.log('🔄 선택된 학생 표시 업데이트');
         
-        console.log(`📤 요청 ${index + 1}/${window.selectedStudents.length}:`, requestData);
+        const container = document.getElementById('selectedStudents');
+        const addBtn = document.getElementById('addStudentBtn');
         
-        return fetch('/api/add_student_to_schedule', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestData)
-        }).then(response => {
-            console.log(`📥 응답 ${index + 1} 상태:`, response.status);
-            return response.json();
-        }).then(data => {
-            console.log(`📋 응답 ${index + 1} 데이터:`, data);
-            return data;
+        if (!container || !addBtn) {
+            console.error('❌ 필요한 요소를 찾을 수 없음');
+            return;
+        }
+        
+        if (!this.state.selectedStudents || this.state.selectedStudents.length === 0) {
+            container.innerHTML = '<div class="text-sm text-gray-500">선택된 학생이 없습니다.</div>';
+            addBtn.disabled = true;
+            addBtn.classList.add('disabled:bg-gray-300', 'disabled:cursor-not-allowed');
+            console.log('📝 학생 없음 - 버튼 비활성화');
+        } else {
+            container.innerHTML = this.state.selectedStudents.map(student => `
+                <div class="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-2">
+                    <span class="text-sm font-medium text-blue-800">${student.name}</span>
+                    <button onclick="ScheduleManager.removeSelectedStudent(${student.id})" class="text-blue-600 hover:text-blue-800">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+            addBtn.disabled = false;
+            addBtn.classList.remove('disabled:bg-gray-300', 'disabled:cursor-not-allowed');
+            console.log(`📝 학생 ${this.state.selectedStudents.length}명 - 버튼 활성화`);
+        }
+    } catch (error) {
+        console.error('❌ 선택된 학생 표시 업데이트 실패:', error);
+    }
+};
+
+// 선택된 학생 제거
+ScheduleManager.removeSelectedStudent = function(studentId) {
+    try {
+        this.state.selectedStudents = this.state.selectedStudents.filter(s => s.id !== studentId);
+        this.updateSelectedStudentsDisplay();
+        
+        // 드롭다운 다시 표시 (검색창에 포커스가 있다면)
+        const searchInput = document.getElementById('studentSearch');
+        if (searchInput === document.activeElement) {
+            this.handleStudentSearch(searchInput.value);
+        }
+        
+        console.log('✅ 선택된 학생 제거 완료');
+    } catch (error) {
+        console.error('❌ 선택된 학생 제거 실패:', error);
+    }
+};
+
+// 🎯 가장 중요한 함수: 학생들을 실제로 추가
+function confirmAddStudents() {
+    try {
+        console.log('🚀 confirmAddStudents 시작');
+        
+        if (!ScheduleManager.state.selectedStudents || ScheduleManager.state.selectedStudents.length === 0 || !ScheduleManager.state.currentModalData) {
+            console.log('❌ 필수 데이터 누락');
+            ScheduleManager.showNotification('학생을 선택해주세요.', 'warning');
+            return;
+        }
+        
+        const { dayNum, sessionPart, location, type } = ScheduleManager.state.currentModalData;
+        
+        console.log('📦 전송할 데이터:', {
+            dayNum, sessionPart, location, type,
+            studentCount: ScheduleManager.state.selectedStudents.length
         });
-    });
-    
-    Promise.all(promises)
-        .then(results => {
-            console.log('📊 전체 결과:', results);
+        
+        // 여러 학생을 한 번에 추가
+        const promises = ScheduleManager.state.selectedStudents.map((student, index) => {
+            const requestData = {
+                student_id: student.id,
+                day_of_week: dayNum,
+                session_part: sessionPart,
+                location: location,
+                schedule_type: type
+            };
             
-            const successful = results.filter(result => result.success);
-            const failed = results.filter(result => !result.success);
+            console.log(`📤 요청 ${index + 1}/${ScheduleManager.state.selectedStudents.length}:`, requestData);
             
-            console.log(`✅ 성공: ${successful.length}명, ❌ 실패: ${failed.length}명`);
-            
-            if (successful.length > 0) {
-                showNotification(`${successful.length}명의 학생이 추가되었습니다.`, 'success');
-                closeModal();
-                window.location.reload();
-            }
-            
-            if (failed.length > 0) {
-                console.log('❌ 실패 상세:', failed);
-                showNotification(`${failed.length}명 추가 실패: ${failed[0].error || '알 수 없는 오류'}`, 'error');
-            }
-        })
-        .catch(error => {
-            console.error('💥 네트워크 에러:', error);
-            showNotification('네트워크 오류가 발생했습니다.', 'error');
+            return fetch('/api/add_student_to_schedule', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
+            }).then(response => {
+                console.log(`📥 응답 ${index + 1} 상태:`, response.status);
+                return response.json();
+            }).then(data => {
+                console.log(`📋 응답 ${index + 1} 데이터:`, data);
+                return data;
+            });
         });
+        
+        Promise.all(promises)
+            .then(results => {
+                console.log('📊 전체 결과:', results);
+                
+                const successful = results.filter(result => result.success);
+                const failed = results.filter(result => !result.success);
+                
+                console.log(`✅ 성공: ${successful.length}명, ❌ 실패: ${failed.length}명`);
+                
+                if (successful.length > 0) {
+                    ScheduleManager.showNotification(`${successful.length}명의 학생이 추가되었습니다.`, 'success');
+                    closeModal();
+                    window.location.reload();
+                }
+                
+                if (failed.length > 0) {
+                    console.log('❌ 실패 상세:', failed);
+                    ScheduleManager.showNotification(`${failed.length}명 추가 실패: ${failed[0].error || '알 수 없는 오류'}`, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('💥 네트워크 에러:', error);
+                ScheduleManager.showNotification('네트워크 오류가 발생했습니다.', 'error');
+            });
+    } catch (error) {
+        console.error('❌ confirmAddStudents 전체 실패:', error);
+        ScheduleManager.showNotification('시스템 오류가 발생했습니다.', 'error');
+    }
 }
 
-// 🎯 개선된 알림 시스템
-function showNotification(message, type = 'info', duration = 3000) {
-    // 기존 알림 제거
-    const existingNotification = document.querySelector('.notification-toast');
-    if (existingNotification) {
-        existingNotification.remove();
-    }
-    
-    // 새 알림 생성
-    const notification = document.createElement('div');
-    notification.className = `notification-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
-    
-    // 타입별 스타일
-    const styles = {
-        'success': 'bg-green-500 text-white',
-        'error': 'bg-red-500 text-white', 
-        'info': 'bg-blue-500 text-white',
-        'warning': 'bg-yellow-500 text-black'
-    };
-    
-    notification.className += ` ${styles[type] || styles.info}`;
-    notification.textContent = message;
-    
-    document.body.appendChild(notification);
-    
-    // 애니메이션으로 표시
-    setTimeout(() => {
-        notification.classList.remove('translate-x-full');
-    }, 100);
-    
-    // 자동 제거
-    setTimeout(() => {
-        notification.classList.add('translate-x-full');
+// 🎯 알림 시스템
+ScheduleManager.showNotification = function(message, type = 'info', duration = 3000) {
+    try {
+        // 기존 알림 제거
+        const existingNotification = document.querySelector('.notification-toast');
+        if (existingNotification) {
+            existingNotification.remove();
+        }
+        
+        // 새 알림 생성
+        const notification = document.createElement('div');
+        notification.className = `notification-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+        
+        // 타입별 스타일
+        const styles = {
+            'success': 'bg-green-500 text-white',
+            'error': 'bg-red-500 text-white', 
+            'info': 'bg-blue-500 text-white',
+            'warning': 'bg-yellow-500 text-black'
+        };
+        
+        notification.className += ` ${styles[type] || styles.info}`;
+        notification.textContent = message;
+        
+        document.body.appendChild(notification);
+        
+        // 애니메이션으로 표시
         setTimeout(() => {
-            if (notification.parentNode) {
-                notification.remove();
-            }
-        }, 300);
-    }, duration);
+            notification.classList.remove('translate-x-full');
+        }, 100);
+        
+        // 자동 제거
+        setTimeout(() => {
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.remove();
+                }
+            }, 300);
+        }, duration);
+    } catch (error) {
+        console.error('❌ 알림 표시 실패:', error);
+    }
+};
+
+// 🎯 필수 유틸리티 함수들
+function closeModal() {
+    try {
+        const modal = document.getElementById('studentModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        
+        // 상태 초기화
+        if (typeof ScheduleManager !== 'undefined') {
+            ScheduleManager.state.selectedStudents = [];
+            ScheduleManager.state.currentModalData = null;
+        }
+        
+        console.log('✅ 모달 닫기 완료');
+    } catch (error) {
+        console.error('❌ 모달 닫기 실패:', error);
+    }
+}
+
+// 🎯 레거시 함수들 (기존 HTML과의 호환성을 위해 유지)
+function addStudentToLocation(dayNum, sessionPart, location, type) {
+    if (typeof ScheduleManager !== 'undefined') {
+        ScheduleManager.openStudentModal(dayNum, sessionPart, location, type);
+    }
+}
+
+function showDayPage(dayIndex) {
+    if (typeof ScheduleManager !== 'undefined') {
+        ScheduleManager.showDayPage(dayIndex);
+    }
+}
+
+function showNotification(message, type, duration) {
+    if (typeof ScheduleManager !== 'undefined') {
+        ScheduleManager.showNotification(message, type, duration);
+    }
 }
 
 // 🎯 추가로 누락된 함수들
