@@ -946,7 +946,25 @@ def add_student_to_schedule():
         else:
             schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
         
+        # 🎯 철저한 디버깅: 요청된 정확한 데이터 출력
+        print(f"🔍 단일 학생 추가 요청:")
+        print(f"   - 학생ID: {student_id}, 학생명: {student.name}")
+        print(f"   - 요일: {day_of_week}, 부: {session_part}, 타입: {schedule_type}")
+        print(f"   - 장소: {target_location}, 계산된시간: {schedule_time}")
+        
+        # 해당 학생의 기존 스케줄 모두 확인
+        all_student_schedules = Schedule.query.filter_by(
+            student_id=student_id,
+            day_of_week=day_of_week
+        ).all()
+        
+        print(f"   📊 학생 {student.name}의 {day_of_week}요일 기존 스케줄 {len(all_student_schedules)}개:")
+        for sched in all_student_schedules:
+            print(f"      - 타입: {sched.schedule_type}, 시간: {sched.time}, 장소: {sched.location}")
+        
         # 중복 체크 (더미 학생은 제외) - 더 안전한 방법
+        print(f"   🔍 중복 체크 조건: student_id={student_id}, day={day_of_week}, type={schedule_type}, location='{target_location}', time={schedule_time}")
+        
         existing_schedule = Schedule.query.filter_by(
             student_id=student_id,
             day_of_week=day_of_week,
@@ -959,9 +977,18 @@ def add_student_to_schedule():
         is_dummy = False
         if existing_schedule:
             existing_student = Student.query.get(existing_schedule.student_id)
+            print(f"   🔍 중복 체크 결과: 기존 스케줄 발견!")
+            print(f"      - 기존 학생: {existing_student.name} (ID: {existing_student.id})")
+            print(f"      - 기존 스케줄: 요일={existing_schedule.day_of_week}, 타입={existing_schedule.schedule_type}")
+            print(f"      - 기존 시간: {existing_schedule.time}, 장소={existing_schedule.location}")
+            
             if existing_student and existing_student.name.startswith('_PH_'):
                 is_dummy = True
                 print(f"   ℹ️ 기존 스케줄은 더미 학생: {existing_student.name}")
+            else:
+                print(f"   ❌ 실제 학생과 중복! 추가 불가")
+        else:
+            print(f"   ✅ 중복 체크 결과: 중복 없음, 추가 가능")
         
         if existing_schedule and not is_dummy:
             return jsonify({'success': False, 'error': f'이미 해당 스케줄이 존재합니다. (기존: {existing_student.name})'})
@@ -1063,6 +1090,7 @@ def add_multiple_students_to_schedule():
         print(f"🔍 학생 {len(students)}명을 {target_location}에 추가 (시간: {schedule_time})")
         print(f"   - 받은 학생 데이터: {students}")
         print(f"   - day_of_week: {day_of_week}, session_part: {session_part}, type: {schedule_type}")
+        print(f"   - 🎯 핵심: 요일={day_of_week}, 부={session_part}, 타입={schedule_type}, 시간={schedule_time}")
         
         # 먼저 중복 체크 (하나라도 중복이면 전체 취소)
         duplicates = []
@@ -1083,6 +1111,16 @@ def add_multiple_students_to_schedule():
             
             print(f"   ✅ 학생 존재 확인: {student.name}")
             
+            # 🎯 철저한 디버깅: 해당 학생의 모든 스케줄 확인
+            all_student_schedules = Schedule.query.filter_by(
+                student_id=student_id,
+                day_of_week=day_of_week
+            ).all()
+            
+            print(f"   📊 학생 {student_name}의 {day_of_week}요일 전체 스케줄 {len(all_student_schedules)}개:")
+            for sched in all_student_schedules:
+                print(f"      - 타입: {sched.schedule_type}, 시간: {sched.time}, 장소: {sched.location}")
+            
             # 현재 해당 장소에 있는 모든 스케줄 확인 (디버깅용)
             all_schedules_at_location = Schedule.query.filter_by(
                 day_of_week=day_of_week,
@@ -1090,9 +1128,9 @@ def add_multiple_students_to_schedule():
                 location=target_location
             ).all()
             
-            print(f"   📋 해당 장소의 기존 스케줄 {len(all_schedules_at_location)}개:")
+            print(f"   📋 해당 장소({target_location})의 기존 스케줄 {len(all_schedules_at_location)}개:")
             for sched in all_schedules_at_location:
-                print(f"      - 학생: {sched.student.name} (ID: {sched.student_id})")
+                print(f"      - 학생: {sched.student.name} (ID: {sched.student_id}), 시간: {sched.time}")
             
             # 중복 체크 (더미 학생 제외) - 더 안전한 방법
             print(f"   🔍 중복 체크 조건: student_id={student_id}, day={day_of_week}, type={schedule_type}, location='{target_location}', time={schedule_time}")
