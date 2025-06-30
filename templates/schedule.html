@@ -1217,6 +1217,35 @@ function initStudentSearch() {
         displayStudentDropdown(filteredStudents, dropdown);
     });
     
+    // 🎯 엔터키 이벤트 추가 - 첫 번째 학생 자동 선택
+    newSearchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const query = this.value.toLowerCase().trim();
+            
+            if (query.length > 0) {
+                // 검색 결과 중 첫 번째 학생 찾기
+                let filteredStudents = allStudents.filter(student => 
+                    student.name.toLowerCase().includes(query)
+                );
+                
+                // 이미 선택된 학생들 제외
+                const selectedIds = (window.selectedStudents || []).map(s => s.id);
+                filteredStudents = filteredStudents.filter(student => 
+                    !selectedIds.includes(student.id)
+                );
+                
+                if (filteredStudents.length > 0) {
+                    const firstStudent = filteredStudents[0];
+                    console.log('🎯 엔터키로 첫 번째 학생 선택:', firstStudent.name);
+                    selectStudentFromDropdown(firstStudent.id, firstStudent.name);
+                } else {
+                    showNotification('검색 결과가 없거나 이미 선택된 학생입니다.', 'warning');
+                }
+            }
+        }
+    });
+    
     // 포커스 시 전체 명단 표시
     newSearchInput.addEventListener('focus', function() {
         if (allStudents.length > 0) {
@@ -1318,34 +1347,58 @@ function removeSelectedStudent(studentId) {
 
 // 선택된 학생들을 스케줄에 추가
 function confirmAddStudents() {
+    console.log('🚀 confirmAddStudents 시작');
+    console.log('선택된 학생들:', window.selectedStudents);
+    console.log('모달 데이터:', window.currentModalData);
+    
     if (!window.selectedStudents || window.selectedStudents.length === 0 || !window.currentModalData) {
+        console.log('❌ 필수 데이터 누락');
         showNotification('학생을 선택해주세요.', 'warning');
         return;
     }
     
     const { dayNum, sessionPart, location, type } = window.currentModalData;
     
+    console.log('📦 전송할 데이터:', {
+        dayNum, sessionPart, location, type,
+        studentCount: window.selectedStudents.length
+    });
+    
     // 여러 학생을 한 번에 추가
-    const promises = window.selectedStudents.map(student => {
+    const promises = window.selectedStudents.map((student, index) => {
+        const requestData = {
+            student_id: student.id,
+            day_of_week: dayNum,
+            session_part: sessionPart,
+            location: location,
+            schedule_type: type
+        };
+        
+        console.log(`📤 요청 ${index + 1}/${window.selectedStudents.length}:`, requestData);
+        
         return fetch('/api/add_student_to_schedule', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                student_id: student.id,
-                day_of_week: dayNum,
-                session_part: sessionPart,
-                location: location,
-                schedule_type: type
-            })
-        }).then(response => response.json());
+            body: JSON.stringify(requestData)
+        }).then(response => {
+            console.log(`📥 응답 ${index + 1} 상태:`, response.status);
+            return response.json();
+        }).then(data => {
+            console.log(`📋 응답 ${index + 1} 데이터:`, data);
+            return data;
+        });
     });
     
     Promise.all(promises)
         .then(results => {
+            console.log('📊 전체 결과:', results);
+            
             const successful = results.filter(result => result.success);
             const failed = results.filter(result => !result.success);
+            
+            console.log(`✅ 성공: ${successful.length}명, ❌ 실패: ${failed.length}명`);
             
             if (successful.length > 0) {
                 showNotification(`${successful.length}명의 학생이 추가되었습니다.`, 'success');
@@ -1354,11 +1407,12 @@ function confirmAddStudents() {
             }
             
             if (failed.length > 0) {
+                console.log('❌ 실패 상세:', failed);
                 showNotification(`${failed.length}명 추가 실패: ${failed[0].error || '알 수 없는 오류'}`, 'error');
             }
         })
         .catch(error => {
-            console.error('Error:', error);
+            console.error('💥 네트워크 에러:', error);
             showNotification('네트워크 오류가 발생했습니다.', 'error');
         });
 }
