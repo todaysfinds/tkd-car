@@ -908,7 +908,7 @@ def add_student_to_schedule():
         data = request.get_json()
         student_id = data.get('student_id')
         day_of_week = data.get('day_of_week')
-        schedule_type = data.get('type')  # 'pickup' or 'dropoff'
+        schedule_type = data.get('schedule_type')  # JavaScript에서 schedule_type으로 보내므로 수정
         target_location = data.get('location')  # 장소 정보
         session_part = data.get('session_part')
         
@@ -1028,7 +1028,7 @@ def add_multiple_students_to_schedule():
         students = data.get('students', [])  # [{'student_id': 1, 'name': '홍길동'}, ...]
         day_of_week = data.get('day_of_week')
         session_part = data.get('session_part')
-        schedule_type = data.get('type')  # 'pickup' or 'dropoff'
+        schedule_type = data.get('schedule_type')  # JavaScript에서 schedule_type으로 보내므로 수정
         target_location = data.get('location')  # 장소 정보
         
         if not students or day_of_week is None or not session_part or not schedule_type or not target_location:
