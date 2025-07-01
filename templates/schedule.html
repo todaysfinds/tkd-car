@@ -124,7 +124,7 @@
                                                     data-student-id="{{ student_data.student.id }}"
                                                     data-day="{{ day_num }}"
                                                     data-location="{{ location }}"
-                                                    data-care-type="care1"
+                                                    data-type="pickup"
                                                     style="font-size: 11px;">✕</button>
                                         </div>
                                         {% endfor %}
@@ -174,8 +174,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'pickup')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="pickup">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -217,8 +220,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 1, 'dropoff')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="dropoff">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -268,8 +274,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'pickup')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="pickup">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -310,8 +319,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 2, 'dropoff')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="dropoff">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -405,8 +417,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'pickup')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="pickup">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -447,8 +462,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 3, 'dropoff')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="dropoff">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -582,8 +600,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'pickup')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="pickup">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -624,8 +645,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 5, 'dropoff')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="dropoff">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -675,8 +699,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 4, 'pickup')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="pickup">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -717,8 +744,11 @@
                                                             data-student-id="{{ student_data.student.id }}">
                                                         {{ student_data.student.name }}
                                                     </button>
-                                                    <button onclick="removeStudentFromLocation({{ student_data.student.id }}, {{ day_num }}, '{{ location }}', 4, 'dropoff')" 
-                                                            class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0">✕</button>
+                                                    <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
+                                                            data-student-id="{{ student_data.student.id }}"
+                                                            data-day="{{ day_num }}"
+                                                            data-location="{{ location }}"
+                                                            data-type="dropoff">✕</button>
                                                 </div>
                                                 {% endfor %}
                                             </div>
@@ -1013,16 +1043,26 @@ ScheduleManager.handleClick = function(event) {
         return;
     }
     
-    // 학생 제거 버튼
-        if (button.textContent.includes('✕') && button.dataset.studentId) {
+    // 학생 제거 버튼 (x)
+    if (button.classList.contains('remove-student-btn')) {
         const studentId = parseInt(button.dataset.studentId);
         const dayNum = parseInt(button.dataset.day);
         const location = button.dataset.location;
-            const sessionPart = parseInt(button.dataset.sessionPart);
         const type = button.dataset.type;
-            
-            if (!isNaN(studentId) && !isNaN(dayNum) && location) {
-                this.removeStudent(studentId, dayNum, location, sessionPart, type);
+        if (!isNaN(studentId) && !isNaN(dayNum) && location && type) {
+            this.removeStudent(studentId, dayNum, location, type);
+        }
+        return;
+    }
+    
+    // 학생 제거 버튼 (기존 텍스트 기반)
+    if (button.textContent.includes('✕') && button.dataset.studentId) {
+        const studentId = parseInt(button.dataset.studentId);
+        const dayNum = parseInt(button.dataset.day);
+        const location = button.dataset.location;
+        const type = button.dataset.type;
+        if (!isNaN(studentId) && !isNaN(dayNum) && location && type) {
+            this.removeStudent(studentId, dayNum, location, type);
         }
         return;
     }
@@ -1908,5 +1948,32 @@ function showDuplicateCleanupModal() {
     // 중복 정리 모달 표시
     console.log('중복 정리 모달 표시');
 }
+
+// 학생 삭제 함수 구현
+ScheduleManager.removeStudent = function(studentId, dayNum, location, type) {
+    if (!confirm('이 학생을 해당 장소에서 삭제하시겠습니까?')) return;
+    fetch('/api/remove_student_from_schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            student_id: studentId,
+            day_of_week: dayNum,
+            location: location,
+            type: type
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            ScheduleManager.showNotification('학생이 삭제되었습니다.', 'success');
+            window.location.reload();
+        } else {
+            ScheduleManager.showNotification('삭제 실패: ' + (data.error || '알 수 없는 오류'), 'error');
+        }
+    })
+    .catch(err => {
+        ScheduleManager.showNotification('네트워크 오류', 'error');
+    });
+};
 </script>
 {% endblock %} 
