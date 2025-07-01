@@ -253,7 +253,7 @@ def schedule():
     schedules = db.session.query(Student, Schedule).join(Schedule).filter(
         ~Student.name.like('_PH_%')  # 더미 학생 제외
     ).order_by(
-        Schedule.day_of_week, Schedule.schedule_type, Schedule.time, Schedule.location, Student.name
+        Schedule.day_of_week, Schedule.schedule_type, Schedule.location, Student.name
     ).all()
     
     for student, schedule in schedules:
@@ -328,7 +328,7 @@ def schedule():
         day = dummy_schedule.day_of_week
         schedule_type = dummy_schedule.schedule_type
         location = dummy_schedule.location
-        schedule_time = dummy_schedule.time  # 🔥 시간 정보 추가
+        # schedule_time = dummy_schedule.time  # 🔥 시간 정보 제거
         
         if schedule_type in ['pickup', 'dropoff']:
             part = dummy_student.session_part or 1
@@ -339,15 +339,10 @@ def schedule():
                 part in schedule_data[day] and 
                 schedule_type in schedule_data[day][part] and 
                 location in schedule_data[day][part][schedule_type]):
-                
-                # 실제 학생 데이터 중에서 같은 시간대 확인
-                for student_data in schedule_data[day][part][schedule_type][location]:
-                    if student_data['schedule'].time == schedule_time:
-                        has_real_students = True
-                        break
+                has_real_students = len(schedule_data[day][part][schedule_type][location]) > 0
             
             if has_real_students:
-                # 실제 학생이 같은 시간대에 있으면 더미는 추가하지 않음
+                # 실제 학생이 있으면 더미는 추가하지 않음
                 continue
             
             # 빈 장소 구조 초기화
@@ -358,7 +353,6 @@ def schedule():
             if schedule_type not in schedule_data[day][part]:
                 schedule_data[day][part][schedule_type] = {}
             
-            # 🎯 시간 관련 코드 완전 제거 - 시간대별 고유 키 제거
             if location not in schedule_data[day][part][schedule_type]:
                 schedule_data[day][part][schedule_type][location] = []
                 print(f"   📍 빈 장소 추가: {location} - {day}요일 {part}부 {schedule_type}")
@@ -2098,7 +2092,7 @@ def fix_duplicate_schedules():
         # 중복 찾기: (요일, 시간대, 승차/하차, 장소) 조합별로 그룹화
         schedule_groups = {}
         for schedule in schedules:
-            key = (schedule.day_of_week, schedule.schedule_time, schedule.schedule_type, schedule.location)
+            key = (schedule.day_of_week, schedule.schedule_type, schedule.location)
             if key not in schedule_groups:
                 schedule_groups[key] = []
             schedule_groups[key].append(schedule)
@@ -2110,10 +2104,9 @@ def fix_duplicate_schedules():
         for key, group in schedule_groups.items():
             if len(group) > 1:
                 # 첫 번째만 남기고 나머지 삭제
-                day, time, type_, location = key
+                day, type_, location = key
                 duplicate_info.append({
                     'day': day,
-                    'time': str(time),
                     'type': type_,
                     'location': location,
                     'duplicate_count': len(group)
@@ -2123,7 +2116,7 @@ def fix_duplicate_schedules():
                 for schedule in group[1:]:
                     db.session.delete(schedule)
                     removed_count += 1
-                    print(f"🗑️ 중복 스케줄 삭제: {day}요일 {time} {type_} {location}")
+                    print(f"🗑️ 중복 스케줄 삭제: {day}요일 {type_} {location}")
         
         db.session.commit()
         
@@ -2233,7 +2226,7 @@ def diagnose_schedule_data():
                 'schedule_location': schedule.location,
                 'student_pickup_location': student.pickup_location,
                 'schedule_type': schedule.schedule_type,
-                'schedule_time': str(schedule.time)
+                # 'schedule_time': str(schedule.time)  # 시간 정보 제거
             })
             
             # 문제 체크
