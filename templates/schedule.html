@@ -809,12 +809,110 @@
 </div>
 
 <script>
+if (!window.ScheduleApp) window.ScheduleApp = {};
+window.ScheduleApp.currentLocationSettings = null;
+
+function showLocationSettings(dayNum, location, locationType) {
+    window.ScheduleApp.currentLocationSettings = {
+        dayNum: dayNum,
+        location: location,
+        locationType: locationType,
+        originalLocation: location
+    };
+    document.getElementById('locationSettingsTitle').textContent = `"${location}" 장소 설정`;
+    document.getElementById('locationNameInput').value = location;
+    document.getElementById('locationSettingsModal').classList.remove('hidden');
+    document.getElementById('locationNameInput').focus();
+    document.getElementById('locationNameInput').select();
+    console.log('[장소설정] 모달 오픈:', location);
+}
+
+function saveLocationSettings() {
+    const ctx = window.ScheduleApp.currentLocationSettings;
+    if (!ctx) return;
+    const newLocationName = document.getElementById('locationNameInput').value.trim();
+    if (!newLocationName) {
+        alert('장소명을 입력해주세요.');
+        return;
+    }
+    if (newLocationName === ctx.originalLocation) {
+        closeLocationSettings();
+        return;
+    }
+    fetch('/api/update_pickup_location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            old_location: ctx.originalLocation,
+            new_location: newLocationName,
+            day_of_week: ctx.dayNum
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            closeLocationSettings();
+            alert(`장소명이 "${newLocationName}"으로 변경되었습니다.`);
+            window.location.reload();
+        } else {
+            alert('장소명 변경 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(err => {
+        alert('장소명 변경 중 오류가 발생했습니다.');
+        console.error(err);
+    });
+}
+
+function deleteLocation() {
+    const ctx = window.ScheduleApp.currentLocationSettings;
+    if (!ctx) return;
+    if (!confirm(`"${ctx.originalLocation}" 장소를 삭제하시겠습니까? 이 장소의 모든 학생들의 장소 정보가 초기화됩니다.`)) return;
+    fetch('/api/delete_pickup_location', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            location_name: ctx.originalLocation,
+            day_of_week: ctx.dayNum
+        })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            closeLocationSettings();
+            alert(`"${ctx.originalLocation}" 장소가 삭제되었습니다.`);
+            window.location.reload();
+        } else {
+            alert('장소 삭제 실패: ' + (data.error || data.message));
+        }
+    })
+    .catch(err => {
+        alert('장소 삭제 중 오류가 발생했습니다.');
+        console.error(err);
+    });
+}
+
+function closeLocationSettings() {
+    document.getElementById('locationSettingsModal').classList.add('hidden');
+    window.ScheduleApp.currentLocationSettings = null;
+}
+
+function handleLocationSettingsKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        saveLocationSettings();
+    } else if (event.key === 'Escape') {
+        event.preventDefault();
+        closeLocationSettings();
+    }
+}
+
 // 🎯 안정적인 전역 상태 관리
 const ScheduleManager = {
     // 상태 변수들
     state: {
-        currentDayIndex: 0,
-        selectedStudents: [],
+    currentDayIndex: 0,
+    selectedStudents: [],
         currentModalData: null,
         allStudents: []
     },
@@ -830,14 +928,14 @@ const ScheduleManager = {
     // 현재 요일 초기화
     initCurrentDay() {
         try {
-            const urlParams = new URLSearchParams(window.location.search);
-            const savedDay = urlParams.get('day');
-            
-            if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const savedDay = urlParams.get('day');
+    
+    if (savedDay !== null && savedDay >= 0 && savedDay <= 4) {
                 this.state.currentDayIndex = parseInt(savedDay);
-            } else {
-                const today = new Date();
-                const dayOfWeek = today.getDay();
+    } else {
+        const today = new Date();
+        const dayOfWeek = today.getDay();
                 this.state.currentDayIndex = (dayOfWeek >= 1 && dayOfWeek <= 5) ? dayOfWeek - 1 : 0;
             }
             
@@ -883,52 +981,52 @@ document.addEventListener('DOMContentLoaded', function() {
 // 안전한 클릭 핸들러를 ScheduleManager에 추가
 ScheduleManager.handleClick = function(event) {
     try {
-        const button = event.target.closest('button');
-        if (!button) return;
+    const button = event.target.closest('button');
+    if (!button) return;
         
         // onclick 속성이 있는 버튼은 기본 처리에 맡김
         if (button.hasAttribute('onclick')) {
             return;
         }
-        
-        const classList = button.classList;
-        
-        // 요일 네비게이션
-        if (classList.contains('day-nav-btn') || (button.id && button.id.startsWith('day-nav-'))) {
-            const dayNum = parseInt(button.dataset.day);
+    
+    const classList = button.classList;
+    
+    // 요일 네비게이션
+    if (classList.contains('day-nav-btn') || (button.id && button.id.startsWith('day-nav-'))) {
+        const dayNum = parseInt(button.dataset.day);
             if (!isNaN(dayNum)) {
                 this.showDayPage(dayNum);
             }
-            return;
-        }
-        
+        return;
+    }
+    
         // 학생 추가 버튼들
         if (button.textContent.includes('+ 학생')) {
-            const dayNum = parseInt(button.dataset.day);
-            const location = button.dataset.location;
+        const dayNum = parseInt(button.dataset.day);
+        const location = button.dataset.location;
             const sessionPart = parseInt(button.dataset.sessionPart || '1');
-            const type = button.dataset.type || 'pickup';
+        const type = button.dataset.type || 'pickup';
             
             if (!isNaN(dayNum) && location) {
                 this.openStudentModal(dayNum, sessionPart, location, type);
             }
-            return;
-        }
-        
-        // 학생 제거 버튼
+        return;
+    }
+    
+    // 학생 제거 버튼
         if (button.textContent.includes('✕') && button.dataset.studentId) {
-            const studentId = parseInt(button.dataset.studentId);
-            const dayNum = parseInt(button.dataset.day);
-            const location = button.dataset.location;
+        const studentId = parseInt(button.dataset.studentId);
+        const dayNum = parseInt(button.dataset.day);
+        const location = button.dataset.location;
             const sessionPart = parseInt(button.dataset.sessionPart);
-            const type = button.dataset.type;
+        const type = button.dataset.type;
             
             if (!isNaN(studentId) && !isNaN(dayNum) && location) {
                 this.removeStudent(studentId, dayNum, location, sessionPart, type);
-            }
-            return;
         }
-        
+        return;
+    }
+    
     } catch (error) {
         console.error('❌ 클릭 핸들러 오류:', error);
     }
@@ -1630,43 +1728,43 @@ function confirmAddStudents() {
 // 🎯 알림 시스템
 ScheduleManager.showNotification = function(message, type = 'info', duration = 3000) {
     try {
-        // 기존 알림 제거
-        const existingNotification = document.querySelector('.notification-toast');
-        if (existingNotification) {
-            existingNotification.remove();
-        }
-        
-        // 새 알림 생성
-        const notification = document.createElement('div');
-        notification.className = `notification-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
-        
-        // 타입별 스타일
-        const styles = {
-            'success': 'bg-green-500 text-white',
-            'error': 'bg-red-500 text-white', 
-            'info': 'bg-blue-500 text-white',
-            'warning': 'bg-yellow-500 text-black'
-        };
-        
-        notification.className += ` ${styles[type] || styles.info}`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        // 애니메이션으로 표시
+    // 기존 알림 제거
+    const existingNotification = document.querySelector('.notification-toast');
+    if (existingNotification) {
+        existingNotification.remove();
+    }
+    
+    // 새 알림 생성
+    const notification = document.createElement('div');
+    notification.className = `notification-toast fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+    
+    // 타입별 스타일
+    const styles = {
+        'success': 'bg-green-500 text-white',
+        'error': 'bg-red-500 text-white', 
+        'info': 'bg-blue-500 text-white',
+        'warning': 'bg-yellow-500 text-black'
+    };
+    
+    notification.className += ` ${styles[type] || styles.info}`;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // 애니메이션으로 표시
+    setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+    }, 100);
+    
+    // 자동 제거
+    setTimeout(() => {
+        notification.classList.add('translate-x-full');
         setTimeout(() => {
-            notification.classList.remove('translate-x-full');
-        }, 100);
-        
-        // 자동 제거
-        setTimeout(() => {
-            notification.classList.add('translate-x-full');
-            setTimeout(() => {
-                if (notification.parentNode) {
-                    notification.remove();
-                }
-            }, 300);
-        }, duration);
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 300);
+    }, duration);
     } catch (error) {
         console.error('❌ 알림 표시 실패:', error);
     }
@@ -1779,82 +1877,6 @@ function addNewLocationToNationalTraining(dayNum, nationalType) {
             showNotification('네트워크 오류가 발생했습니다.', 'error');
         });
     }
-}
-
-function showLocationSettings(dayNum, location, locationType, sessionPart) {
-    // 장소 설정 모달 표시 로직
-    console.log('장소 설정:', { dayNum, location, locationType, sessionPart });
-    // 실제 구현은 필요에 따라 추가
-}
-
-function deleteLocation() {
-    // 장소 삭제 로직
-    console.log('장소 삭제');
-}
-
-function closeLocationSettings() {
-    // 장소 설정 모달 닫기
-    const modal = document.getElementById('locationSettingsModal');
-    if (modal) {
-        modal.classList.add('hidden');
-    }
-}
-
-function saveLocationSettings() {
-    // 장소 설정 저장
-    console.log('장소 설정 저장');
-}
-
-// 🎯 요일 페이지 관련 함수들
-function showDayPage(dayIndex) {
-    ScheduleApp.currentDayIndex = dayIndex;
-    
-    // 모든 요일 페이지 숨기기
-    document.querySelectorAll('[id^="day-page-"]').forEach(page => {
-        page.style.display = 'none';
-    });
-    
-    // 선택된 요일 페이지 표시
-    const targetPage = document.getElementById(`day-page-${dayIndex}`);
-    if (targetPage) {
-        targetPage.style.display = 'block';
-    }
-    
-    // 네비게이션 버튼 활성화 상태 업데이트
-    document.querySelectorAll('.day-nav-btn').forEach(btn => {
-        btn.classList.remove('bg-blue-600', 'text-white');
-        btn.classList.add('bg-white', 'text-gray-700');
-    });
-    
-    const activeBtn = document.querySelector(`[data-day="${dayIndex}"]`);
-    if (activeBtn) {
-        activeBtn.classList.remove('bg-white', 'text-gray-700');
-        activeBtn.classList.add('bg-blue-600', 'text-white');
-    }
-    
-    // URL 업데이트
-    const url = new URL(window.location);
-    url.searchParams.set('day', dayIndex);
-    window.history.replaceState(null, '', url);
-}
-
-function initializeDayPageDirectly(dayIndex) {
-    showDayPage(dayIndex);
-}
-
-function addStudentClickEvents() {
-    // 학생 출석 체크 이벤트 등록
-    document.querySelectorAll('.student-attendance-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const studentId = this.dataset.studentId;
-            toggleStudentAttendance(studentId);
-        });
-    });
-}
-
-function toggleStudentAttendance(studentId) {
-    console.log('출석 상태 토글:', studentId);
-    // 출석 상태 변경 로직 구현
 }
 
 // 🎯 중복 정리 함수들

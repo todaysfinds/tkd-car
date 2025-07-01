@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>장소 및 시간 관리</title>
+    <title>장소 관리</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="theme-color" content="#3b82f6">
     
@@ -14,7 +14,7 @@
 <body class="bg-gray-50">
     <div class="px-4 py-4 pb-20">
         <div class="flex items-center justify-between mb-6">
-            <h1 class="text-xl font-bold text-gray-900">장소 및 시간 관리</h1>
+            <h1 class="text-xl font-bold text-gray-900">장소 관리</h1>
             <button onclick="openLocationModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
                 + 새 장소 추가
             </button>
@@ -41,8 +41,6 @@
                     <div class="flex items-center justify-between bg-gray-50 rounded p-3">
                         <div class="flex items-center space-x-3">
                             <span class="text-sm font-medium">{{ student.name }}</span>
-                            <span class="text-xs text-gray-500">{{ student.estimated_pickup_time }}</span>
-                            <span class="text-xs text-gray-500">{{ student.session_part }}부</span>
                             {% if student.memo %}
                             <span class="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">{{ student.memo }}</span>
                             {% endif %}
@@ -77,12 +75,6 @@
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
                 
-                <div>
-                    <label for="locationTime" class="block text-sm font-medium text-gray-700 mb-1">기본 시간</label>
-                    <input type="time" id="locationTime" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                </div>
-                
                 <div class="flex space-x-3 pt-4">
                     <button type="button" onclick="closeLocationModal()" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">취소</button>
                     <button type="submit" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">저장</button>
@@ -110,12 +102,6 @@
                     <select id="studentLocation" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                         <!-- JavaScript로 동적 로드 -->
                     </select>
-                </div>
-                
-                <div>
-                    <label for="studentTime" class="block text-sm font-medium text-gray-700 mb-1">픽업 시간</label>
-                    <input type="time" id="studentTime" 
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg">
                 </div>
                 
                 <div>
@@ -191,7 +177,6 @@
                 if (data.success) {
                     document.getElementById('studentId').value = studentId;
                     document.getElementById('studentName').value = data.student.name;
-                    document.getElementById('studentTime').value = data.student.estimated_pickup_time || '';
                     document.getElementById('studentSession').value = data.student.session_part || '1';
                     document.getElementById('studentMemo').value = data.student.memo || '';
                     
@@ -252,7 +237,6 @@
         
         const originalName = document.getElementById('originalLocationName').value;
         const newName = document.getElementById('locationName').value;
-        const time = document.getElementById('locationTime').value;
         
         if (!newName.trim()) {
             alert('장소명을 입력해주세요.');
@@ -261,8 +245,8 @@
         
         const endpoint = originalName ? '/api/update_location' : '/api/add_location';
         const data = originalName ? 
-            { original_name: originalName, new_name: newName, default_time: time } :
-            { name: newName, default_time: time };
+            { original_name: originalName, new_name: newName } :
+            { name: newName };
         
         fetch(endpoint, {
             method: 'POST',
@@ -287,7 +271,6 @@
         const studentId = document.getElementById('studentId').value;
         const name = document.getElementById('studentName').value;
         const location = document.getElementById('studentLocation').value;
-        const time = document.getElementById('studentTime').value;
         const session = document.getElementById('studentSession').value;
         const memo = document.getElementById('studentMemo').value;
         
@@ -300,7 +283,6 @@
                 student_id: studentId,
                 name: name,
                 location: location,
-                pickup_time: time,
                 session_part: session,
                 memo: memo
             })

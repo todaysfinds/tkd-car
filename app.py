@@ -8,7 +8,7 @@ print(f"🐍 Python 버전: {sys.version}")
 
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime, date, time
+from datetime import datetime, date
 import os
 import traceback
 from dotenv import load_dotenv
@@ -124,10 +124,8 @@ class Student(db.Model):
     phone_2 = db.Column(db.String(20))  # 추가 연락처 (아버지/어머니 구분)
     emergency_contact = db.Column(db.String(20))  # 비상 연락처
     pickup_location = db.Column(db.String(100))
-    estimated_pickup_time = db.Column(db.String(10))  # 예상 픽업 시간 (12시간제)
     is_private_car = db.Column(db.Boolean, default=False)  # 개인차량 여부
     memo = db.Column(db.String(200))  # 메모 필드 추가
-    session_part = db.Column(db.Integer)  # 부 (1부, 2부, 3부, 4부, 5부) 또는 특수 시간대 (6=돌봄시스템, 7=국기원부)
     # 안심번호 서비스용 필드
     allow_contact = db.Column(db.Boolean, default=True)  # 연락 허용 여부
     contact_preference = db.Column(db.String(20), default='phone')  # phone, kakao, both
@@ -138,7 +136,6 @@ class Schedule(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 0=월요일, 6=일요일
     schedule_type = db.Column(db.String(30), nullable=False)  # 'pickup', 'dropoff', 'care_system', 'national_training'
-    time = db.Column(db.Time, nullable=False)  # 픽업 또는 드롭오프 시간
     location = db.Column(db.String(100))  # 각 스케줄별 장소 (Student의 pickup_location과 다를 수 있음)
     
     student = db.relationship('Student', backref=db.backref('schedules', lazy=True))
@@ -162,8 +159,6 @@ class TkdAttendance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     date = db.Column(db.Date, nullable=False)
-    pickup_time = db.Column(db.Time)
-    dropoff_time = db.Column(db.Time)
     pickup_status = db.Column(db.String(20), default='pending')  # 'pending', 'boarded', 'absent', 'parent_pickup'
     dropoff_status = db.Column(db.String(20), default='pending')  # 'pending', 'dropped', 'absent', 'dojo_pickup'
     notes = db.Column(db.Text)
@@ -199,7 +194,6 @@ class Location(db.Model):
     """장소 정보 저장용 모델"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
-    default_time = db.Column(db.String(10))  # 기본 픽업 시간
     description = db.Column(db.String(200))  # 장소 설명
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -364,11 +358,10 @@ def schedule():
             if schedule_type not in schedule_data[day][part]:
                 schedule_data[day][part][schedule_type] = {}
             
-            # 🎯 시간대별 고유 키로 빈 장소 추가
-            location_key = f"{location}_{schedule_time.strftime('%H:%M')}"
+            # 🎯 시간 관련 코드 완전 제거 - 시간대별 고유 키 제거
             if location not in schedule_data[day][part][schedule_type]:
                 schedule_data[day][part][schedule_type][location] = []
-                print(f"   📍 빈 장소 추가: {location} ({schedule_time}) - {day}요일 {part}부 {schedule_type}")
+                print(f"   📍 빈 장소 추가: {location} - {day}요일 {part}부 {schedule_type}")
     
     # 현재 요일 (0=월요일, 6=일요일)
     current_day = datetime.now().weekday()
@@ -459,10 +452,8 @@ def add_location():
         
         data = request.get_json()
         name = data.get('name')
-        default_time = data.get('default_time')
         
         print(f"   - 장소명: {name}")
-        print(f"   - 기본 시간: {default_time}")
         
         if not name:
             print("❌ 장소명이 없음")
@@ -478,8 +469,7 @@ def add_location():
         
         # 새 장소 추가
         new_location = Location(
-            name=name,
-            default_time=default_time
+            name=name
         )
         
         db.session.add(new_location)
@@ -503,7 +493,6 @@ def update_location():
         data = request.get_json()
         original_name = data.get('original_name')
         new_name = data.get('new_name')
-        default_time = data.get('default_time')
         
         if not original_name or not new_name:
             return jsonify({'success': False, 'message': '장소명이 필요합니다.'})
@@ -523,15 +512,11 @@ def update_location():
         location = Location.query.filter_by(name=original_name).first()
         if location:
             location.name = new_name
-            if default_time:
-                location.default_time = default_time
         
         # 해당 장소의 모든 학생들 업데이트 (전역적 변경)
         students = Student.query.filter_by(pickup_location=original_name).all()
         for student in students:
             student.pickup_location = new_name
-            if default_time:
-                student.estimated_pickup_time = default_time
         
         # Schedule 테이블의 모든 해당 장소도 업데이트 (전역적 변경)
         schedules = Schedule.query.filter_by(location=original_name).all()
@@ -560,7 +545,6 @@ def delete_location():
         students = Student.query.filter_by(pickup_location=location_name).all()
         for student in students:
             student.pickup_location = None
-            student.estimated_pickup_time = None
         
         db.session.commit()
         return jsonify({'success': True})
@@ -581,7 +565,6 @@ def get_student(student_id):
                 'id': student.id,
                 'name': student.name,
                 'pickup_location': student.pickup_location,
-                'estimated_pickup_time': student.estimated_pickup_time,
                 'session_part': student.session_part,
                 'memo': student.memo
             }
@@ -596,7 +579,6 @@ def update_student_location():
         student_id = data.get('student_id')
         name = data.get('name')
         location = data.get('location')
-        pickup_time = data.get('pickup_time')
         session_part = data.get('session_part')
         memo = data.get('memo')
         
@@ -607,7 +589,6 @@ def update_student_location():
         if name:
             student.name = name
         student.pickup_location = location if location else None
-        student.estimated_pickup_time = pickup_time if pickup_time else None
         student.session_part = int(session_part) if session_part else 1
         student.memo = memo if memo else None
         
@@ -903,486 +884,66 @@ def get_all_students():
 
 @app.route('/api/add_student_to_schedule', methods=['POST'])
 def add_student_to_schedule():
-    """개별 학생을 특정 스케줄에 추가"""
+    """개별 학생을 특정 스케줄에 추가 (중복 체크, 시간대 분기, session_part 등 완전 제거)"""
     try:
         data = request.get_json()
         student_id = data.get('student_id')
         day_of_week = data.get('day_of_week')
-        schedule_type = data.get('schedule_type')  # JavaScript에서 schedule_type으로 보내므로 수정
-        target_location = data.get('location')  # 장소 정보
-        session_part = data.get('session_part')
-        
-        if not all([student_id, day_of_week is not None, schedule_type, target_location, session_part]):
+        schedule_type = data.get('schedule_type')
+        target_location = data.get('location')
+
+        if not all([student_id, day_of_week is not None, schedule_type, target_location]):
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
-        
-        # 학생 확인
+
         student = Student.query.get(student_id)
         if not student:
             return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
-        
-        # 부별 시간 설정
-        if session_part == 1:  # 1부
-            pickup_time = time(14, 0)  # 2:00 PM
-            dropoff_time = time(14, 50)  # 2:50 PM
-        elif session_part == 2:  # 2부
-            pickup_time = time(15, 0)  # 3:00 PM
-            dropoff_time = time(15, 50)  # 3:50 PM
-        elif session_part == 3:  # 3부
-            pickup_time = time(16, 30)  # 4:30 PM
-            dropoff_time = time(17, 20)  # 5:20 PM
-        elif session_part == 4:  # 4부
-            pickup_time = time(17, 30)  # 5:30 PM
-            dropoff_time = time(18, 20)  # 6:20 PM
-        elif session_part == 5:  # 5부
-            pickup_time = time(19, 0)  # 7:00 PM
-            dropoff_time = time(19, 50)  # 7:50 PM
-        else:  # 기본값 (5부)
-            pickup_time = time(19, 0)  # 7:00 PM
-            dropoff_time = time(19, 50)  # 7:50 PM
-        
-        # 돌봄시스템과 국기원부는 도장에서 시간 구분 없이 처리
-        if target_location in ['도장']:
-            schedule_time = pickup_time  # 시간 구분 없음
-        else:
-            schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
-        
-        # 🎯 철저한 디버깅: 요청된 정확한 데이터 출력
-        print(f"🔍 단일 학생 추가 요청:")
-        print(f"   - 받은 원본 데이터: day_of_week={day_of_week}, session_part={session_part}, schedule_type={schedule_type}")
-        print(f"   - 학생ID: {student_id}, 학생명: {student.name}")
-        print(f"   - 요일: {day_of_week}, 부: {session_part}, 타입: {schedule_type}")
-        print(f"   - 장소: {target_location}, 계산된시간: {schedule_time}")
-        
-        # 🚨 중요: session_part 유효성 재확인
-        if session_part not in [1, 2, 3, 4, 5]:
-            print(f"   ❌ 잘못된 session_part: {session_part} (1~5만 허용)")
-            return jsonify({'success': False, 'error': f'잘못된 부 정보: {session_part}'})
-        
-        print(f"   ✅ session_part 유효성 확인 완료: {session_part}부")
-        
-        # 🔍 해당 학생의 모든 기존 스케줄 확인 (전 요일 포함)
-        all_student_schedules = Schedule.query.filter_by(student_id=student_id).all()
-        current_day_schedules = [s for s in all_student_schedules if s.day_of_week == day_of_week]
-        
-        print(f"   📊 학생 {student.name}의 전체 스케줄: {len(all_student_schedules)}개")
-        for sched in all_student_schedules:
-            day_name = ['월', '화', '수', '목', '금', '토', '일'][sched.day_of_week]
-            print(f"      - {day_name}요일 {sched.schedule_type}: 시간={sched.time}, 장소={sched.location}")
-        
-        print(f"   📅 {['월', '화', '수', '목', '금', '토', '일'][day_of_week]}요일 기존 스케줄: {len(current_day_schedules)}개")
-        
-        # 🚨 중요: 같은 요일에 이미 다른 부에 있는지 확인
-        same_day_other_parts = []
-        for sched in current_day_schedules:
-            # 시간으로 부 추정
-            sched_time = sched.time
-            if time(14, 0) <= sched_time <= time(14, 50):
-                sched_part = 1
-            elif time(15, 0) <= sched_time <= time(15, 50):
-                sched_part = 2
-            elif time(16, 30) <= sched_time <= time(17, 20):
-                sched_part = 3
-            elif time(17, 30) <= sched_time <= time(18, 20):
-                sched_part = 4
-            elif time(19, 0) <= sched_time <= time(19, 50):
-                sched_part = 5
-            else:
-                sched_part = 0  # 알 수 없음
-                
-            if sched_part != session_part and sched_part > 0:
-                same_day_other_parts.append(f"{sched_part}부 {sched.schedule_type} {sched.location}")
-        
-        if same_day_other_parts:
-            print(f"   ⚠️ 같은 요일 다른 부 스케줄: {', '.join(same_day_other_parts)}")
-        else:
-            print(f"   ✅ 같은 요일 다른 부 스케줄 없음 - 추가 가능!")
-        
-        # 🎯 안전하고 정확한 중복 체크: session_part별 시간 범위로 완전 분리
-        print(f"   🔍 정확한 중복 체크 조건:")
-        print(f"      - 학생ID={student_id}, 요일={day_of_week}, 부={session_part}")
-        print(f"      - 타입={schedule_type}, 장소='{target_location}'")
-        
-        # 부별 시간 범위 정의 (정확한 범위로 중복 체크)
-        if session_part == 1:
-            time_start, time_end = time(14, 0), time(14, 50)
-        elif session_part == 2:
-            time_start, time_end = time(15, 0), time(15, 50)
-        elif session_part == 3:
-            time_start, time_end = time(16, 30), time(17, 20)
-        elif session_part == 4:
-            time_start, time_end = time(17, 30), time(18, 20)
-        elif session_part == 5:
-            time_start, time_end = time(19, 0), time(19, 50)
-        else:
-            time_start, time_end = schedule_time, schedule_time
-            
-        print(f"      - 시간범위: {time_start} ~ {time_end}")
-        
-        # 🎯 관대한 중복 체크: 정확히 동일한 6개 조건이 모두 일치할 때만 중복으로 판단
-        # 1. 동일한 학생 + 2. 동일한 요일 + 3. 동일한 부 + 4. 동일한 타입 + 5. 동일한 장소 + 6. 정확히 동일한 시간
-        print(f"      - 관대한 중복 체크: 학생={student_id}, 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
-        
-        existing_schedule = Schedule.query.filter(
-            Schedule.student_id == student_id,
-            Schedule.day_of_week == day_of_week, 
-            Schedule.schedule_type == schedule_type,
-            Schedule.location == target_location,
-            Schedule.time == schedule_time  # 🎯 정확히 동일한 시간만
-        ).first()
-        
-        print(f"      - 중복 체크 결과: {'발견됨' if existing_schedule else '없음'}")
-        if existing_schedule:
-            print(f"        → 기존: 시간={existing_schedule.time}, 장소={existing_schedule.location}")
-            print(f"        → 정말 동일한 스케줄이므로 중복!")
-        else:
-            print(f"        → 다른 스케줄이므로 추가 가능!")
-        
-        # 더미 학생인지 확인
-        is_dummy = False
-        if existing_schedule:
-            existing_student = Student.query.get(existing_schedule.student_id)
-            print(f"   🔍 중복 체크 결과: 기존 스케줄 발견!")
-            print(f"      - 기존 학생: {existing_student.name} (ID: {existing_student.id})")
-            print(f"      - 기존 스케줄: 요일={existing_schedule.day_of_week}, 타입={existing_schedule.schedule_type}")
-            print(f"      - 기존 시간: {existing_schedule.time}, 장소={existing_schedule.location}")
-            
-            if existing_student and existing_student.name.startswith('_PH_'):
-                is_dummy = True
-                print(f"   ℹ️ 기존 스케줄은 더미 학생: {existing_student.name}")
-            else:
-                print(f"   ❌ 실제 학생과 중복! 추가 불가")
-        else:
-            print(f"   ✅ 중복 체크 결과: 중복 없음, 추가 가능")
-        
-        if existing_schedule and not is_dummy:
-            return jsonify({'success': False, 'error': f'이미 해당 스케줄이 존재합니다. (기존: {existing_student.name})'})
-        
-        # 🎯 실제 학생 추가 전에 정확히 동일한 더미 스케줄만 제거
-        print(f"   🧹 더미 스케줄 제거 대상: 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
-        
-        dummy_schedules = Schedule.query.filter(
-            Schedule.day_of_week == day_of_week,
-            Schedule.schedule_type == schedule_type,
-            Schedule.location == target_location,
-            Schedule.time == schedule_time  # 🎯 정확히 동일한 시간만
-        ).join(Student).filter(
-            Student.name.like('_PH_%')  # 더미 학생만
-        ).all()
-        
-        print(f"   📋 발견된 더미 스케줄: {len(dummy_schedules)}개")
-        
-        if dummy_schedules:
-            print(f"   - 더미 스케줄 {len(dummy_schedules)}개 제거 중...")
-            for dummy_schedule in dummy_schedules:
-                # 더미 학생과 스케줄 모두 삭제
-                dummy_student = dummy_schedule.student
-                print(f"     - 더미 삭제: {dummy_student.name} (ID: {dummy_student.id})")
-                db.session.delete(dummy_schedule)
-                db.session.delete(dummy_student)
-            
-            # 🚨 더미 삭제 후 중간 flush
-            db.session.flush()
-            print(f"   - 더미 스케줄 제거 완료")
-        
-        # 새 스케줄 추가
+
         new_schedule = Schedule(
             student_id=student_id,
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            time=schedule_time,
             location=target_location
         )
-        
         db.session.add(new_schedule)
         db.session.commit()
-        
-        print(f"✅ 스케줄 추가 완료: {student.name} → {target_location}")
-        return jsonify({'success': True})
-    
+        return jsonify({'success': True, 'message': '학생이 추가되었습니다.'})
     except Exception as e:
         db.session.rollback()
-        print(f"❌ 단일 스케줄 추가 에러: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
-        # 사용자 친화적 에러 메시지
-        if 'StringDataRightTruncation' in str(e) or 'value too long' in str(e):
-            error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
-        elif 'duplicate' in str(e).lower():
-            error_msg = '이미 동일한 스케줄이 존재합니다.'
-        else:
-            error_msg = f'스케줄 추가 중 오류가 발생했습니다: {str(e)}'
-        
-        return jsonify({'success': False, 'error': error_msg})
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/api/add_multiple_students_to_schedule', methods=['POST'])
 def add_multiple_students_to_schedule():
-    """여러 학생을 한 번에 추가 (깔끔한 버전)"""
+    """여러 학생을 한 번에 특정 스케줄에 추가 (중복 체크, 시간대 분기, session_part 등 완전 제거)"""
     try:
         data = request.get_json()
-        students = data.get('students', [])  # [{'student_id': 1, 'name': '홍길동'}, ...]
+        students = data.get('students', [])
         day_of_week = data.get('day_of_week')
-        session_part = data.get('session_part')
-        schedule_type = data.get('schedule_type')  # JavaScript에서 schedule_type으로 보내므로 수정
-        target_location = data.get('location')  # 장소 정보
-        
-        if not students or day_of_week is None or not session_part or not schedule_type or not target_location:
+        schedule_type = data.get('schedule_type')
+        target_location = data.get('location')
+
+        if not all([students, day_of_week is not None, schedule_type, target_location]):
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
-        
-        # 부별 시간 설정
-        if session_part == 1:  # 1부
-            pickup_time = time(14, 0)  # 2:00 PM
-            dropoff_time = time(14, 50)  # 2:50 PM
-        elif session_part == 2:  # 2부
-            pickup_time = time(15, 0)  # 3:00 PM
-            dropoff_time = time(15, 50)  # 3:50 PM
-        elif session_part == 3:  # 3부
-            pickup_time = time(16, 30)  # 4:30 PM
-            dropoff_time = time(17, 20)  # 5:20 PM
-        elif session_part == 4:  # 4부
-            pickup_time = time(17, 30)  # 5:30 PM
-            dropoff_time = time(18, 20)  # 6:20 PM
-        elif session_part == 5:  # 5부
-            pickup_time = time(19, 0)  # 7:00 PM
-            dropoff_time = time(19, 50)  # 7:50 PM
-        else:  # 기본값 (5부)
-            pickup_time = time(19, 0)  # 7:00 PM
-            dropoff_time = time(19, 50)  # 7:50 PM
-        
-        # 돌봄시스템과 국기원부는 도장에서 시간 구분 없이 처리
-        if target_location in ['도장']:
-            schedule_time = pickup_time  # 시간 구분 없음
-        else:
-            schedule_time = pickup_time if schedule_type == 'pickup' else dropoff_time
-        
-        print(f"🔍 학생 {len(students)}명을 {target_location}에 추가 (시간: {schedule_time})")
-        print(f"   - 받은 학생 데이터: {students}")
-        print(f"   - day_of_week: {day_of_week}, session_part: {session_part}, type: {schedule_type}")
-        print(f"   - 🎯 핵심: 요일={day_of_week}, 부={session_part}, 타입={schedule_type}, 시간={schedule_time}")
-        
-        # 먼저 중복 체크 (하나라도 중복이면 전체 취소)
-        duplicates = []
-        invalid_students = []
-        
+
+        added_students = []
         for student_data in students:
             student_id = student_data.get('id')
-            student_name = student_data.get('name', f'학생{student_id}')
-            
-            print(f"   🔍 학생 체크: {student_name} (ID: {student_id})")
-            
-            # 학생 존재 여부 확인
             student = Student.query.get(student_id)
             if not student:
-                print(f"   ❌ 존재하지 않는 학생: {student_name}")
-                invalid_students.append(student_name)
                 continue
-            
-            print(f"   ✅ 학생 존재 확인: {student.name}")
-            
-            # 🎯 철저한 디버깅: 해당 학생의 모든 스케줄 확인
-            all_student_schedules = Schedule.query.filter_by(
-                student_id=student_id,
-                day_of_week=day_of_week
-            ).all()
-            
-            print(f"   📊 학생 {student_name}의 {day_of_week}요일 전체 스케줄 {len(all_student_schedules)}개:")
-            for sched in all_student_schedules:
-                print(f"      - 타입: {sched.schedule_type}, 시간: {sched.time}, 장소: {sched.location}")
-            
-            # 현재 해당 장소에 있는 모든 스케줄 확인 (디버깅용)
-            all_schedules_at_location = Schedule.query.filter_by(
-                day_of_week=day_of_week,
-                schedule_type=schedule_type,
-                location=target_location
-            ).all()
-            
-            print(f"   📋 해당 장소({target_location})의 기존 스케줄 {len(all_schedules_at_location)}개:")
-            for sched in all_schedules_at_location:
-                print(f"      - 학생: {sched.student.name} (ID: {sched.student_id}), 시간: {sched.time}")
-            
-            # 🎯 안전하고 정확한 중복 체크: session_part별 시간 범위로 완전 분리 (단일 추가와 동일)
-            # 부별 시간 범위 정의
-            if session_part == 1:
-                time_start, time_end = time(14, 0), time(14, 50)
-            elif session_part == 2:
-                time_start, time_end = time(15, 0), time(15, 50)
-            elif session_part == 3:
-                time_start, time_end = time(16, 30), time(17, 20)
-            elif session_part == 4:
-                time_start, time_end = time(17, 30), time(18, 20)
-            elif session_part == 5:
-                time_start, time_end = time(19, 0), time(19, 50)
-            else:
-                time_start, time_end = schedule_time, schedule_time
-                
-            print(f"   🔍 정확한 중복 체크 조건:")
-            print(f"      - 학생ID={student_id}, 요일={day_of_week}, 부={session_part}")
-            print(f"      - 타입={schedule_type}, 장소='{target_location}'")
-            print(f"      - 시간범위: {time_start} ~ {time_end}")
-            
-            # 🎯 관대한 중복 체크: 정확히 동일한 6개 조건이 모두 일치할 때만 중복으로 판단 (단일 추가와 동일)
-            print(f"      - 관대한 중복 체크: 학생={student_id}, 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
-            
-            existing_schedule = Schedule.query.filter(
-                Schedule.student_id == student_id,
-                Schedule.day_of_week == day_of_week, 
-                Schedule.schedule_type == schedule_type,
-                Schedule.location == target_location,
-                Schedule.time == schedule_time  # 🎯 정확히 동일한 시간만
-            ).first()
-            
-            print(f"      - 중복 체크 결과: {'발견됨' if existing_schedule else '없음'}")
-            if existing_schedule:
-                print(f"        → 기존: 시간={existing_schedule.time}, 장소={existing_schedule.location}")
-                print(f"        → 정말 동일한 스케줄이므로 중복!")
-            else:
-                print(f"        → 다른 스케줄이므로 추가 가능!")
-            
-            print(f"   🔍 기존 스케줄 검색 결과: {existing_schedule}")
-            
-            # 더미 학생인지 확인
-            is_dummy = False
-            if existing_schedule:
-                existing_student = Student.query.get(existing_schedule.student_id)
-                print(f"   🔍 기존 스케줄의 학생: {existing_student.name} (ID: {existing_student.id})")
-                if existing_student and existing_student.name.startswith('_PH_'):
-                    is_dummy = True
-                    print(f"   ℹ️ 기존 스케줄은 더미 학생: {existing_student.name}")
-            
-            if existing_schedule and not is_dummy:
-                print(f"   ❌ 중복 발견: {student_name}(ID:{student_id}) 이미 등록됨 (기존: {existing_student.name}(ID:{existing_student.id}))")
-                duplicates.append(f"{student_name}(ID:{student_id})")
-            else:
-                print(f"   ✅ 중복 없음: {student_name}(ID:{student_id}) 추가 가능")
-        
-        # 중복이나 잘못된 학생이 있으면 전체 취소
-        if duplicates or invalid_students:
-            error_msg = []
-            if duplicates:
-                error_msg.append(f"이미 등록된 학생: {', '.join(duplicates)}")
-            if invalid_students:
-                error_msg.append(f"존재하지 않는 학생: {', '.join(invalid_students)}")
-            
-            return jsonify({
-                'success': False, 
-                'error': ' / '.join(error_msg),
-                'duplicates': duplicates,
-                'invalid_students': invalid_students
-            })
-        
-        # 🎯 실제 학생 추가 전에 해당 장소의 더미 스케줄 완전 제거
-        print(f"   🧹 더미 스케줄 완전 제거 시작...")
-        
-        # 1단계: 정확히 동일한 더미 스케줄만 찾기
-        print(f"   🧹 더미 스케줄 제거 대상: 요일={day_of_week}, 타입={schedule_type}, 장소={target_location}, 정확한시간={schedule_time}")
-        
-        dummy_schedules = db.session.query(Schedule).join(Student).filter(
-            Schedule.day_of_week == day_of_week,
-            Schedule.schedule_type == schedule_type,
-            Schedule.location == target_location,
-            Schedule.time == schedule_time,  # 🎯 정확히 동일한 시간만
-            Student.name.like('_PH_%')
-        ).all()
-        
-        print(f"   📋 발견된 더미 스케줄: {len(dummy_schedules)}개")
-        
-        # 2단계: 더미 학생 ID 수집
-        dummy_student_ids = []
-        for dummy_schedule in dummy_schedules:
-            dummy_student_ids.append(dummy_schedule.student_id)
-            print(f"      - 더미 학생: {dummy_schedule.student.name} (ID: {dummy_schedule.student_id})")
-        
-        # 3단계: 더미 스케줄 일괄 삭제
-        if dummy_schedules:
-            print(f"   🗑️ 더미 스케줄 {len(dummy_schedules)}개 일괄 삭제 중...")
-            for schedule in dummy_schedules:
-                db.session.delete(schedule)
-            
-            # 4단계: 더미 학생 일괄 삭제  
-            dummy_students = Student.query.filter(Student.id.in_(dummy_student_ids)).all()
-            for student in dummy_students:
-                print(f"      - 더미 학생 삭제: {student.name}")
-                db.session.delete(student)
-            
-            # 5단계: 중간 커밋으로 더미 데이터 완전 제거
-            db.session.commit()
-            print(f"   ✅ 더미 데이터 완전 제거 완료")
-        else:
-            print(f"   ℹ️ 제거할 더미 스케줄 없음")
-        
-        # 🎯 안전한 학생 추가 (개별 검증 후 일괄 추가)
-        print(f"   📝 실제 학생 추가 시작...")
-        added_students = []
-        new_schedules = []
-        
-        for student_data in students:
-            student_id = student_data.get('id')
-            student_name = student_data.get('name', f'학생{student_id}')
-            
-            print(f"   ➕ 스케줄 생성: {student_name}(ID:{student_id})")
-            
-            # 새 스케줄 생성 (아직 DB에 추가하지 않음)
             new_schedule = Schedule(
                 student_id=student_id,
                 day_of_week=day_of_week,
                 schedule_type=schedule_type,
-                time=schedule_time,
                 location=target_location
             )
-            
-            new_schedules.append(new_schedule)
-            
-            # 프론트엔드 DOM 업데이트용 상세 정보 추가
-            added_students.append({
-                'student': {
-                    'id': student_id,
-                    'name': student_name
-                },
-                'day_of_week': day_of_week,
-                'session_part': session_part,
-                'type': schedule_type,
-                'location': target_location,
-                'time': schedule_time.strftime('%H:%M')
-            })
-        
-        # 모든 스케줄을 한 번에 DB에 추가
-        print(f"   💾 {len(new_schedules)}개 스케줄 일괄 추가 중...")
-        for schedule in new_schedules:
-            db.session.add(schedule)
-        
-        # 최종 커밋
+            db.session.add(new_schedule)
+            added_students.append({'id': student_id, 'name': student.name})
         db.session.commit()
-        
-        print(f"✅ [성공] {len(added_students)}명의 학생이 {target_location}에 추가됨")
-        
-        return jsonify({
-            'success': True,
-            'message': f'{len(added_students)}명의 학생이 {target_location}에 추가되었습니다.',
-            'added_students': added_students
-        })
-    
+        return jsonify({'success': True, 'message': f'{len(added_students)}명의 학생이 추가되었습니다.', 'added_students': added_students})
     except Exception as e:
-        # 오류 발생 시 모든 변경사항 롤백
         db.session.rollback()
-        print(f"❌ 다중 스케줄 추가 에러: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        
-        # 정확한 에러 진단 및 복구 시도
-        error_str = str(e).lower()
-        if 'value too long' in error_str or 'stringdatatruncation' in error_str:
-            error_msg = f'장소명이 너무 깁니다. 현재 {len(target_location) if "target_location" in locals() else "Unknown"}자 → 100자 이하로 줄여주세요.'
-        elif 'duplicate' in error_str or 'integrity' in error_str:
-            # 중복 오류 시 더 자세한 정보 제공
-            error_msg = f'데이터 중복 오류가 발생했습니다. 페이지를 새로고침하고 다시 시도해주세요. (위치: {target_location}, 학생 수: {len(students) if "students" in locals() else "Unknown"})'
-        else:
-            error_msg = f'서버 오류: {str(e)} - 페이지 새로고침 후 다시 시도해주세요.'
-        
-        return jsonify({
-            'success': False, 
-            'error': error_msg,
-            'need_refresh': True  # 프론트엔드에서 새로고침 유도
-        })
+        return jsonify({'success': False, 'error': str(e)})
 
 # 장소 및 스케줄 관리 API
 @app.route('/api/update_location_name', methods=['POST'])
@@ -1898,7 +1459,6 @@ def get_message_template(student, message_type='pickup'):
 안녕하세요! {student.name} 학생 부모님께 알려드립니다.
 
 📍 픽업 장소: {student.pickup_location}
-⏰ 예상 시간: {student.estimated_pickup_time}
 🎯 수업: {student.session_part}부
 
 차량이 곧 도착할 예정입니다.
@@ -1911,7 +1471,6 @@ def get_message_template(student, message_type='pickup'):
 
 {student.name} 학생이 안전하게 도장에 도착했습니다.
 
-⏰ 도착 시간: {datetime.now().strftime('%H:%M')}
 🎯 수업: {student.session_part}부
 
 수업 후 하차 시간을 별도로 안내드리겠습니다.
@@ -1923,7 +1482,6 @@ def get_message_template(student, message_type='pickup'):
 
 {student.name} 학생이 수업을 마치고 하차를 위해 출발했습니다.
 
-🏫 출발: {datetime.now().strftime('%H:%M')}
 📍 하차 장소: {student.pickup_location}
 ⏰ 예상 도착: 약 10-15분 후
 
@@ -2226,26 +1784,7 @@ def create_empty_location():
             print(f"   🏛️ 국기원부 감지: session_part={session_part} → type=national_training")
         
         # 부별 기본 시간 설정 (🎯 돌봄시스템과 국기원부 포함)
-        if session_part == 1:
-            default_time = time(14, 0) if schedule_type == 'pickup' else time(14, 50)
-        elif session_part == 2:
-            default_time = time(15, 0) if schedule_type == 'pickup' else time(15, 50)
-        elif session_part == 3:
-            default_time = time(16, 30) if schedule_type == 'pickup' else time(17, 20)
-        elif session_part == 4:
-            default_time = time(17, 30) if schedule_type == 'pickup' else time(18, 20)
-        elif session_part == 5:
-            default_time = time(19, 0) if schedule_type == 'pickup' else time(19, 50)
-        elif session_part == 6:  # 돌봄시스템 A
-            default_time = time(14, 30)
-        elif session_part == 7:  # 국기원부
-            default_time = time(18, 0)
-        elif session_part == 8:  # 돌봄시스템 B
-            default_time = time(15, 30)
-        elif session_part == 9:  # 돌봄시스템 C
-            default_time = time(17, 0)
-        else:  # 기본값
-            default_time = time(14, 0)
+        # 🎯 시간 관련 코드 완전 제거 - 시간대별 기본 시간 설정 삭제
         
         # 🎯 최종 장소명 결정 (돌봄시스템/국기원부는 접미사 추가)
         if schedule_type == 'care_system':
@@ -2266,19 +1805,18 @@ def create_empty_location():
             final_location_name = location_name
             print(f"   📍 일반 장소명: {final_location_name}")
         
-        # 해당 장소에 이미 스케줄이 있는지 확인 (🎯 시간대별 독립적 체크)
+        # 해당 장소에 이미 스케줄이 있는지 확인 (🎯 시간 관련 코드 완전 제거)
         existing_schedule = Schedule.query.filter_by(
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            location=final_location_name,  # 🔥 최종 장소명 사용!
-            time=default_time  # 🔥 시간대별 독립성 보장!
+            location=final_location_name  # 🔥 최종 장소명 사용!
         ).first()
         
         if existing_schedule:
-            print(f"📍 동일 시간대 장소 이미 존재: {final_location_name} ({default_time})")
+            print(f"📍 동일 장소 이미 존재: {final_location_name}")
             return jsonify({
                 'success': True, 
-                'message': f'"{location_name}" 장소가 이미 존재합니다. ({default_time})',
+                'message': f'"{location_name}" 장소가 이미 존재합니다.',
                 'location_name': location_name,
                 'existing': True
             })
@@ -2325,7 +1863,7 @@ def create_empty_location():
             raise Exception(f"유효하지 않은 student_id: {dummy_student_id}")
         
         # 더미 스케줄 생성
-        print(f"   - 더미 스케줄 생성 중... (time={default_time}, student_id={dummy_student_id})")
+        print(f"   - 더미 스케줄 생성 중... (student_id={dummy_student_id})")
         
         # 🚨 student_id 재검증
         if not dummy_student_id or dummy_student_id <= 0:
@@ -2335,7 +1873,6 @@ def create_empty_location():
             student_id=dummy_student_id,
             day_of_week=day_of_week,
             schedule_type=schedule_type,
-            time=default_time,
             location=final_location_name  # 🔥 최종 장소명 사용!
         )
         
@@ -2362,7 +1899,6 @@ def create_empty_location():
             'day_of_week': day_of_week,
             'session_part': session_part,
             'type': schedule_type,
-            'default_time': default_time.strftime('%H:%M'),
             'dummy_created': True
         })
         
@@ -2752,15 +2288,7 @@ def create_empty_care_location():
         if not all([day_of_week is not None, care_type, location_name]):
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
         
-        # 돌봄시스템별 기본 시간
-        if session_part == 6:  # 돌봄시스템 A
-            default_time = time(14, 30)
-        elif session_part == 8:  # 돌봄시스템 B
-            default_time = time(15, 30)
-        elif session_part == 9:  # 돌봄시스템 C
-            default_time = time(17, 0)
-        else:
-            default_time = time(14, 30)
+        # 🎯 시간 관련 코드 완전 제거 - 돌봄시스템별 기본 시간 설정 삭제
         
         # 장소명에 care_type 접미사 추가
         final_location_name = f"{location_name}_{care_type}"
@@ -2769,8 +2297,7 @@ def create_empty_care_location():
         existing_schedule = Schedule.query.filter_by(
             day_of_week=day_of_week,
             schedule_type='care_system',
-            location=final_location_name,
-            time=default_time
+            location=final_location_name
         ).first()
         
         if existing_schedule:
@@ -2811,7 +2338,6 @@ def create_empty_care_location():
             student_id=dummy_student_id,
             day_of_week=day_of_week,
             schedule_type='care_system',
-            time=default_time,
             location=final_location_name
         )
         
@@ -2827,7 +2353,6 @@ def create_empty_care_location():
             'day_of_week': day_of_week,
             'care_type': care_type,
             'session_part': session_part,
-            'default_time': default_time.strftime('%H:%M'),
             'dummy_created': True
         })
         
