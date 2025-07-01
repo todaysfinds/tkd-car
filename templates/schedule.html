@@ -1951,7 +1951,6 @@ function showDuplicateCleanupModal() {
 
 // 학생 삭제 함수 구현
 ScheduleManager.removeStudent = function(studentId, dayNum, location, type) {
-    if (!confirm('이 학생을 해당 장소에서 삭제하시겠습니까?')) return;
     fetch('/api/remove_student_from_schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
