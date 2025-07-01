@@ -270,7 +270,7 @@ def schedule():
                 part = 'care1' if schedule.schedule_type == 'care_system' else 'national'
                 location = schedule.location or '도장'
         else:
-            part = student.session_part or 1
+            part = 1  # session_part 컬럼 제거에 따라 항상 1로 고정
             # 🚨 중요: Schedule.location을 최우선으로 사용 (폴백 최소화)
             if schedule.location:
                 location = schedule.location
@@ -331,7 +331,7 @@ def schedule():
         # schedule_time = dummy_schedule.time  # 🔥 시간 정보 제거
         
         if schedule_type in ['pickup', 'dropoff']:
-            part = dummy_student.session_part or 1
+            part = 1  # session_part 컬럼 제거에 따라 항상 1로 고정
             
             # 해당 장소에 실제 학생이 있는지 확인 (🎯 시간대별 독립적 체크)
             has_real_students = False
