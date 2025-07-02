@@ -69,7 +69,7 @@ else:
         app.config['IS_LOCAL_DEV'] = True
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
 
 db = SQLAlchemy(app)
 
@@ -2260,57 +2260,6 @@ def get_all_active_locations():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/api/add_student', methods=['POST'])
-def add_student():
-    try:
-        print(f"🔍 학생 추가 요청 받음")
-        
-        # 입력 데이터 검증
-        name = request.form.get('name')
-        birth_year = request.form.get('birth_year')
-        
-        print(f"   - 이름: {name}")
-        print(f"   - 출생년도: {birth_year}")
-        
-        # 이름 검증
-        is_valid, validated_name = validate_student_name(name)
-        if not is_valid:
-            print(f"❌ 이름 검증 실패: {validated_name}")
-            return error_response(validated_name)
-        
-        # 중복 체크
-        existing_student = Student.query.filter_by(name=validated_name).first()
-        if existing_student:
-            print(f"❌ 중복된 이름: {validated_name}")
-            return error_response(f'"{validated_name}" 학생이 이미 존재합니다. 구분을 위해 다른 이름을 사용해주세요.')
-        
-        # 출생년도 검증
-        birth_year = sanitize_input(birth_year, 10)
-        
-        # 새 학생 추가
-        new_student = Student(
-            name=validated_name,
-            grade=birth_year
-        )
-        
-        print(f"✅ 새 학생 생성: {new_student.name}")
-        
-        db.session.add(new_student)
-        db.session.commit()
-        
-        print(f"✅ 학생 추가 완료: ID={new_student.id}")
-        
-        return success_response(
-            f'{validated_name} 학생이 성공적으로 추가되었습니다.',
-            {'student_id': new_student.id, 'student_name': validated_name}
-        )
-    
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ 학생 추가 에러: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return error_response('학생 추가 중 시스템 오류가 발생했습니다. 다시 시도해주세요.', 500)
 
 @app.route('/api/delete_location_from_table', methods=['POST'])
 def delete_location_from_table():
