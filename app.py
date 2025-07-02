@@ -1738,36 +1738,6 @@ def create_empty_location():
         'deprecated': True
     })
 
-@app.route('/api/get_locations')
-def get_locations():
-    """모든 구역별 장소 조회 (새 구조)"""
-    try:
-        schedule_locations = ScheduleLocation.query.all()
-        
-        locations_data = {}
-        
-        for sl in schedule_locations:
-            day = sl.day_of_week
-            session = sl.session_part
-            type_ = sl.type
-            
-            key = f"{day}-{session}-{type_}"
-            if key not in locations_data:
-                locations_data[key] = []
-            
-            locations_data[key].append({
-                'schedule_location_id': sl.id,
-                'location_id': sl.location_id,
-                'location_name': sl.location.name,
-                'day_of_week': day,
-                'session_part': session,
-                'type': type_
-            })
-        
-        return jsonify({'success': True, 'locations': locations_data})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)})
-
 # 카카오톡 설정 관리 API
 @app.route('/api/kakao_settings')
 def get_kakao_settings():
