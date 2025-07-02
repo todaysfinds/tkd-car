@@ -243,20 +243,19 @@ def submit_request():
 
 @app.route('/schedule')
 def schedule():
-    # Location 테이블 기반 스케줄 표시 (더미 학생 없이)
+    # 승차/하차 완전 분리 구조
     schedule_data = {}
     
     # 🚨 로컬 개발 환경 경고 표시
     is_local_dev = app.config.get('IS_LOCAL_DEV', False)
     
-    # 1. 모든 스케줄 조회 (더미 학생 제외)
+    # 모든 스케줄 조회 (더미 학생 제외)
     schedules = db.session.query(Student, Schedule).join(Schedule).filter(
         ~Student.name.like('_PH_%')  # 더미 학생 제외
     ).order_by(
         Schedule.day_of_week, Schedule.schedule_type, Schedule.location, Student.name
     ).all()
     
-    # 2. 실제 학생이 배정된 장소들을 먼저 처리
     for student, schedule in schedules:
         day = schedule.day_of_week
         # 돌봄시스템/국기원부의 경우 location에서 part 정보를 추출
@@ -320,65 +319,43 @@ def schedule():
                 'schedule': schedule
             })
     
-    # 3. Location 테이블의 모든 활성 장소를 기준으로 빈 장소도 추가
-    all_locations = Location.query.filter_by(is_active=True).all()
+    # 🎯 더미 스케줄로 생성된 빈 장소들 추가 (실제 학생 없는 장소) - 시간대별 독립적
+    dummy_schedules = db.session.query(Student, Schedule).join(Schedule).filter(
+        Student.name.like('_PH_%')  # 더미 학생만 조회
+    ).all()
     
-    # 모든 요일(0-6)과 부별(1), 승차/하차에 대해 빈 장소 추가
-    for day in range(7):  # 0=월요일 ~ 6=일요일
-        if day not in schedule_data:
-            schedule_data[day] = {}
+    for dummy_student, dummy_schedule in dummy_schedules:
+        day = dummy_schedule.day_of_week
+        schedule_type = dummy_schedule.schedule_type
+        location = dummy_schedule.location
+        # schedule_time = dummy_schedule.time  # 🔥 시간 정보 제거
         
-        part = 1  # 현재는 1부만 사용
-        if part not in schedule_data[day]:
-            schedule_data[day][part] = {}
-        
-        # pickup, dropoff 타입별로 처리
-        for schedule_type in ['pickup', 'dropoff']:
+        if schedule_type in ['pickup', 'dropoff']:
+            part = 1  # session_part 컬럼 제거에 따라 항상 1로 고정
+            
+            # 해당 장소에 실제 학생이 있는지 확인 (🎯 시간대별 독립적 체크)
+            has_real_students = False
+            if (day in schedule_data and 
+                part in schedule_data[day] and 
+                schedule_type in schedule_data[day][part] and 
+                location in schedule_data[day][part][schedule_type]):
+                has_real_students = len(schedule_data[day][part][schedule_type][location]) > 0
+            
+            if has_real_students:
+                # 실제 학생이 있으면 더미는 추가하지 않음
+                continue
+            
+            # 빈 장소 구조 초기화
+            if day not in schedule_data:
+                schedule_data[day] = {}
+            if part not in schedule_data[day]:
+                schedule_data[day][part] = {}
             if schedule_type not in schedule_data[day][part]:
                 schedule_data[day][part][schedule_type] = {}
             
-            # Location 테이블의 모든 장소를 확인하여 빈 장소 추가
-            for location in all_locations:
-                location_name = location.name
-                
-                # 돌봄시스템/국기원부 장소는 일반 pickup/dropoff에서 제외
-                if '_care' in location_name or '_national' in location_name:
-                    continue
-                
-                # 해당 장소에 학생이 배정되어 있지 않으면 빈 장소로 추가
-                if location_name not in schedule_data[day][part][schedule_type]:
-                    schedule_data[day][part][schedule_type][location_name] = []
-                    print(f"   📍 빈 장소 추가: {location_name} - {day}요일 {part}부 {schedule_type}")
-    
-    # 4. 돌봄시스템과 국기원부 장소들도 처리
-    for day in range(7):
-        # 돌봄시스템 (care1, care2, care3)
-        for care_type in ['care1', 'care2', 'care3']:
-            if care_type not in schedule_data[day]:
-                schedule_data[day][care_type] = {}
-            if 'students' not in schedule_data[day][care_type]:
-                schedule_data[day][care_type]['students'] = {}
-            
-            # 해당 care_type의 장소들 추가
-            for location in all_locations:
-                if f'_{care_type}' in location.name:
-                    base_location_name = location.name.replace(f'_{care_type}', '')
-                    if base_location_name not in schedule_data[day][care_type]['students']:
-                        schedule_data[day][care_type]['students'][base_location_name] = []
-                        print(f"   🏫 빈 돌봄시스템 장소 추가: {base_location_name} - {day}요일 {care_type}")
-        
-        # 국기원부 (national)
-        if 'national' not in schedule_data[day]:
-            schedule_data[day]['national'] = {}
-        if 'students' not in schedule_data[day]['national']:
-            schedule_data[day]['national']['students'] = {}
-        
-        for location in all_locations:
-            if '_national' in location.name:
-                base_location_name = location.name.replace('_national', '')
-                if base_location_name not in schedule_data[day]['national']['students']:
-                    schedule_data[day]['national']['students'][base_location_name] = []
-                    print(f"   🏛️ 빈 국기원부 장소 추가: {base_location_name} - {day}요일 national")
+            if location not in schedule_data[day][part][schedule_type]:
+                schedule_data[day][part][schedule_type][location] = []
+                print(f"   📍 빈 장소 추가: {location} - {day}요일 {part}부 {schedule_type}")
     
     # 현재 요일 (0=월요일, 6=일요일)
     current_day = datetime.now().weekday()
@@ -1773,21 +1750,64 @@ def cleanup_duplicates():
 
 @app.route('/api/create_empty_location', methods=['POST'])
 def create_empty_location():
-    """Location 테이블에 장소 추가 (더미 학생 없이)"""
+    """빈 장소 생성 (실제 더미 스케줄 생성으로 지속성 보장) - 🎯 돌봄시스템/국기원부 지원"""
     try:
         data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        session_part = data.get('session_part')
         location_name = data.get('location_name')
+        schedule_type = data.get('type', 'pickup')
         
-        print(f"🏗️ 새 장소 추가: {location_name}")
+        print(f"🏗️ 빈 장소 생성 요청: {location_name} (day={day_of_week}, part={session_part}, type={schedule_type})")
+        print(f"   - 받은 데이터: {data}")
+        print(f"   - day_of_week 타입: {type(day_of_week)}, 값: {day_of_week}")
+        print(f"   - session_part 타입: {type(session_part)}, 값: {session_part}")
+        print(f"   - location_name 타입: {type(location_name)}, 값: {location_name}")
+        print(f"   - schedule_type 타입: {type(schedule_type)}, 값: {schedule_type}")
         
-        if not location_name:
-            return jsonify({'success': False, 'error': '장소명이 필요합니다.'})
+        if not all([day_of_week is not None, session_part, location_name]):
+            print(f"❌ 필수 정보 누락 체크: day_of_week={day_of_week is not None}, session_part={bool(session_part)}, location_name={bool(location_name)}")
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
         
-        # Location 테이블에서 동일한 이름이 있는지 확인
-        existing_location = Location.query.filter_by(name=location_name).first()
+        # 🎯 돌봄시스템/국기원부 타입 자동 감지 및 보정
+        if session_part in [6, 8, 9]:  # 돌봄시스템 A/B/C
+            schedule_type = 'care_system'
+            print(f"   🏫 돌봄시스템 감지: session_part={session_part} → type=care_system")
+        elif session_part == 7:  # 국기원부
+            schedule_type = 'national_training'
+            print(f"   🏛️ 국기원부 감지: session_part={session_part} → type=national_training")
         
-        if existing_location:
-            print(f"📍 동일 장소 이미 존재: {location_name}")
+        # 부별 기본 시간 설정 (🎯 돌봄시스템과 국기원부 포함)
+        # 🎯 시간 관련 코드 완전 제거 - 시간대별 기본 시간 설정 삭제
+        
+        # 🎯 최종 장소명 결정 (돌봄시스템/국기원부는 접미사 추가)
+        if schedule_type == 'care_system':
+            # 돌봄시스템별 접미사 추가
+            if session_part == 6:
+                final_location_name = f"{location_name}_care1"
+            elif session_part == 8:
+                final_location_name = f"{location_name}_care2"
+            elif session_part == 9:
+                final_location_name = f"{location_name}_care3"
+            else:
+                final_location_name = f"{location_name}_care1"
+            print(f"   🏫 돌봄시스템 장소명: {location_name} → {final_location_name}")
+        elif schedule_type == 'national_training':
+            final_location_name = f"{location_name}_national"
+            print(f"   🏛️ 국기원부 장소명: {location_name} → {final_location_name}")
+        else:
+            final_location_name = location_name
+            print(f"   📍 일반 장소명: {final_location_name}")
+        
+        # 해당 장소에 이미 스케줄이 있는지 확인 (🎯 시간 관련 코드 완전 제거)
+        existing_schedule = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=final_location_name  # 🔥 최종 장소명 사용!
+        ).first()
+        
+        if existing_schedule:
+            print(f"📍 동일 장소 이미 존재: {final_location_name}")
             return jsonify({
                 'success': True, 
                 'message': f'"{location_name}" 장소가 이미 존재합니다.',
@@ -1795,28 +1815,90 @@ def create_empty_location():
                 'existing': True
             })
         
-        # Location 테이블에 새 장소 추가
-        new_location = Location(
-            name=location_name,
-            description=f"사용자 추가 장소: {location_name}",
-            is_active=True
+        # 🎯 실제 더미 학생으로 장소 생성 (새로고침 후에도 유지됨)  
+        # 더미 학생 생성 (이름 길이 제한으로 해시 사용)
+        import hashlib
+        hash_input = f"{final_location_name}_{day_of_week}_{session_part}_{schedule_type}"
+        location_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8]
+        dummy_student_name = f"_PH_{location_hash}"
+        
+        print(f"   - 해시 입력: {hash_input}")
+        print(f"   - 더미 학생명: {dummy_student_name}")
+        
+        # 더미 학생이 이미 있는지 확인
+        existing_dummy = Student.query.filter(Student.name.like('_PH_%')).filter_by(name=dummy_student_name).first()
+        print(f"   - 기존 더미 학생: {existing_dummy.name if existing_dummy else 'None'}")
+        
+        if not existing_dummy:
+            # 더미 학생 생성
+            print(f"   - 새 더미 학생 생성 중...")
+            dummy_student = Student(
+                name=dummy_student_name,
+                grade="PLACEHOLDER",
+                session_part=session_part,
+                pickup_location=final_location_name,  # 🔥 최종 장소명 사용!
+                memo=f"빈장소:{location_name}({day_of_week}요일{session_part}부{schedule_type})"
+            )
+            db.session.add(dummy_student)
+            db.session.flush()  # ID 생성을 위해 flush
+            
+            # 🚨 중요: flush 후 student_id 검증
+            if not dummy_student.id:
+                raise Exception("더미 학생 ID 생성 실패")
+            
+            dummy_student_id = dummy_student.id
+            print(f"   - 더미 학생 생성 완료: ID={dummy_student_id}")
+        else:
+            dummy_student_id = existing_dummy.id
+            print(f"   - 기존 더미 학생 재사용: ID={dummy_student_id}")
+        
+        # 🚨 최종 student_id 검증
+        if not dummy_student_id:
+            raise Exception(f"유효하지 않은 student_id: {dummy_student_id}")
+        
+        # 더미 스케줄 생성
+        print(f"   - 더미 스케줄 생성 중... (student_id={dummy_student_id})")
+        
+        # 🚨 student_id 재검증
+        if not dummy_student_id or dummy_student_id <= 0:
+            raise Exception(f"잘못된 student_id: {dummy_student_id}")
+        
+        dummy_schedule = Schedule(
+            student_id=dummy_student_id,
+            day_of_week=day_of_week,
+            schedule_type=schedule_type,
+            location=final_location_name  # 🔥 최종 장소명 사용!
         )
         
-        db.session.add(new_location)
-        db.session.commit()
+        db.session.add(dummy_schedule)
         
-        print(f"✅ 장소 추가 완료: {location_name} (ID: {new_location.id})")
+        # 🚨 스케줄 추가 전 한번 더 flush
+        db.session.flush()
+        
+        # 🚨 스케줄 ID 검증
+        if not dummy_schedule.id:
+            raise Exception("더미 스케줄 ID 생성 실패")
+        
+        print(f"   - DB 커밋 중... (스케줄 ID: {dummy_schedule.id})")
+        db.session.commit()
+        print(f"   - DB 커밋 완료!")
+        
+        print(f"✅ 빈 장소 생성 완료: {final_location_name} (더미 스케줄 ID: {dummy_schedule.id})")
         
         return jsonify({
             'success': True, 
-            'message': f'"{location_name}" 장소가 추가되었습니다.',
+            'message': f'"{location_name}" 장소가 생성되었습니다.',
             'location_name': location_name,
-            'location_id': new_location.id
+            'final_location_name': final_location_name,  # 🔥 디버깅용 추가
+            'day_of_week': day_of_week,
+            'session_part': session_part,
+            'type': schedule_type,
+            'dummy_created': True
         })
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ 장소 추가 실패: {str(e)}")
+        print(f"❌ 빈 장소 생성 실패: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 # 카카오톡 설정 관리 API
@@ -2177,30 +2259,41 @@ def diagnose_schedule_data():
 
 @app.route('/api/create_empty_care_location', methods=['POST'])
 def create_empty_care_location():
-    """돌봄시스템 장소를 Location 테이블에 추가"""
+    """돌봄시스템 빈 장소 생성 전용 API"""
     try:
         data = request.get_json()
+        day_of_week = data.get('day_of_week')
         care_type = data.get('care_type')  # care1, care2, care3
         location_name = data.get('location_name')
         
-        print(f"🏫 돌봄시스템 장소 추가: {location_name} (care_type={care_type})")
+        print(f"🏫 돌봄시스템 빈 장소 생성: {location_name} (day={day_of_week}, care_type={care_type})")
         
-        if not all([care_type, location_name]):
+        # 🎯 careType별로 다른 session_part 할당
+        if care_type == 'care1':
+            session_part = 6  # 돌봄시스템 A
+        elif care_type == 'care2':
+            session_part = 8  # 돌봄시스템 B
+        elif care_type == 'care3':
+            session_part = 9  # 돌봄시스템 C
+        else:
+            return jsonify({'success': False, 'error': '잘못된 돌봄시스템 타입입니다.'})
+        
+        if not all([day_of_week is not None, care_type, location_name]):
             return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
         
-        if care_type not in ['care1', 'care2', 'care3', 'national']:
-            return jsonify({'success': False, 'error': '잘못된 돌봄시스템/국기원부 타입입니다.'})
+        # 🎯 시간 관련 코드 완전 제거 - 돌봄시스템별 기본 시간 설정 삭제
         
         # 장소명에 care_type 접미사 추가
-        if care_type == 'national':
-            final_location_name = f"{location_name}_national"
-        else:
-            final_location_name = f"{location_name}_{care_type}"
+        final_location_name = f"{location_name}_{care_type}"
         
-        # Location 테이블에서 동일한 이름이 있는지 확인
-        existing_location = Location.query.filter_by(name=final_location_name).first()
+        # 해당 장소에 이미 스케줄이 있는지 확인
+        existing_schedule = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type='care_system',
+            location=final_location_name
+        ).first()
         
-        if existing_location:
+        if existing_schedule:
             print(f"📍 돌봄시스템 장소 이미 존재: {final_location_name}")
             return jsonify({
                 'success': True, 
@@ -2209,190 +2302,54 @@ def create_empty_care_location():
                 'existing': True
             })
         
-        # Location 테이블에 새 돌봄시스템/국기원부 장소 추가
-        if care_type == 'national':
-            description = f"국기원부 장소: {location_name}"
+        # 🎯 더미 학생으로 장소 생성
+        import hashlib
+        hash_input = f"{final_location_name}_{day_of_week}_{session_part}_care_system"
+        location_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8]
+        dummy_student_name = f"_PH_{location_hash}"
+        
+        # 더미 학생이 이미 있는지 확인
+        existing_dummy = Student.query.filter(Student.name.like('_PH_%')).filter_by(name=dummy_student_name).first()
+        
+        if not existing_dummy:
+            # 더미 학생 생성
+            dummy_student = Student(
+                name=dummy_student_name,
+                grade="PLACEHOLDER",
+                session_part=session_part,
+                pickup_location=final_location_name,
+                memo=f"빈장소:{location_name}({day_of_week}요일{care_type}돌봄시스템)"
+            )
+            db.session.add(dummy_student)
+            db.session.flush()
+            dummy_student_id = dummy_student.id
         else:
-            description = f"돌봄시스템 {care_type} 장소: {location_name}"
-            
-        new_location = Location(
-            name=final_location_name,
-            description=description,
-            is_active=True
+            dummy_student_id = existing_dummy.id
+        
+        # 더미 스케줄 생성
+        dummy_schedule = Schedule(
+            student_id=dummy_student_id,
+            day_of_week=day_of_week,
+            schedule_type='care_system',
+            location=final_location_name
         )
         
-        db.session.add(new_location)
+        db.session.add(dummy_schedule)
         db.session.commit()
         
-        print(f"✅ 돌봄시스템 장소 추가 완료: {final_location_name} (ID: {new_location.id})")
+        print(f"✅ 돌봄시스템 빈 장소 생성 완료: {final_location_name}")
         
         return jsonify({
             'success': True, 
-            'message': f'"{location_name}" 장소가 추가되었습니다.',
+            'message': f'"{location_name}" 장소가 생성되었습니다.',
             'location_name': location_name,
-            'final_location_name': final_location_name,
+            'day_of_week': day_of_week,
             'care_type': care_type,
-            'location_id': new_location.id
+            'session_part': session_part,
+            'dummy_created': True
         })
         
     except Exception as e:
         db.session.rollback()
-        print(f"❌ 돌봄시스템 장소 추가 실패: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)})
-
-@app.route('/api/get_all_active_locations')
-def get_all_active_locations():
-    """모든 활성 장소를 Location 테이블에서 조회"""
-    try:
-        # Location 테이블의 모든 활성 장소
-        locations = Location.query.filter_by(is_active=True).order_by(Location.name).all()
-        
-        location_list = []
-        for loc in locations:
-            location_list.append({
-                'id': loc.id,
-                'name': loc.name,
-                'description': loc.description,
-                'created_at': loc.created_at.isoformat() if loc.created_at else None
-            })
-        
-        return jsonify({'success': True, 'locations': location_list})
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
-
-@app.route('/api/add_student', methods=['POST'])
-def add_student():
-    try:
-        print(f"🔍 학생 추가 요청 받음")
-        
-        # 입력 데이터 검증
-        name = request.form.get('name')
-        birth_year = request.form.get('birth_year')
-        
-        print(f"   - 이름: {name}")
-        print(f"   - 출생년도: {birth_year}")
-        
-        # 이름 검증
-        is_valid, validated_name = validate_student_name(name)
-        if not is_valid:
-            print(f"❌ 이름 검증 실패: {validated_name}")
-            return error_response(validated_name)
-        
-        # 중복 체크
-        existing_student = Student.query.filter_by(name=validated_name).first()
-        if existing_student:
-            print(f"❌ 중복된 이름: {validated_name}")
-            return error_response(f'"{validated_name}" 학생이 이미 존재합니다. 구분을 위해 다른 이름을 사용해주세요.')
-        
-        # 출생년도 검증
-        birth_year = sanitize_input(birth_year, 10)
-        
-        # 새 학생 추가
-        new_student = Student(
-            name=validated_name,
-            grade=birth_year
-        )
-        
-        print(f"✅ 새 학생 생성: {new_student.name}")
-        
-        db.session.add(new_student)
-        db.session.commit()
-        
-        print(f"✅ 학생 추가 완료: ID={new_student.id}")
-        
-        return success_response(
-            f'{validated_name} 학생이 성공적으로 추가되었습니다.',
-            {'student_id': new_student.id, 'student_name': validated_name}
-        )
-    
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ 학생 추가 에러: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return error_response('학생 추가 중 시스템 오류가 발생했습니다. 다시 시도해주세요.', 500)
-
-@app.route('/api/delete_location_from_table', methods=['POST'])
-def delete_location_from_table():
-    """Location 테이블에서 장소를 삭제 (비활성화)"""
-    try:
-        data = request.get_json()
-        location_name = data.get('location_name')
-        
-        if not location_name:
-            return jsonify({'success': False, 'message': '장소명이 필요합니다.'})
-        
-        # Location 테이블에서 장소 찾기
-        location = Location.query.filter_by(name=location_name).first()
-        
-        if not location:
-            return jsonify({'success': False, 'message': '해당 장소를 찾을 수 없습니다.'})
-        
-        # 해당 장소를 사용하는 스케줄이 있는지 확인
-        schedules_using_location = Schedule.query.filter_by(location=location_name).all()
-        
-        if schedules_using_location:
-            # 스케줄이 있으면 경고 메시지
-            return jsonify({
-                'success': False, 
-                'message': f'"{location_name}" 장소에 배정된 학생이 있습니다. 먼저 학생들을 다른 장소로 이동시켜주세요.',
-                'student_count': len(schedules_using_location)
-            })
-        
-        # 장소 비활성화 (완전 삭제 대신)
-        location.is_active = False
-        db.session.commit()
-        
-        print(f"✅ 장소 비활성화 완료: {location_name}")
-        
-        return jsonify({
-            'success': True,
-            'message': f'"{location_name}" 장소가 삭제되었습니다.'
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ 장소 삭제 실패: {str(e)}")
-        return jsonify({'success': False, 'message': str(e)})
-
-@app.route('/api/cleanup_dummy_students', methods=['POST'])
-def cleanup_dummy_students():
-    """더미 학생과 관련 스케줄을 모두 삭제"""
-    try:
-        # 더미 학생들 조회
-        dummy_students = Student.query.filter(Student.name.like('_PH_%')).all()
-        
-        print(f"🧹 더미 학생 정리 시작 - 총 {len(dummy_students)}명 발견")
-        
-        deleted_students = 0
-        deleted_schedules = 0
-        
-        for student in dummy_students:
-            print(f"   - 더미 학생 삭제: {student.name} (ID: {student.id})")
-            
-            # 해당 학생의 스케줄들 삭제
-            schedules = Schedule.query.filter_by(student_id=student.id).all()
-            for schedule in schedules:
-                print(f"     - 스케줄 삭제: {schedule.location} ({schedule.schedule_type})")
-                db.session.delete(schedule)
-                deleted_schedules += 1
-            
-            # 학생 삭제
-            db.session.delete(student)
-            deleted_students += 1
-        
-        db.session.commit()
-        
-        print(f"✅ 더미 데이터 정리 완료 - 학생 {deleted_students}명, 스케줄 {deleted_schedules}개 삭제")
-        
-        return jsonify({
-            'success': True,
-            'message': f'더미 데이터 정리 완료 - 학생 {deleted_students}명, 스케줄 {deleted_schedules}개 삭제',
-            'deleted_students': deleted_students,
-            'deleted_schedules': deleted_schedules
-        })
-        
-    except Exception as e:
-        db.session.rollback()
-        print(f"❌ 더미 데이터 정리 실패: {str(e)}")
+        print(f"❌ 돌봄시스템 빈 장소 생성 실패: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})

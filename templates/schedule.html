@@ -1353,7 +1353,7 @@ function addStudentToLocation(dayNum, sessionPart, location, type) {
     openStudentModal(dayNum, sessionPart, location, type);
 }
 
-// 새 장소 추가 함수
+// 새 장소 추가 함수 (Location 테이블 기반)
 function addNewLocation(dayNum, sessionPart, type) {
     const locationName = prompt('새 장소명을 입력하세요:');
     if (locationName && locationName.trim()) {
@@ -1363,9 +1363,6 @@ function addNewLocation(dayNum, sessionPart, type) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                day_of_week: dayNum,
-                session_part: sessionPart,
-                schedule_type: type,
                 location_name: locationName.trim()
             })
         })
@@ -1867,7 +1864,6 @@ function addNewLocationToCareSystem(dayNum, careType) {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                day_of_week: dayNum,
                 care_type: careType,
                 location_name: locationName.trim()
             })
@@ -1891,15 +1887,14 @@ function addNewLocationToCareSystem(dayNum, careType) {
 function addNewLocationToNationalTraining(dayNum, nationalType) {
     const locationName = prompt('새 국기원부 장소명을 입력하세요:');
     if (locationName && locationName.trim()) {
-        fetch('/api/create_empty_location', {
+        // 국기원부는 create_empty_care_location을 사용하여 "_national" 접미사로 처리
+        fetch('/api/create_empty_care_location', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                day_of_week: dayNum,
-                session_part: 7, // 국기원부
-                schedule_type: 'national_training',
+                care_type: 'national',
                 location_name: locationName.trim()
             })
         })
