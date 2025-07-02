@@ -149,18 +149,18 @@
                             <!-- 승차 -->
                             <div class="border-r">
                                 <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
-                                <div class="p-2 space-y-2 min-h-[60px]">
+                                <div class="p-2 space-y-2 min-h-[60px]" id="schedule-{{ day_num }}-1-pickup">
                                     {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][1] %}
-                                        {% for location, students in schedule_data[day_num][1]['pickup'].items() %}
+                                        {% for location_name, students in schedule_data[day_num][1]['pickup'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location_name }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'pickup')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup', 1)" 
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location_name }}', 'pickup')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location_name }}', 'pickup', 1)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -177,7 +177,7 @@
                                                     <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
                                                             data-student-id="{{ student_data.student.id }}"
                                                             data-day="{{ day_num }}"
-                                                            data-location="{{ location }}"
+                                                            data-location="{{ location_name }}"
                                                             data-type="pickup">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -195,18 +195,18 @@
                             <!-- 하차 -->
                             <div>
                                 <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
-                                <div class="p-2 space-y-2 min-h-[60px]">
+                                <div class="p-2 space-y-2 min-h-[60px]" id="schedule-{{ day_num }}-1-dropoff">
                                     {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][1] %}
-                                        {% for location, students in schedule_data[day_num][1]['dropoff'].items() %}
+                                        {% for location_name, students in schedule_data[day_num][1]['dropoff'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location_name }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location }}', 'dropoff')" 
-                                                        class="text-xs text-blue-600 hover:text-blue-800">
-                                                    + 학생
-                                                </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff', 1)" 
+                                                    <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location_name }}', 'dropoff')" 
+                                                            class="text-xs text-blue-600 hover:text-blue-800">
+                                                        + 학생
+                                                    </button>
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location_name }}', 'dropoff', 1)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -223,7 +223,7 @@
                                                     <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
                                                             data-student-id="{{ student_data.student.id }}"
                                                             data-day="{{ day_num }}"
-                                                            data-location="{{ location }}"
+                                                            data-location="{{ location_name }}"
                                                             data-type="dropoff">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -249,18 +249,18 @@
                             <!-- 승차 -->
                             <div class="border-r">
                                 <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
-                                <div class="p-2 space-y-2 min-h-[60px]">
+                                <div class="p-2 space-y-2 min-h-[60px]" id="schedule-{{ day_num }}-2-pickup">
                                     {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][2] %}
-                                        {% for location, students in schedule_data[day_num][2]['pickup'].items() %}
+                                        {% for location_name, students in schedule_data[day_num][2]['pickup'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location_name }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'pickup')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location_name }}', 'pickup')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'pickup', 2)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location_name }}', 'pickup', 2)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -277,7 +277,7 @@
                                                     <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
                                                             data-student-id="{{ student_data.student.id }}"
                                                             data-day="{{ day_num }}"
-                                                            data-location="{{ location }}"
+                                                            data-location="{{ location_name }}"
                                                             data-type="pickup">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -294,18 +294,18 @@
                             <!-- 하차 -->
                             <div>
                                 <div class="bg-sky-100 px-2 py-1 text-sm font-medium text-center border-b">하차</div>
-                                <div class="p-2 space-y-2 min-h-[60px]">
+                                <div class="p-2 space-y-2 min-h-[60px]" id="schedule-{{ day_num }}-2-dropoff">
                                     {% if day_num in schedule_data and 2 in schedule_data[day_num] and 'dropoff' in schedule_data[day_num][2] %}
-                                        {% for location, students in schedule_data[day_num][2]['dropoff'].items() %}
+                                        {% for location_name, students in schedule_data[day_num][2]['dropoff'].items() %}
                                         <div class="border border-gray-200 rounded p-1 bg-white">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">📍 {{ location }}</span>
+                                                <span class="text-xs font-medium text-gray-700">📍 {{ location_name }}</span>
                                                 <div class="flex items-center gap-1">
-                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location }}', 'dropoff')" 
+                                                <button onclick="addStudentToLocation({{ day_num }}, 2, '{{ location_name }}', 'dropoff')" 
                                                         class="text-xs text-blue-600 hover:text-blue-800">
                                                     + 학생
                                                 </button>
-                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location }}', 'dropoff', 2)" 
+                                                    <button onclick="showLocationSettings({{ day_num }}, '{{ location_name }}', 'dropoff', 2)" 
                                                             class="text-xs text-gray-500 hover:text-gray-700" title="장소 설정">
                                                         ⚙️
                                                     </button>
@@ -322,7 +322,7 @@
                                                     <button class="text-red-500 hover:text-red-700 text-xs ml-1 flex-shrink-0 remove-student-btn"
                                                             data-student-id="{{ student_data.student.id }}"
                                                             data-day="{{ day_num }}"
-                                                            data-location="{{ location }}"
+                                                            data-location="{{ location_name }}"
                                                             data-type="dropoff">✕</button>
                                                 </div>
                                                 {% endfor %}
@@ -1353,24 +1353,32 @@ function addStudentToLocation(dayNum, sessionPart, location, type) {
     openStudentModal(dayNum, sessionPart, location, type);
 }
 
-// 새 장소 추가 함수 (Location 테이블 기반)
+// 새 장소 추가 함수 (구역별 장소 매핑)
 function addNewLocation(dayNum, sessionPart, type) {
     const locationName = prompt('새 장소명을 입력하세요:');
     if (locationName && locationName.trim()) {
-        fetch('/api/create_empty_location', {
+        fetch('/api/add_schedule_location', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
+                day_of_week: dayNum,
+                session_part: sessionPart,
+                type: type,
                 location_name: locationName.trim()
             })
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                showNotification('새 장소가 추가되었습니다.', 'success');
-                window.location.reload();
+                if (data.existing) {
+                    showNotification('이미 해당 구역에 존재하는 장소입니다.', 'warning');
+                } else {
+                    showNotification('새 장소가 추가되었습니다.', 'success');
+                    // 전체 리로드 대신 해당 구역만 다시 로드
+                    reloadScheduleSection(dayNum, sessionPart, type);
+                }
             } else {
                 showNotification('장소 추가 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
             }
@@ -1382,11 +1390,22 @@ function addNewLocation(dayNum, sessionPart, type) {
     }
 }
 
-// 학생 선택 모달 열기
-function openStudentModal(dayNum, sessionPart, location, type) {
+// 학생을 특정 ScheduleLocation에 추가하는 함수 (새 구조)
+function addStudentToScheduleLocation(scheduleLocationId, dayNum, sessionPart, type, locationName) {
+    openStudentModal(dayNum, sessionPart, locationName, type, scheduleLocationId);
+}
+
+// 학생 선택 모달 열기 (새 구조 지원)
+function openStudentModal(dayNum, sessionPart, location, type, scheduleLocationId = null) {
     document.getElementById('studentModal').classList.remove('hidden');
     // 모달에 필요한 데이터 설정
-    window.currentModalData = { dayNum, sessionPart, location, type };
+    window.currentModalData = { 
+        dayNum, 
+        sessionPart, 
+        location, 
+        type, 
+        scheduleLocationId // 새 구조 지원
+    };
     window.selectedStudents = [];
     
     // 학생 검색 초기화
@@ -1969,5 +1988,124 @@ ScheduleManager.removeStudent = function(studentId, dayNum, location, type) {
         ScheduleManager.showNotification('네트워크 오류', 'error');
     });
 };
+
+// 구역별 장소 삭제 함수
+function deleteScheduleLocation(scheduleLocationId, dayNum, sessionPart, type) {
+    if (confirm('이 장소를 삭제하시겠습니까?')) {
+        fetch('/api/delete_schedule_location', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                schedule_location_id: scheduleLocationId
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('장소가 삭제되었습니다.', 'success');
+                window.location.reload();
+            } else {
+                showNotification('장소 삭제 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showNotification('네트워크 오류가 발생했습니다.', 'error');
+        });
+    }
+}
+
+// 구역별 장소 조회 함수
+function loadScheduleLocations(dayNum, sessionPart, type, containerId) {
+    fetch('/api/get_schedule_locations', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            day_of_week: dayNum,
+            session_part: sessionPart,
+            type: type
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                renderScheduleLocations(container, data.locations, dayNum, sessionPart, type);
+            }
+        } else {
+            console.error('장소 조회 실패:', data.error);
+        }
+    })
+    .catch(error => {
+        console.error('장소 조회 네트워크 오류:', error);
+    });
+}
+
+// 구역별 장소 렌더링 함수
+function renderScheduleLocations(container, locations, dayNum, sessionPart, type) {
+    let html = '';
+    locations.forEach(location => {
+        html += `
+            <div class="border border-gray-200 rounded p-1 bg-white">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs font-medium text-gray-700">📍 ${location.location_name}</span>
+                    <div class="flex items-center gap-1">
+                        <button onclick="addStudentToLocation(${dayNum}, ${sessionPart}, '${location.location_name}', '${type}')" 
+                                class="text-xs text-blue-600 hover:text-blue-800">
+                            + 학생
+                        </button>
+                        <button onclick="deleteScheduleLocation(${location.schedule_location_id}, ${dayNum}, ${sessionPart}, '${type}')" 
+                                class="text-xs text-red-500 hover:text-red-700" title="장소 삭제">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+                <div class="flex flex-wrap gap-1" id="students-${location.schedule_location_id}">
+                    <!-- 학생들이 여기에 렌더링됩니다 -->
+                </div>
+            </div>
+        `;
+    });
+    
+    // 새 장소 추가 버튼 추가
+    const colorClass = type === 'pickup' ? 'pink' : 'sky';
+    html += `
+        <button onclick="addNewLocation(${dayNum}, ${sessionPart}, '${type}')" 
+                class="w-full text-xs text-${colorClass}-600 border border-dashed border-${colorClass}-300 rounded p-1 hover:bg-${colorClass}-50">
+            + 새 장소 추가
+        </button>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// 페이지 로드 시 각 구역별 장소 로드
+document.addEventListener('DOMContentLoaded', function() {
+    // 요일별로 구역 스캔 및 장소 로드
+    for (let day = 0; day <= 6; day++) {
+        // 1부~5부까지 각 세션
+        for (let session = 1; session <= 5; session++) {
+            // pickup, dropoff 타입
+            ['pickup', 'dropoff'].forEach(type => {
+                const containerId = `schedule-${day}-${session}-${type}`;
+                const container = document.getElementById(containerId);
+                if (container) {
+                    loadScheduleLocations(day, session, type, containerId);
+                }
+            });
+        }
+    }
+});
+
+// 장소 추가 후 해당 구역만 다시 로드
+function reloadScheduleSection(dayNum, sessionPart, type) {
+    const containerId = `schedule-${dayNum}-${sessionPart}-${type}`;
+    loadScheduleLocations(dayNum, sessionPart, type, containerId);
+}
 </script>
 {% endblock %} 

@@ -136,9 +136,11 @@ class Schedule(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     day_of_week = db.Column(db.Integer, nullable=False)  # 0=월요일, 6=일요일
     schedule_type = db.Column(db.String(30), nullable=False)  # 'pickup', 'dropoff', 'care_system', 'national_training'
-    location = db.Column(db.String(100))  # 각 스케줄별 장소 (Student의 pickup_location과 다를 수 있음)
+    location = db.Column(db.String(100))  # 각 스케줄별 장소 (기존 방식, 호환성 유지)
+    schedule_location_id = db.Column(db.Integer, db.ForeignKey('schedule_location.id'), nullable=True)  # 새 구조
     
     student = db.relationship('Student', backref=db.backref('schedules', lazy=True))
+    schedule_location = db.relationship('ScheduleLocation', backref=db.backref('schedules', lazy=True))
 
 class Request(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -199,6 +201,18 @@ class Location(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+class ScheduleLocation(db.Model):
+    """요일/세션/타입별 장소 매핑 테이블"""
+    id = db.Column(db.Integer, primary_key=True)
+    day_of_week = db.Column(db.Integer, nullable=False)  # 0=월요일, 6=일요일
+    session_part = db.Column(db.Integer, nullable=False)  # 1~N부
+    type = db.Column(db.String(20), nullable=False)  # 'pickup', 'dropoff'
+    location_id = db.Column(db.Integer, db.ForeignKey('location.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    location = db.relationship('Location', backref=db.backref('schedule_locations', lazy=True))
+
 # 라우트
 @app.route('/')
 def index():
@@ -243,151 +257,44 @@ def submit_request():
 
 @app.route('/schedule')
 def schedule():
-    # Location 테이블 기반 스케줄 표시 (더미 학생 없이)
-    schedule_data = {}
-    
-    # 🚨 로컬 개발 환경 경고 표시
-    is_local_dev = app.config.get('IS_LOCAL_DEV', False)
-    
-    # 1. 모든 스케줄 조회 (더미 학생 제외)
-    schedules = db.session.query(Student, Schedule).join(Schedule).filter(
-        ~Student.name.like('_PH_%')  # 더미 학생 제외
-    ).order_by(
-        Schedule.day_of_week, Schedule.schedule_type, Schedule.location, Student.name
-    ).all()
-    
-    # 2. 실제 학생이 배정된 장소들을 먼저 처리
-    for student, schedule in schedules:
-        day = schedule.day_of_week
-        # 돌봄시스템/국기원부의 경우 location에서 part 정보를 추출
-        if schedule.schedule_type in ['care_system', 'national_training']:
-            # location에 part 정보가 있는지 확인 (예: "도장_care1", "도장_national")
-            if '_' in (schedule.location or ''):
-                location_parts = schedule.location.split('_')
-                part = location_parts[1] if len(location_parts) > 1 else 'care1'
-                location = location_parts[0]
-            else:
-                # 기본값 설정
-                part = 'care1' if schedule.schedule_type == 'care_system' else 'national'
-                location = schedule.location or '도장'
-        else:
-            part = 1  # session_part 컬럼 제거에 따라 항상 1로 고정
-            # 🚨 중요: Schedule.location을 최우선으로 사용 (폴백 최소화)
-            if schedule.location:
-                location = schedule.location
-            else:
-                # Schedule.location이 없을 때만 Student.pickup_location 사용
-                location = student.pickup_location or f'미정_{student.id}'  # 학생별 고유 미정 장소
+    # ScheduleLocation 테이블 기반 스케줄 표시 (새 구조)
+    try:
+        # 모든 ScheduleLocation 조회
+        schedule_locations = ScheduleLocation.query.all()
         
-        schedule_type = schedule.schedule_type  # 'pickup', 'dropoff', 'care_system', 'national_training'
+        # 요일/세션/타입별로 그룹화
+        schedule_data = {}
         
-        # 요일별 구조 초기화
-        if day not in schedule_data:
-            schedule_data[day] = {}
-        
-        # 부별 구조 초기화
-        if part not in schedule_data[day]:
-            schedule_data[day][part] = {}
+        for sl in schedule_locations:
+            day = sl.day_of_week
+            session = sl.session_part
+            type_ = sl.type
             
-        # 승차/하차별 구조 초기화 (돌봄시스템과 국기원부는 단일 구조)
-        if schedule_type in ['care_system', 'national_training']:
-            # 돌봄시스템/국기원부는 승차/하차 구분 없이 단일 구조
-            # part를 문자열로 처리 (care1, care2, care3, national)
-            part_key = str(part) if isinstance(part, str) else part
+            if day not in schedule_data:
+                schedule_data[day] = {}
+            if session not in schedule_data[day]:
+                schedule_data[day][session] = {}
+            if type_ not in schedule_data[day][session]:
+                schedule_data[day][session][type_] = {}
             
-            if part_key not in schedule_data[day]:
-                schedule_data[day][part_key] = {}
-            if 'students' not in schedule_data[day][part_key]:
-                schedule_data[day][part_key]['students'] = {}
-            if location not in schedule_data[day][part_key]['students']:
-                schedule_data[day][part_key]['students'][location] = []
-            schedule_data[day][part_key]['students'][location].append({
-                'student': student,
-                'schedule': schedule
-            })
-        else:
-            # 기존 승차/하차 구조
-            if schedule_type not in schedule_data[day][part]:
-                schedule_data[day][part][schedule_type] = {}
-                
-            # 장소별 구조 초기화
-            if location not in schedule_data[day][part][schedule_type]:
-                schedule_data[day][part][schedule_type][location] = []
-                
-            # 학생 추가
-            schedule_data[day][part][schedule_type][location].append({
-                'student': student,
-                'schedule': schedule
-            })
-    
-    # 3. Location 테이블의 모든 활성 장소를 기준으로 빈 장소도 추가
-    all_locations = Location.query.filter_by(is_active=True).all()
-    
-    # 모든 요일(0-6)과 부별(1), 승차/하차에 대해 빈 장소 추가
-    for day in range(7):  # 0=월요일 ~ 6=일요일
-        if day not in schedule_data:
-            schedule_data[day] = {}
-        
-        part = 1  # 현재는 1부만 사용
-        if part not in schedule_data[day]:
-            schedule_data[day][part] = {}
-        
-        # pickup, dropoff 타입별로 처리
-        for schedule_type in ['pickup', 'dropoff']:
-            if schedule_type not in schedule_data[day][part]:
-                schedule_data[day][part][schedule_type] = {}
+            location_name = sl.location.name
             
-            # Location 테이블의 모든 장소를 확인하여 빈 장소 추가
-            for location in all_locations:
-                location_name = location.name
-                
-                # 돌봄시스템/국기원부 장소는 일반 pickup/dropoff에서 제외
-                if '_care' in location_name or '_national' in location_name:
-                    continue
-                
-                # 해당 장소에 학생이 배정되어 있지 않으면 빈 장소로 추가
-                if location_name not in schedule_data[day][part][schedule_type]:
-                    schedule_data[day][part][schedule_type][location_name] = []
-                    print(f"   📍 빈 장소 추가: {location_name} - {day}요일 {part}부 {schedule_type}")
-    
-    # 4. 돌봄시스템과 국기원부 장소들도 처리
-    for day in range(7):
-        # 돌봄시스템 (care1, care2, care3)
-        for care_type in ['care1', 'care2', 'care3']:
-            if care_type not in schedule_data[day]:
-                schedule_data[day][care_type] = {}
-            if 'students' not in schedule_data[day][care_type]:
-                schedule_data[day][care_type]['students'] = {}
+            # 해당 ScheduleLocation에 배정된 학생들 조회
+            students = Schedule.query.filter_by(schedule_location_id=sl.id).all()
             
-            # 해당 care_type의 장소들 추가
-            for location in all_locations:
-                if f'_{care_type}' in location.name:
-                    base_location_name = location.name.replace(f'_{care_type}', '')
-                    if base_location_name not in schedule_data[day][care_type]['students']:
-                        schedule_data[day][care_type]['students'][base_location_name] = []
-                        print(f"   🏫 빈 돌봄시스템 장소 추가: {base_location_name} - {day}요일 {care_type}")
+            schedule_data[day][session][type_][location_name] = [
+                {'student': student.student} for student in students
+            ]
         
-        # 국기원부 (national)
-        if 'national' not in schedule_data[day]:
-            schedule_data[day]['national'] = {}
-        if 'students' not in schedule_data[day]['national']:
-            schedule_data[day]['national']['students'] = {}
-        
-        for location in all_locations:
-            if '_national' in location.name:
-                base_location_name = location.name.replace('_national', '')
-                if base_location_name not in schedule_data[day]['national']['students']:
-                    schedule_data[day]['national']['students'][base_location_name] = []
-                    print(f"   🏛️ 빈 국기원부 장소 추가: {base_location_name} - {day}요일 national")
+        return render_template('schedule.html', 
+                             schedule_data=schedule_data,
+                             days=['월', '화', '수', '목', '금', '토', '일'])
     
-    # 현재 요일 (0=월요일, 6=일요일)
-    current_day = datetime.now().weekday()
-    
-    return render_template('schedule.html', 
-                         schedule_data=schedule_data, 
-                         current_day=current_day,
-                         day_names=['월', '화', '수', '목', '금', '토', '일'],
-                         is_local_dev=is_local_dev)
+    except Exception as e:
+        print(f"❌ 스케줄 조회 오류: {str(e)}")
+        return render_template('schedule.html', 
+                             schedule_data={},
+                             days=['월', '화', '수', '목', '금', '토', '일'])
 
 @app.route('/admin/students')
 def admin_students():
@@ -617,35 +524,33 @@ def update_student_location():
 
 @app.route('/api/get_locations')
 def get_locations():
+    """모든 구역별 장소 조회 (새 구조)"""
     try:
-        # Location 테이블과 사용 중인 장소를 모두 포함
-        location_set = set()
+        schedule_locations = ScheduleLocation.query.all()
         
-        # 1. Location 테이블의 모든 활성 장소
-        db_locations = Location.query.filter_by(is_active=True).all()
-        for loc in db_locations:
-            location_set.add(loc.name)
+        locations_data = {}
         
-        # 2. 현재 사용 중인 장소들 (Student.pickup_location)
-        student_locations = db.session.query(Student.pickup_location).filter(
-            Student.pickup_location.isnot(None)
-        ).distinct().all()
-        for loc in student_locations:
-            if loc[0]:
-                location_set.add(loc[0])
+        for sl in schedule_locations:
+            day = sl.day_of_week
+            session = sl.session_part
+            type_ = sl.type
+            
+            key = f"{day}-{session}-{type_}"
+            if key not in locations_data:
+                locations_data[key] = []
+            
+            locations_data[key].append({
+                'schedule_location_id': sl.id,
+                'location_id': sl.location_id,
+                'location_name': sl.location.name,
+                'day_of_week': day,
+                'session_part': session,
+                'type': type_
+            })
         
-        # 3. 스케줄에서 사용 중인 장소들
-        schedule_locations = db.session.query(Schedule.location).filter(
-            Schedule.location.isnot(None)
-        ).distinct().all()
-        for loc in schedule_locations:
-            if loc[0]:
-                location_set.add(loc[0])
-        
-        location_list = sorted(list(location_set))
-        return jsonify({'success': True, 'locations': location_list})
+        return jsonify({'success': True, 'locations': locations_data})
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+        return jsonify({'success': False, 'error': str(e)})
 
 # 학생 관리 API
 @app.route('/api/add_student', methods=['POST'])
@@ -901,30 +806,83 @@ def get_all_students():
 
 @app.route('/api/add_student_to_schedule', methods=['POST'])
 def add_student_to_schedule():
-    """개별 학생을 특정 스케줄에 추가 (중복 체크, 시간대 분기, session_part 등 완전 제거)"""
     try:
         data = request.get_json()
-        student_id = data.get('student_id')
-        day_of_week = data.get('day_of_week')
-        schedule_type = data.get('schedule_type')
-        target_location = data.get('location')
-
-        if not all([student_id, day_of_week is not None, schedule_type, target_location]):
-            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
-
-        student = Student.query.get(student_id)
-        if not student:
-            return jsonify({'success': False, 'error': '학생을 찾을 수 없습니다.'})
-
-        new_schedule = Schedule(
-            student_id=student_id,
-            day_of_week=day_of_week,
-            schedule_type=schedule_type,
-            location=target_location
-        )
-        db.session.add(new_schedule)
+        student_ids = data.get('student_ids', [])
+        
+        # 새 구조: schedule_location_id 기반
+        schedule_location_id = data.get('schedule_location_id')
+        
+        # 기존 구조: location/dayNum/sessionPart/type 기반 (호환성 유지)
+        day_num = data.get('day_num')
+        session_part = data.get('session_part')
+        location = data.get('location')
+        schedule_type = data.get('type')
+        
+        if not student_ids:
+            return jsonify({'success': False, 'error': '학생 ID가 필요합니다.'})
+        
+        success_count = 0
+        
+        for student_id in student_ids:
+            student = Student.query.get(student_id)
+            if not student:
+                continue
+            
+            # 새 구조 우선 적용
+            if schedule_location_id:
+                schedule_location = ScheduleLocation.query.get(schedule_location_id)
+                if not schedule_location:
+                    continue
+                
+                # 중복 체크
+                existing = Schedule.query.filter_by(
+                    student_id=student_id,
+                    schedule_location_id=schedule_location_id
+                ).first()
+                if existing:
+                    continue
+                
+                new_schedule = Schedule(
+                    student_id=student_id,
+                    day_of_week=schedule_location.day_of_week,
+                    schedule_type=schedule_location.type,
+                    location=schedule_location.location.name,
+                    schedule_location_id=schedule_location_id
+                )
+            
+            # 기존 구조 호환성
+            elif all([day_num is not None, session_part is not None, location, schedule_type]):
+                # 중복 체크
+                existing = Schedule.query.filter_by(
+                    student_id=student_id,
+                    day_of_week=day_num,
+                    schedule_type=schedule_type,
+                    location=location
+                ).first()
+                if existing:
+                    continue
+                
+                new_schedule = Schedule(
+                    student_id=student_id,
+                    day_of_week=day_num,
+                    schedule_type=schedule_type,
+                    location=location
+                )
+            else:
+                continue
+            
+            db.session.add(new_schedule)
+            success_count += 1
+        
         db.session.commit()
-        return jsonify({'success': True, 'message': '학생이 추가되었습니다.'})
+        
+        return jsonify({
+            'success': True,
+            'message': f'{success_count}명의 학생이 배정되었습니다.',
+            'added_count': success_count
+        })
+    
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
@@ -1773,50 +1731,41 @@ def cleanup_duplicates():
 
 @app.route('/api/create_empty_location', methods=['POST'])
 def create_empty_location():
-    """Location 테이블에 장소 추가 (더미 학생 없이)"""
+    """[DEPRECATED] Location 테이블에 장소 추가 - 새 구조로 전환 중"""
+    return jsonify({
+        'success': False, 
+        'error': 'API 엔드포인트를 찾을 수 없습니다. /api/add_schedule_location을 사용해주세요.',
+        'deprecated': True
+    })
+
+@app.route('/api/get_locations')
+def get_locations():
+    """모든 구역별 장소 조회 (새 구조)"""
     try:
-        data = request.get_json()
-        location_name = data.get('location_name')
+        schedule_locations = ScheduleLocation.query.all()
         
-        print(f"🏗️ 새 장소 추가: {location_name}")
+        locations_data = {}
         
-        if not location_name:
-            return jsonify({'success': False, 'error': '장소명이 필요합니다.'})
-        
-        # Location 테이블에서 동일한 이름이 있는지 확인
-        existing_location = Location.query.filter_by(name=location_name).first()
-        
-        if existing_location:
-            print(f"📍 동일 장소 이미 존재: {location_name}")
-            return jsonify({
-                'success': True, 
-                'message': f'"{location_name}" 장소가 이미 존재합니다.',
-                'location_name': location_name,
-                'existing': True
+        for sl in schedule_locations:
+            day = sl.day_of_week
+            session = sl.session_part
+            type_ = sl.type
+            
+            key = f"{day}-{session}-{type_}"
+            if key not in locations_data:
+                locations_data[key] = []
+            
+            locations_data[key].append({
+                'schedule_location_id': sl.id,
+                'location_id': sl.location_id,
+                'location_name': sl.location.name,
+                'day_of_week': day,
+                'session_part': session,
+                'type': type_
             })
         
-        # Location 테이블에 새 장소 추가
-        new_location = Location(
-            name=location_name,
-            description=f"사용자 추가 장소: {location_name}",
-            is_active=True
-        )
-        
-        db.session.add(new_location)
-        db.session.commit()
-        
-        print(f"✅ 장소 추가 완료: {location_name} (ID: {new_location.id})")
-        
-        return jsonify({
-            'success': True, 
-            'message': f'"{location_name}" 장소가 추가되었습니다.',
-            'location_name': location_name,
-            'location_id': new_location.id
-        })
-        
+        return jsonify({'success': True, 'locations': locations_data})
     except Exception as e:
-        db.session.rollback()
-        print(f"❌ 장소 추가 실패: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
 # 카카오톡 설정 관리 API
@@ -2345,3 +2294,95 @@ def cleanup_dummy_students():
         db.session.rollback()
         print(f"❌ 더미 데이터 정리 실패: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/add_schedule_location', methods=['POST'])
+def add_schedule_location():
+    """요일/세션/타입별 장소 추가 API"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        session_part = data.get('session_part')
+        type_ = data.get('type')
+        location_name = data.get('location_name')
+
+        # 입력값 검증
+        if day_of_week is None or session_part is None or not type_ or not location_name:
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'}), 400
+
+        # Location에 장소가 없으면 추가
+        location = Location.query.filter_by(name=location_name).first()
+        if not location:
+            location = Location(name=location_name, is_active=True)
+            db.session.add(location)
+            db.session.commit()
+
+        # ScheduleLocation에 이미 매핑이 있는지 확인
+        existing = ScheduleLocation.query.filter_by(
+            day_of_week=day_of_week,
+            session_part=session_part,
+            type=type_,
+            location_id=location.id
+        ).first()
+        if existing:
+            return jsonify({'success': True, 'message': '이미 해당 구역에 존재하는 장소입니다.', 'existing': True})
+
+        # ScheduleLocation에 매핑 추가
+        new_mapping = ScheduleLocation(
+            day_of_week=day_of_week,
+            session_part=session_part,
+            type=type_,
+            location_id=location.id
+        )
+        db.session.add(new_mapping)
+        db.session.commit()
+
+        return jsonify({'success': True, 'message': '장소가 추가되었습니다.', 'location_id': location.id, 'schedule_location_id': new_mapping.id})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get_schedule_locations', methods=['POST'])
+def get_schedule_locations():
+    """특정 요일/세션/타입의 장소 리스트 조회 API"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        session_part = data.get('session_part')
+        type_ = data.get('type')
+        if day_of_week is None or session_part is None or not type_:
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'}), 400
+        mappings = ScheduleLocation.query.filter_by(
+            day_of_week=day_of_week,
+            session_part=session_part,
+            type=type_
+        ).all()
+        locations = [
+            {
+                'schedule_location_id': m.id,
+                'location_id': m.location_id,
+                'location_name': m.location.name,
+                'created_at': m.created_at.isoformat() if m.created_at else None
+            }
+            for m in mappings
+        ]
+        return jsonify({'success': True, 'locations': locations})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/delete_schedule_location', methods=['POST'])
+def delete_schedule_location():
+    """구역별 장소 매핑 삭제 API"""
+    try:
+        data = request.get_json()
+        schedule_location_id = data.get('schedule_location_id')
+        if not schedule_location_id:
+            return jsonify({'success': False, 'error': 'schedule_location_id가 필요합니다.'}), 400
+        mapping = ScheduleLocation.query.get(schedule_location_id)
+        if not mapping:
+            return jsonify({'success': False, 'error': '해당 매핑을 찾을 수 없습니다.'}), 404
+        db.session.delete(mapping)
+        db.session.commit()
+        return jsonify({'success': True, 'message': '장소가 삭제되었습니다.'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
