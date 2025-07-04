@@ -12,6 +12,8 @@ from datetime import datetime, date, time
 import os
 import traceback
 from dotenv import load_dotenv
+import psycopg2  # psycopg2-binary만 사용
+print("🔄 psycopg2-binary 사용")
 
 # .env 파일 로드
 load_dotenv()
@@ -55,7 +57,7 @@ else:
             user='postgres'
         )
         test_conn.close()
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql+psycopg://localhost:5432/tkd_transport'
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://localhost:5432/tkd_transport'
         print("🐘 PostgreSQL 사용 (로컬)")
     except:
         # 로컬에서 PostgreSQL 없으면 환경변수 사용
@@ -2025,3 +2027,103 @@ def success_response(message, data=None):
     return jsonify(response)
 
 # 불필요한 일회성 API 제거됨
+
+@app.route('/api/create_empty_care_location', methods=['POST'])
+def create_empty_care_location():
+    """돌봄시스템 빈 장소 생성 전용 API"""
+    try:
+        data = request.get_json()
+        day_of_week = data.get('day_of_week')
+        care_type = data.get('care_type')  # care1, care2, care3
+        location_name = data.get('location_name')
+
+        print(f"🏫 돌봄시스템 빈 장소 생성: {location_name} (day={day_of_week}, care_type={care_type})")
+
+        # 🎯 careType별로 다른 session_part 할당
+        if care_type == 'care1':
+            session_part = 6  # 돌봄시스템 A
+        elif care_type == 'care2':
+            session_part = 8  # 돌봄시스템 B
+        elif care_type == 'care3':
+            session_part = 9  # 돌봄시스템 C
+        else:
+            return jsonify({'success': False, 'error': '잘못된 돌봄시스템 타입입니다.'})
+
+        if not all([day_of_week is not None, care_type, location_name]):
+            return jsonify({'success': False, 'error': '필수 정보가 누락되었습니다.'})
+
+        # 장소명에 care_type 접미사 추가
+        final_location_name = f"{location_name}_{care_type}"
+
+        # 해당 장소에 이미 스케줄이 있는지 확인
+        existing_schedule = Schedule.query.filter_by(
+            day_of_week=day_of_week,
+            schedule_type='care_system',
+            location=final_location_name
+        ).first()
+
+        if existing_schedule:
+            print(f"📍 돌봄시스템 장소 이미 존재: {final_location_name}")
+            return jsonify({
+                'success': True, 
+                'message': f'"{location_name}" 장소가 이미 존재합니다.',
+                'location_name': location_name,
+                'existing': True
+            })
+
+        # 더미 학생으로 장소 생성
+        import hashlib
+        hash_input = f"{final_location_name}_{day_of_week}_{session_part}_care_system"
+        location_hash = hashlib.md5(hash_input.encode()).hexdigest()[:8]
+        dummy_student_name = f"_PH_{location_hash}"
+
+        # 더미 학생이 이미 있는지 확인
+        existing_dummy = Student.query.filter(Student.name.like('_PH_%')).filter_by(name=dummy_student_name).first()
+
+        if not existing_dummy:
+            # 더미 학생 생성
+            dummy_student = Student(
+                name=dummy_student_name,
+                grade="PLACEHOLDER",
+                session_part=session_part,
+                pickup_location=final_location_name,
+                memo=f"빈장소:{location_name}({day_of_week}요일{care_type}돌봄시스템)"
+            )
+            db.session.add(dummy_student)
+            db.session.flush()
+            dummy_student_id = dummy_student.id
+        else:
+            dummy_student_id = existing_dummy.id
+
+        # 더미 스케줄 생성
+        dummy_schedule = Schedule(
+            student_id=dummy_student_id,
+            day_of_week=day_of_week,
+            schedule_type='care_system',
+            location=final_location_name
+        )
+
+        db.session.add(dummy_schedule)
+        db.session.commit()
+
+        print(f"✅ 돌봄시스템 빈 장소 생성 완료: {final_location_name}")
+
+        return jsonify({
+            'success': True, 
+            'message': f'"{location_name}" 장소가 생성되었습니다.',
+            'location_name': location_name,
+            'day_of_week': day_of_week,
+            'care_type': care_type,
+            'session_part': session_part,
+            'dummy_created': True
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ 돌봄시스템 빈 장소 생성 실패: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/get_schedule_locations', methods=['POST'])
+def get_schedule_locations():
+    """임시 구현: 빈 리스트 반환 (프론트 404 방지)"""
+    return jsonify({'success': True, 'locations': []})
