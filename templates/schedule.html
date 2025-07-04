@@ -151,11 +151,23 @@
                                 <div class="bg-pink-100 px-2 py-1 text-sm font-medium text-center border-b">승차</div>
                                 <div class="p-2 space-y-2 min-h-[60px]" id="schedule-{{ day_num }}-1-pickup">
                                     {% if day_num in schedule_data and 1 in schedule_data[day_num] and 'pickup' in schedule_data[day_num][1] %}
-                                        {% for location_name, students in schedule_data[day_num][1]['pickup'].items() %}
-                                        <div class="border border-gray-200 rounded p-1 bg-white">
+                                        {% for location_name, location_data in schedule_data[day_num][1]['pickup'].items() %}
+                                        <div class="border border-gray-200 rounded p-1 bg-white" data-schedule-location-id="{{ location_data.schedule_location_id }}" data-order="{{ location_data.order }}">
                                             <div class="flex items-center justify-between mb-1">
-                                                <span class="text-xs font-medium text-gray-700">📍 {{ location_name }}</span>
                                                 <div class="flex items-center gap-1">
+                                                    <span class="text-xs font-medium text-gray-700">📍 {{ location_name }}</span>
+                                                    <span class="text-xs text-gray-400">({{ location_data.order }})</span>
+                                                </div>
+                                                <div class="flex items-center gap-1">
+                                                    <!-- 순서 변경 버튼 -->
+                                                    <button onclick="moveLocation({{ location_data.schedule_location_id }}, 'up')" 
+                                                            class="text-xs text-green-600 hover:text-green-800 px-1" title="위로 이동">
+                                                        ↑
+                                                    </button>
+                                                    <button onclick="moveLocation({{ location_data.schedule_location_id }}, 'down')" 
+                                                            class="text-xs text-green-600 hover:text-green-800 px-1" title="아래로 이동">
+                                                        ↓
+                                                    </button>
                                                     <button onclick="addStudentToLocation({{ day_num }}, 1, '{{ location_name }}', 'pickup')" 
                                                             class="text-xs text-blue-600 hover:text-blue-800">
                                                         + 학생
@@ -167,7 +179,7 @@
                                                 </div>
                                             </div>
                                             <div class="flex flex-wrap gap-1">
-                                                {% for student_data in students %}
+                                                {% for student_data in location_data.students %}
                                                 <div class="flex items-center justify-between text-xs bg-pink-50 px-1 py-0.5 rounded border border-pink-200 min-w-[50px] max-w-[100px]">
                                                     <button onclick="toggleStudentAttendance({{ student_data.student.id }})" 
                                                             class="text-gray-800 truncate text-xs hover:text-blue-600 flex-1 text-left" 
@@ -1006,6 +1018,11 @@ const ScheduleManager = {
 // DOM 로드 후 초기화
 document.addEventListener('DOMContentLoaded', function() {
     ScheduleManager.init();
+    
+    // 드래그 앤 드롭 초기화
+    setTimeout(() => {
+        initializeDragAndDrop();
+    }, 1000); // 페이지 로드 후 1초 뒤 초기화
 });
 
 // 안전한 클릭 핸들러를 ScheduleManager에 추가
@@ -1538,27 +1555,16 @@ function displayStudentDropdown(students, dropdown) {
 
 // 드롭다운에서 학생 선택
 function selectStudentFromDropdown(studentId, studentName) {
-    // 중복 체크
     if (!window.selectedStudents) {
         window.selectedStudents = [];
     }
-    
+    // 중복 체크
     if (window.selectedStudents.find(s => s.id === studentId)) {
         showNotification('이미 선택된 학생입니다.', 'warning');
         return;
     }
-    
-    window.selectedStudents.push({
-        id: studentId,
-        name: studentName
-    });
-    
-    // 검색창 초기화
-    document.getElementById('studentSearch').value = '';
-    document.getElementById('studentDropdown').classList.add('hidden');
-    
+    window.selectedStudents.push({ id: studentId, name: studentName });
     updateSelectedStudentsDisplay();
-    console.log('학생 선택됨:', studentName);
 }
 
 // 선택된 학생들 표시 업데이트
@@ -2107,5 +2113,230 @@ function reloadScheduleSection(dayNum, sessionPart, type) {
     const containerId = `schedule-${dayNum}-${sessionPart}-${type}`;
     loadScheduleLocations(dayNum, sessionPart, type, containerId);
 }
+
+// 추가 버튼 클릭 시
+function addSelectedStudentsToSchedule() {
+    const modalData = window.currentModalData;
+    if (!modalData || !window.selectedStudents || window.selectedStudents.length === 0) {
+        showNotification('학생을 선택하세요.', 'warning');
+        return;
+    }
+    const studentIds = window.selectedStudents.map(s => s.id);
+    fetch('/api/add_student_to_schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            student_ids: studentIds,
+            day_of_week: modalData.dayNum,
+            session_part: modalData.sessionPart,
+            type: modalData.type,
+            location: modalData.location,
+            schedule_location_id: modalData.scheduleLocationId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('학생이 추가되었습니다.', 'success');
+            closeModal();
+            reloadScheduleSection(modalData.dayNum, modalData.sessionPart, modalData.type);
+        } else {
+            showNotification((data.error || '학생 추가 실패'), 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('네트워크 오류가 발생했습니다.', 'error');
+    });
+}
+
+// 🎯 장소 순서 변경 함수 (위/아래 이동)
+function moveLocation(scheduleLocationId, direction) {
+    fetch('/api/move_schedule_location', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            schedule_location_id: scheduleLocationId,
+            direction: direction
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification(`장소가 ${direction === 'up' ? '위' : '아래'}로 이동되었습니다.`, 'success');
+            
+            // 해당 장소가 속한 구역 찾기
+            const locationElement = document.querySelector(`[data-schedule-location-id="${scheduleLocationId}"]`);
+            if (locationElement) {
+                const container = locationElement.closest('[id^="schedule-"]');
+                if (container) {
+                    const containerId = container.id;
+                    const parts = containerId.split('-');
+                    if (parts.length >= 4) {
+                        const dayNum = parseInt(parts[1]);
+                        const sessionPart = parseInt(parts[2]);
+                        const type = parts[3];
+                        
+                        // 해당 구역만 다시 로드
+                        loadScheduleLocations(dayNum, sessionPart, type, containerId);
+                    }
+                }
+            } else {
+                // 구역을 찾을 수 없으면 전체 새로고침 (fallback)
+                window.location.reload();
+            }
+        } else {
+            showNotification('이동 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('네트워크 오류가 발생했습니다.', 'error');
+    });
+}
+
+// 🎯 구역별 장소 순서 일괄 변경 함수 (드래그 앤 드롭용)
+function reorderLocations(dayNum, sessionPart, type, locationOrders) {
+    fetch('/api/reorder_schedule_locations', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            day_of_week: dayNum,
+            session_part: sessionPart,
+            type: type,
+            location_orders: locationOrders
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('장소 순서가 변경되었습니다.', 'success');
+            // 해당 구역만 새로고침
+            reloadScheduleSection(dayNum, sessionPart, type);
+        } else {
+            showNotification('순서 변경 중 오류: ' + (data.error || '알 수 없는 오류'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('네트워크 오류가 발생했습니다.', 'error');
+    });
+}
+
+// 🎯 드래그 앤 드롭 기능 추가
+function initializeDragAndDrop() {
+    const containers = document.querySelectorAll('[id^="schedule-"]');
+    
+    containers.forEach(container => {
+        const locationItems = container.querySelectorAll('[data-schedule-location-id]');
+        
+        locationItems.forEach(item => {
+            item.draggable = true;
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragenter', handleDragEnter);
+            item.addEventListener('dragleave', handleDragLeave);
+        });
+    });
+}
+
+let draggedElement = null;
+
+function handleDragStart(e) {
+    draggedElement = e.target;
+    e.target.style.opacity = '0.5';
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.outerHTML);
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+}
+
+function handleDragEnter(e) {
+    e.preventDefault();
+    if (e.target !== draggedElement) {
+        e.target.style.borderTop = '2px solid #3b82f6';
+    }
+}
+
+function handleDragLeave(e) {
+    e.target.style.borderTop = '';
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.target.style.borderTop = '';
+    
+    if (draggedElement && e.target !== draggedElement) {
+        const container = e.target.closest('[id^="schedule-"]');
+        if (container) {
+            const containerId = container.id;
+            const parts = containerId.split('-');
+            if (parts.length >= 4) {
+                const dayNum = parseInt(parts[1]);
+                const sessionPart = parseInt(parts[2]);
+                const type = parts[3];
+                
+                // 드래그된 요소와 드롭된 위치의 순서 계산
+                const locationItems = Array.from(container.querySelectorAll('[data-schedule-location-id]'));
+                const draggedIndex = locationItems.indexOf(draggedElement);
+                const dropIndex = locationItems.indexOf(e.target.closest('[data-schedule-location-id]'));
+                
+                if (draggedIndex !== -1 && dropIndex !== -1 && draggedIndex !== dropIndex) {
+                    // 순서 변경 API 호출
+                    reorderLocationsByDrag(dayNum, sessionPart, type, draggedIndex, dropIndex);
+                }
+            }
+        }
+    }
+    
+    draggedElement.style.opacity = '';
+    draggedElement = null;
+}
+
+function reorderLocationsByDrag(dayNum, sessionPart, type, fromIndex, toIndex) {
+    const container = document.getElementById(`schedule-${dayNum}-${sessionPart}-${type}`);
+    const locationItems = Array.from(container.querySelectorAll('[data-schedule-location-id]'));
+    
+    // 새로운 순서 배열 생성
+    const newOrder = [];
+    locationItems.forEach((item, index) => {
+        if (index === fromIndex) {
+            // 드래그된 아이템은 건너뛰기
+            return;
+        }
+        
+        const scheduleLocationId = item.getAttribute('data-schedule-location-id');
+        if (index === toIndex) {
+            // 드롭 위치에 드래그된 아이템 삽입
+            const draggedId = locationItems[fromIndex].getAttribute('data-schedule-location-id');
+            newOrder.push({ schedule_location_id: parseInt(draggedId), order: toIndex + 1 });
+        }
+        
+        newOrder.push({ 
+            schedule_location_id: parseInt(scheduleLocationId), 
+            order: newOrder.length + 1 
+        });
+    });
+    
+    // API 호출
+    reorderLocations(dayNum, sessionPart, type, newOrder);
+}
+
+// 페이지 로드 시 드래그 앤 드롭 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    // 기존 초기화 코드...
+    
+    // 드래그 앤 드롭 초기화
+    setTimeout(() => {
+        initializeDragAndDrop();
+    }, 1000); // 페이지 로드 후 1초 뒤 초기화
+});
 </script>
 {% endblock %} 

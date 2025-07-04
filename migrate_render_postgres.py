@@ -8,6 +8,7 @@ import os
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from dotenv import load_dotenv
+from app import db, app
 
 # .env 파일 로드
 load_dotenv()
@@ -129,30 +130,90 @@ def verify_postgres_migration():
     print("\n🔍 PostgreSQL 마이그레이션 결과 확인:")
     return check_postgres_columns()
 
+def safe_reset_database():
+    """안전한 데이터베이스 리셋 (개발용)"""
+    try:
+        with app.app_context():
+            print("🗑️ 모든 테이블 삭제 중...")
+            db.drop_all()
+            print("✅ 테이블 삭제 완료")
+            
+            print("🏗️ 새 테이블 생성 중...")
+            db.create_all()
+            print("✅ 테이블 생성 완료")
+            
+            return True
+    except Exception as e:
+        print(f"❌ 데이터베이스 리셋 실패: {e}")
+        return False
+
+def migrate_add_order_column():
+    """ScheduleLocation 테이블에 order 컬럼을 안전하게 추가하는 마이그레이션"""
+    try:
+        with app.app_context():
+            print("🔄 ScheduleLocation order 컬럼 마이그레이션 시작...")
+            
+            # 현재 DB 종류 확인
+            db_type = "sqlite" if "sqlite" in str(db.engine.url).lower() else "postgresql"
+            print(f"📊 데이터베이스 타입: {db_type}")
+            
+            # order 컬럼이 이미 존재하는지 확인
+            try:
+                result = db.session.execute(db.text("SELECT \"order\" FROM schedule_location LIMIT 1"))
+                print("✅ order 컬럼이 이미 존재합니다.")
+                return True
+            except Exception:
+                print("🔍 order 컬럼이 없음 - 추가 작업 진행")
+            
+            if db_type == "sqlite":
+                # SQLite는 ALTER TABLE ADD COLUMN만 지원하므로 제약조건 없이 추가
+                print("📝 SQLite: order 컬럼 추가...")
+                db.session.execute(db.text('ALTER TABLE schedule_location ADD COLUMN "order" INTEGER DEFAULT 0'))
+                
+            else:
+                # PostgreSQL: 컬럼 추가 후 제약조건 추가
+                print("📝 PostgreSQL: order 컬럼과 제약조건 추가...")
+                db.session.execute(db.text('ALTER TABLE schedule_location ADD COLUMN "order" INTEGER DEFAULT 0'))
+                
+                # NOT NULL 제약조건 추가
+                db.session.execute(db.text('ALTER TABLE schedule_location ALTER COLUMN "order" SET NOT NULL'))
+                
+                # 고유 제약조건 추가 (SQLite에서는 런타임에 처리)
+                try:
+                    db.session.execute(db.text('''
+                        ALTER TABLE schedule_location 
+                        ADD CONSTRAINT uq_schedule_location_order 
+                        UNIQUE (day_of_week, session_part, type, "order")
+                    '''))
+                except Exception as e:
+                    print(f"⚠️ 제약조건 추가 실패 (이미 존재할 수 있음): {e}")
+            
+            db.session.commit()
+            
+            # 기존 데이터에 order 값 부여
+            from app import migrate_schedule_location_order
+            migrate_schedule_location_order()
+            
+            print("✅ order 컬럼 마이그레이션 완료!")
+            return True
+            
+    except Exception as e:
+        print(f"❌ order 컬럼 마이그레이션 실패: {e}")
+        db.session.rollback()
+        return False
+
 if __name__ == "__main__":
-    print("🚀 Render PostgreSQL 시간 관련 컬럼 삭제 마이그레이션 시작")
-    print("=" * 60)
+    choice = input("선택하세요 - [1] 전체 리셋 [2] order 컬럼 마이그레이션: ")
     
-    # 1. 현재 DB 구조 확인
-    print("1️⃣ 현재 PostgreSQL DB 구조 확인")
-    if not check_postgres_columns():
-        print("❌ PostgreSQL DB 구조 확인 실패")
-        exit(1)
-    
-    print("\n" + "=" * 60)
-    
-    # 2. 마이그레이션 실행
-    print("2️⃣ PostgreSQL 시간 관련 컬럼 삭제")
-    if not remove_time_columns_postgres():
-        print("❌ PostgreSQL 마이그레이션 실패")
-        exit(1)
-    
-    print("\n" + "=" * 60)
-    
-    # 3. 결과 확인
-    print("3️⃣ PostgreSQL 마이그레이션 결과 확인")
-    verify_postgres_migration()
-    
-    print("\n" + "=" * 60)
-    print("🎉 PostgreSQL 마이그레이션 완료!")
-    print("이제 Render 배포 사이트의 시간 관련 컬럼들이 완전히 제거되었습니다.") 
+    if choice == "1":
+        if safe_reset_database():
+            print("🎉 데이터베이스 리셋 완료!")
+        else:
+            print("💥 리셋 실패!")
+    elif choice == "2":
+        if migrate_add_order_column():
+            print("🎉 order 컬럼 마이그레이션 완료!")
+        else:
+            print("💥 마이그레이션 실패!")
+    else:
+        print("❌ 잘못된 선택입니다.") 
