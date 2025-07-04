@@ -2123,7 +2123,7 @@ def create_empty_care_location():
         print(f"❌ 돌봄시스템 빈 장소 생성 실패: {str(e)}")
         return jsonify({'success': False, 'error': str(e)})
 
-@app.route('/api/get_schedule_locations', methods=['POST'])
+@app.route('/api/get_schedule_locations', methods=['GET', 'POST'], strict_slashes=False)
 def get_schedule_locations():
     """임시 구현: 빈 리스트 반환 (프론트 404 방지)"""
     return jsonify({'success': True, 'locations': []})
